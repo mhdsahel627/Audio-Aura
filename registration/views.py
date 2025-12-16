@@ -44,7 +44,7 @@ def generate_otp():
 
 def send_otp_email(email, otp):
     """
-    Send OTP to the specified email address.
+    Send OTP to the specified email address with premium HTML template.
 
     Args:
         email (str): Recipient email.
@@ -53,16 +53,38 @@ def send_otp_email(email, otp):
     Returns:
         bool: True if email sent successfully, False otherwise.
     """
-    from django.core.mail import send_mail
-    subject = 'Your OTP Code - Audio Aura'
-    message = f'Hello,\nYour OTP is: {otp}\nIt expires in 5 minutes.'
+    from django.core.mail import EmailMultiAlternatives
+    from django.template.loader import render_to_string
+    from django.utils.html import strip_tags
+    
+    # Context for email template
+    context = {
+        'username': email.split('@')[0].capitalize(),  # Extract name from email
+        'otp': otp,
+    }
+    
     try:
-        send_mail(subject, message, 'your_email@gmail.com', [email])
-        print(f"OTP {otp} sent to {email}") 
+        # Render HTML email
+        html_content = render_to_string('emails/otp_email.html', context)
+        text_content = strip_tags(html_content)  # Fallback plain text
+        
+        # Create email
+        subject = 'Your OTP Code - Audio Aura'
+        from_email = 'Audio Aura <your_email@gmail.com>'  # Replace with your email
+        to_email = [email]
+        
+        # Create email with HTML
+        email_message = EmailMultiAlternatives(subject, text_content, from_email, to_email)
+        email_message.attach_alternative(html_content, "text/html")
+        email_message.send()
+        
+        print(f"OTP {otp} sent to {email}")
         return True
+        
     except Exception as e:
         print(f'Error sending OTP: {e}')
         return False
+
 
 
 
