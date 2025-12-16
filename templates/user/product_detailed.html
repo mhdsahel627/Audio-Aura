@@ -1,0 +1,2185 @@
+{% extends 'user/base.html' %}
+{% load static %}
+{% block title %}
+Product-Detailed-page
+{% endblock %}
+
+{% block content %}
+<style>
+ :root{
+    --bg:#260016;
+    --paper:#ecebe7;
+    --ink:#0f172a;
+    --muted:#6b7280;
+    --accent:#19C09F;
+    --outline:#e5e7eb;
+  }
+
+  .page{ padding:18px; }
+
+  .pdp-breadcrumbs{ color:#c9b8c7; margin:6px 0 14px; font-size:14px; }
+  .pdp-breadcrumbs a{ color:#c9b8c7; text-decoration:none; }
+
+  /* Grid: 84 (thumbs) + 800 (hero) + 960 (info) */
+.pdp-gridd{
+    display: grid;
+    grid-template-columns: 84px 650px 1fr; /* thumbs 84px, hero 650px, info auto */
+    gap: 18px; /* spacing between columns */
+    align-items: start;
+}
+
+/* Hero prev/next controls */
+.hero-nav{
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  width:40px;
+  height:40px;
+  border-radius:999px;
+  border:0;
+  background:rgba(0,0,0,.45);
+  color:#fff;
+  font-size:24px;
+  line-height:40px;
+  text-align:center;
+  cursor:pointer;
+  z-index:2;
+}
+.hero-nav.prev{ left:10px; }
+.hero-nav.next{ right:10px; }
+.hero-nav:hover{ background:rgba(0,0,0,.65); }
+
+
+  /* Thumbs */
+  .pdp-thumbs{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    position:sticky;
+    top:18px;
+    align-items: flex-end; }
+.thumbs-wrapper {
+  scroll-behavior: smooth;
+  max-width: 100%;
+  max-height: 550px;
+  overflow-y: auto;
+  scrollbar-width: none; /* hide scrollbar (Firefox) */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+.thumbs-wrapper::-webkit-scrollbar { display: none; } /* Chrome */
+
+  .thumb {
+  display: grid;
+  border: 0;
+  padding: 0;
+  width: 84px;
+  height: 84px;
+  margin: 6px 0;
+  border-radius: 10px;
+  cursor: pointer;
+  background:#14020e;
+  border:1px solid white; 
+  overflow: hidden;
+  transition: border 0.2s ease;
+}
+  .thumb img{ width:100%; height:100%; object-fit:cover; display:block; border-radius: 10px;}
+  .thumb.is-active{ outline:2px solid #54e0ff; }
+
+  /* Hero 800 x 800 */
+  .pdp-hero{ position:sticky; top:18px; width:650px; height:650px; background:#14020e; border-radius:14px; margin:0; padding:0; display:grid; place-items:center; outline:1px solid rgb(255, 255, 255);overflow:hidden;touch-action: none;  /* important: clip while panning */ }
+  .pdp-hero img{ width:100%; height:100%; object-fit:cover; border-radius:14px;transition: transform .15s ease; /* add to your existing rule */ }
+  .pdp-hero .zoom-reset{
+  position:absolute; bottom:12px; right:12px;
+  padding:6px 10px; border-radius:10px; border:0;
+  background:rgba(0,0,0,.45); color:#fff; font:600 12px/1 Inter;
+  cursor:pointer; z-index:3; display:none;
+}
+.pdp-hero.zoomed .zoom-reset{ display:block; }
+
+.pdp-info {
+    position: sticky;
+    top: 18px;
+    width: 560px; /* slightly less than hero for nice alignment */
+    max-width: 100%;
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 8px 20px rgba(0,0,0,.2);
+}
+.info-inner{
+    width: 100%; /* fill the pdp-info container */
+    margin: 0 auto;
+}
+
+  /* Header + title */
+  .info-head{ display:flex; justify-content:space-between; align-items:center; }
+  .wish{ width:36px; height:36px; border-radius:8px; border:1px solid #e3e3e3; background:#fff; cursor:pointer; }
+  .title{ font-size:34px; margin:8px 0 2px; line-height:1.1; letter-spacing:.2px; font-family: 'Poppins', sans-serif; }
+  .sub{ margin:0 0 14px; color:#6b7280; font-size:13px; }
+
+  /* Pricing row laid out like reference */
+.now{
+    font-size: 28px;
+    font-weight: 500;
+    color: #0f172a;
+    font-family: "Inter", sans-serif !important;
+}
+  .price-row{
+    font-family: "Inter", sans-serif !important;
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    margin:6px 0 8px;
+  }
+  .now{ font-size:24px; font-weight:500; color:#0f172a;font-family: 'Poppins', sans-serif;  }
+  .mrp{ font-size:16px;text-decoration:line-through; color:#4a5157; }
+  .off{ font-size:16px;color:green; font-weight:400; }
+  .tax{ color:#9ca3af; font-size:12px; margin-top:4px; }
+  .t {
+    font-family: 'Poppins', sans-serif;
+    font-weight: bold;
+  }
+  .tt {
+     font-family: 'Poppins', sans-serif;
+    font-weight:500;
+  }
+
+  /* Color swatches just under price */
+  .swatches{ display:flex; gap:10px; margin:10px 0 14px; }
+  .swatch{ width:56px; height:56px; border-radius:10px; border:2px solid transparent; background:#fff; padding:4px; cursor:pointer; }
+  .swatch.is-active{ border-color:#111; }
+  .swatch img{ width:100%; height:100%; object-fit:cover; border-radius:8px; }
+
+  /* Card row style */
+  .card-row{
+    background:#f3f4f6; border:1px solid var(--outline);
+    border-radius:16px; padding:14px;
+    box-shadow:0 6px 0 rgba(0,0,0,.08);
+  }
+
+  /* Pincode block */
+  .pinbox .pinrow{ display:grid; grid-template-columns: 1fr auto 36px; gap:12px; align-items:center; }
+  .pinbox input{ height:42px; border-radius:12px; border:0; outline:none; padding:0 12px; background:#fff; box-shadow: inset 0 0 0 1px #e7e7e7; font-weight:700; }
+  .pinbox .pin-change{ height:36px; padding:0 14px; border-radius:10px; border:1px solid #111827; background:#fff; font-weight:800; cursor:pointer; }
+  .pinbox .truck{ display:grid; place-items:center; width:36px; height:36px; border-radius:10px; background:#fff; box-shadow: inset 0 0 0 1px #e7e7e7; }
+  .pinbox .pin-underline{ height:2px; background:#d1d5db; border-radius:2px; margin:10px 0 8px; }
+  .pinbox .pin-meta{ color:#374151; font-size:14px; }
+  .pinbox .ok{ color:#16a34a; font-weight:800; }
+
+  /* Rewards row */
+  .rewards-row{ width:100%; background:#f3f4f6; border:1px solid var(--outline); border-radius:16px; padding:14px; display:flex; align-items:center; justify-content:space-between; gap:12px; box-shadow:0 6px 0 rgba(0,0,0,.08); cursor:pointer; }
+  .gift{ background:#fecaca; color:#b91c1c; padding:6px 12px; border-radius:10px; font-weight:900; }
+.section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #FFFFFF;
+    margin-bottom: 20px;
+    letter-spacing: -0.02em;
+}
+  /* Active offers grid within inner column */
+  .section-title{ color:#111827; font-weight:900; margin:16px 0 10px; }
+  .offers-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap:12px; }
+  .offer-card{background: linear-gradient(180deg, #DFEFEA 0%, #A0DCC9 100%);border: 1px solid #399A7D; border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:8px; font-family: 'Poppins', sans-serif; }
+  .offer-head .kicker{ text-align:center; font-weight:800; color:#0b3b2d; }
+  .offer-head .rule{ height:2px; background:#cfeada; border-radius:2px; margin-top:8px; }
+  .offer-copy{ text-align:center; color:#0f4a3b; }
+  .offer-copy .benefit{ margin:6px 0 4px; font-weight:800;color: #395B92; }
+  .offer-copy .code{ margin:0; font-weight:700; color:#0b3b2d; }
+  .offer-foot{ display:flex; justify-content:center; }
+  .pill{ background:#111827; color:#fff; font-weight:800; font-size:12px; padding:8px 12px; border-radius:8px; min-width:110px; text-align:center; }
+  .pill-green{ background:#1a8f6b; }
+
+
+/* form should occupy a full grid column like a button did */
+#pdpAddToCart{
+  display:block;
+  width:100%;
+  margin:0;
+}
+
+/* make the button fill the form and align icon + text */
+#pdpAddToCart .btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  width:100%;
+  box-sizing:border-box;
+}
+#pdpAddToCart .btn svg{
+  flex:0 0 auto;
+}
+#pdpBuyNow{
+  display:block;
+  width:100%;
+  margin:0;
+}
+
+/* make the button fill the form and align icon + text */
+#pdpBuyNow .btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  width:100%;
+  box-sizing:border-box;
+}
+#pdpBuyNow .btn svg{
+  flex:0 0 auto;
+}
+  
+  .btn{ height:52px; border-radius:12px; font-weight:900; cursor:pointer; border:0; }
+  .btn-dark{ background:#0f172a; color:#fff; }
+  .btn-dark:hover{ background:#0f172ac4; color:#fff;}
+  .btn-ghost{ background:#35c79e; color:#0f172a; }
+  .btn-ghost:hover{ background:#35c79eb0; color:#0f172a; }
+  
+
+  /* Responsiveness */
+  @media (max-width: 1850px){
+    .pdp-gridd{ grid-template-columns: 150px 650px minmax(0, 1fr); }
+    .pdp-info{ width:auto; }
+  }
+  @media (max-width: 1300px){
+    .pdp-gridd{ grid-template-columns: 72px 600px minmax(0, 1fr); }
+    .pdp-hero{ width:600px; height:600px; }
+    .info-inner{ width:630px; }
+  }
+  @media (max-width: 980px){
+    .pdp-gridd{ grid-template-columns: 72px minmax(0, 1fr); }
+    .pdp-hero{ width:100%; height:auto; aspect-ratio:1/1; position:relative; top:0; }
+    .pdp-info{ position:relative; top:0; }
+    .info-inner{ width:100%; max-width:720px; }
+    .offers-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 640px){
+    .pdp-gridd{ grid-template-columns: 1fr; }
+    .pdp-thumbs{ order:2; flex-direction:row; position:relative; top:auto; }
+    .offers-grid{ grid-template-columns: 1fr; }
+
+/* Notify container spans both columns when shown */
+
+  }
+/* ===================== */
+/* CTA row: full-width rules */
+/* ===================== */
+
+/* Two equal columns for purchase CTAs */
+.cta-row{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px;
+  margin-top:14px;
+}
+
+/* All CTA buttons should stretch */
+.cta-row .btn{
+  width:100% !important;
+  max-width:none !important;
+  box-sizing:border-box;
+}
+
+/* Purchase forms occupy a single column (already default) */
+#pdpAddToCart,
+#pdpBuyNow{
+  display:block;
+  width:100%;
+  margin:0;
+}
+
+/* Ensure their buttons fill */
+#pdpAddToCart .btn,
+#pdpBuyNow .btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  width:100% !important;
+  max-width:none !important;
+  box-sizing:border-box;
+}
+
+/* Notify container spans both columns when visible */
+.cta-row > .oos-wrap{
+  grid-column: 1 / -1;
+  width:100%;
+}
+
+/* Notify button fills the entire row */
+.cta-row > .oos-wrap .btn{
+  width:100% !important;
+  max-width:none !important;
+}
+
+/* Optional: hide forms cleanly if toggled via attribute/class */
+.cta-row form[hidden],
+.cta-row form.is-hidden{
+  display:none !important;
+}
+
+/* If any legacy fixed widths exist globally, neutralize them here */
+.btn.btn-dark,
+.btn.btn-ghost,
+.btn-primary,
+.btn-ghost{
+  max-width:none !important;
+  width:100% !important;
+}
+/* Wishlist button styles */
+.wish {
+  width: 40px;
+  height: 40px;
+  border-radius: 20%;
+  border: none;
+  background: rgb(5 4 4);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+  position: relative;
+}
+
+.wish:hover {
+  transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.wish:active {
+  transform: scale(0.95);
+}
+
+/* Wishlist icon - default state (outlined heart) */
+.wishlist-icon {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+/* Active state (filled red heart) */
+.wish.in-wishlist .wishlist-icon {
+  fill: #ff4444;
+  stroke: #ff4444;
+  animation: heartBeat 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hover effect for active state */
+.wish.in-wishlist:hover .wishlist-icon {
+  fill: #ff0000;
+  stroke: #ff0000;
+}
+
+/* Loading state */
+.wish.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.wish.loading .wishlist-icon {
+  animation: pulse 1s infinite;
+}
+
+/* Heart beat animation when added */
+@keyframes heartBeat {
+  0%, 100% { 
+    transform: scale(1); 
+  }
+  10% { 
+    transform: scale(0.8); 
+  }
+  30% { 
+    transform: scale(1.3); 
+  }
+  50% { 
+    transform: scale(1.1); 
+  }
+  70% { 
+    transform: scale(1.2); 
+  }
+}
+
+/* Pulse animation for loading */
+@keyframes pulse {
+  0%, 100% { 
+    opacity: 1; 
+  }
+  50% { 
+    opacity: 0.5; 
+  }
+}
+
+/* Ripple effect on click */
+.wish::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(255, 68, 68, 0.3);
+  transform: scale(0);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.wish:active::after {
+  animation: ripple 0.6s ease-out;
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+/* Full-image zoom viewer */
+.zoom-overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.92);
+  display:none; z-index:60;
+}
+.zoom-overlay.show{ display:block; }
+
+.zoom-stage{
+  position:absolute; inset:0;
+  cursor:grab; overflow:hidden;
+  touch-action:none; /* custom pinch/pan */
+}
+.zoom-stage:active{ cursor:grabbing; }
+
+.zoom-stage img{
+  position:absolute; left:50%; top:50%;
+  transform:translate(-50%, -50%) scale(1);
+  transform-origin:center center;
+  max-width:none; max-height:none; /* we manage sizing */
+}
+
+.zoom-close{
+  position:absolute; top:14px; right:14px;
+  width:40px; height:40px; border-radius:999px;
+  border:0; background:rgba(255,255,255,.15);
+  color:#fff; font-size:18px; cursor:pointer;
+}
+
+
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const hero = document.getElementById('heroImg');
+// In the first script block (auto-rotate):
+  const thumbsRoot = document.getElementById('thumbsWrapper'); // change from 'thumbs'
+  const prevBtn = document.querySelector('.hero-nav.prev');
+  const nextBtn = document.querySelector('.hero-nav.next');
+
+  // Collect gallery sources from current thumbs (server-rendered or updated later)
+  function getThumbButtons(){
+    return Array.from(thumbsRoot.querySelectorAll('.thumb'));
+  }
+  function getGallery(){
+    return getThumbButtons().map(b => b.querySelector('img')?.src).filter(Boolean);
+  }
+
+  // State
+  let idx = Math.max(getGallery().findIndex(src => src === hero.src), 0);
+  const INTERVAL_MS = 4000;     // auto-rotate period
+  let timer = null;
+  let paused = false;
+
+  function setActive(i){
+    const btns = getThumbButtons();
+    btns.forEach(b => b.classList.remove('is-active'));
+    if(btns[i]) btns[i].classList.add('is-active');
+  }
+
+  function show(i){
+    const list = getGallery();
+    if(!list.length) return;
+    idx = (i + list.length) % list.length;
+    hero.src = list[idx];
+    setActive(idx);
+  }
+
+  // Auto-rotate with pause on hover and page visibility
+  function start(){
+    if(timer) clearInterval(timer);
+    timer = setInterval(() => {
+      if(!paused && document.visibilityState === 'visible') {
+        show(idx + 1);
+      }
+    }, INTERVAL_MS);
+  }
+  function pause(p=true){ paused = p; }
+  hero.closest('.pdp-hero')?.addEventListener('mouseenter', () => pause(true));
+  hero.closest('.pdp-hero')?.addEventListener('mouseleave', () => pause(false));
+  document.addEventListener('visibilitychange', () => {
+    // restart to avoid drift when user returns
+    start();
+  });
+
+  // Manual controls
+  prevBtn?.addEventListener('click', () => { show(idx - 1); start(); });
+  nextBtn?.addEventListener('click', () => { show(idx + 1); start(); });
+
+  // Sync with thumbnail clicks (your existing handler swaps hero src)
+  // Observe mutations in #thumbs so if swatches re-render, we re-bind/restart
+  const mo = new MutationObserver(() => { setActive(Math.max(getGallery().indexOf(hero.src), 0)); start(); });
+  mo.observe(thumbsRoot, { childList:true, subtree:true });
+
+  // Also listen to direct thumb clicks to reset timer and index
+  thumbsRoot.addEventListener('click', (e) => {
+    const btn = e.target.closest('.thumb');
+    if(!btn) return;
+    const src = btn.querySelector('img')?.src;
+    if(src){
+      idx = getGallery().indexOf(src);
+      setActive(idx);
+      start();
+    }
+  });
+
+  // Initial show and run
+  show(idx);
+  start();
+});
+
+
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const heroFigure = document.querySelector('.pdp-hero');
+  const hero = document.getElementById('heroImg');
+  const resetBtn = heroFigure?.querySelector('.zoom-reset');
+
+  if (!heroFigure || !hero) return;
+
+  // Config
+  const minScale = 1;
+  const hoverScale = 2.2;    // zoom level on hover (adjust to taste)
+  const maxScale = 3;        // cap for touch pinch
+  let scale = 1;
+  let ox = 0, oy = 0;        // pan offsets for CSS transform
+
+  // Utils
+  const apply = () => {
+    hero.style.transform = `translate(${ox}px, ${oy}px) scale(${scale})`;
+    heroFigure.classList.toggle('zoomed', scale > 1.001);
+  };
+
+  const clampPan = () => {
+    const boxW = heroFigure.clientWidth;
+    const boxH = heroFigure.clientHeight;
+    const imgW = boxW * scale;
+    const imgH = boxH * scale;
+    const maxX = Math.max(0, (imgW - boxW) / 2);
+    const maxY = Math.max(0, (imgH - boxH) / 2);
+    ox = Math.max(-maxX, Math.min(maxX, ox));
+    oy = Math.max(-maxY, Math.min(maxY, oy));
+  };
+
+  // Convert a pointer position to centered translation so the zoomed point sits under cursor
+  const panToPointer = (clientX, clientY) => {
+    const rect = heroFigure.getBoundingClientRect();
+    const boxW = rect.width, boxH = rect.height;
+    const localX = clientX - rect.left - boxW / 2;
+    const localY = clientY - rect.top  - boxH / 2;
+    // Required offset to bring that point to center while scaled:
+    ox = -localX * (scale - 1);
+    oy = -localY * (scale - 1);
+    clampPan();
+    apply();
+  };
+
+  // Hover-to-zoom behavior (mouse/pointer)
+  const onEnter = (e) => {
+    // Only apply for mouse-like pointers to avoid fighting touch
+    if (e.pointerType && e.pointerType !== 'mouse') return;
+    scale = hoverScale;
+    panToPointer(e.clientX, e.clientY);
+  };
+
+  const onMove = (e) => {
+    if (scale <= 1.001) return;
+    if (e.pointerType && e.pointerType !== 'mouse') return;
+    panToPointer(e.clientX, e.clientY);
+  };
+
+  const onLeave = () => {
+    // Reset on leave
+    scale = 1; ox = 0; oy = 0; apply();
+  };
+
+  heroFigure.addEventListener('pointerenter', onEnter);
+  heroFigure.addEventListener('pointermove', onMove);
+  heroFigure.addEventListener('pointerleave', onLeave);
+
+  // Keep pinch-zoom for touch users
+  let pinchStartDist = 0;
+  let pinchStartScale = 1;
+  let pinchCenter = { x: 0, y: 0 };
+
+  const zoomToPoint = (newScale, clientX, clientY) => {
+    const rect = heroFigure.getBoundingClientRect();
+    const cx = clientX - rect.left - rect.width / 2 - ox;
+    const cy = clientY - rect.top  - rect.height / 2 - oy;
+    const ns = Math.max(minScale, Math.min(maxScale, newScale));
+    const k = ns / scale;
+    scale = ns;
+    ox += cx * (1 - k);
+    oy += cy * (1 - k);
+    clampPan();
+    apply();
+  };
+
+  heroFigure.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const [t1, t2] = e.touches;
+      pinchStartDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      pinchStartScale = scale < hoverScale ? hoverScale : scale; // start at least hoverScale for a pleasant pinch
+      pinchCenter = { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+      scale = pinchStartScale;
+      apply();
+    }
+  }, { passive: false });
+
+  heroFigure.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const [t1, t2] = e.touches;
+      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      const factor = dist / (pinchStartDist || 1);
+      const target = pinchStartScale * factor;
+      zoomToPoint(target, pinchCenter.x, pinchCenter.y);
+    }
+  }, { passive: false });
+
+  // Reset button (if present)
+  resetBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    scale = 1; ox = 0; oy = 0; apply();
+  });
+
+  // Reset when the hero image changes
+  const mo = new MutationObserver(() => { scale = 1; ox = 0; oy = 0; apply(); });
+  mo.observe(hero, { attributes: true, attributeFilter: ['src'] });
+
+  // CSS pre-reqs: keep in stylesheet
+  // .pdp-hero { overflow:hidden; touch-action:none; }
+  // #heroImg  { transform-origin:center center; will-change: transform; }
+
+  apply();
+});
+</script>
+
+<style>
+  .pdp-breadcrumbs {
+  margin: 8px 0 14px;
+}
+
+.pdp-breadcrumbs .crumbs {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  list-style: none;   /* no bullets */
+  padding: 0;
+  margin: 0;
+  color: rgba(255,255,255,.7); /* adjust for dark header */
+}
+
+.pdp-breadcrumbs .crumb {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.pdp-breadcrumbs .crumb a {
+  color: rgba(255,255,255,.7);
+  text-decoration: none;
+}
+
+.pdp-breadcrumbs .crumb a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.pdp-breadcrumbs .crumb:not(:last-child)::after {
+  content: "›";
+  margin-left: .5rem;
+  color: rgba(255,255,255,.5);
+}
+
+/* last item emphasized like the reference */
+.pdp-breadcrumbs .current {
+  color: #fff;
+  font-weight: 600;
+}
+
+/* optional: refine spacing on small screens */
+@media (max-width: 576px) {
+  .pdp-breadcrumbs .crumbs { gap: .35rem; }
+  .pdp-breadcrumbs .crumb { font-size: 13px; }
+}
+
+/* optional: style the 'Back to results' link subtle on the right */
+.pdp-breadcrumbs .back-to-results {
+  margin-left: 12px;
+  font-size: 13px;
+  color: rgba(255,255,255,.6);
+  text-decoration: none;
+}
+.pdp-breadcrumbs .back-to-results:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+</style>
+
+
+
+ <div class="page">
+    <section class="pdp">
+      <nav class="pdp-breadcrumbs" aria-label="Breadcrumb">
+        <ol class="crumbs">
+          {% for name, url in crumbs %}
+            <li class="crumb">
+              {% if url %}<a href="{{ url }}">{{ name }}</a>{% else %}<span class="current">{{ name }}</span>{% endif %}
+            </li>
+          {% endfor %}
+        </ol>
+        {% if back_to %}
+          <a class="back-to-results" href="{{ back_to }}">Back to results</a>
+        {% endif %}
+      </nav>
+
+      <div class="pdp-gridd">
+        <aside class="pdp-thumbs" id="thumbs">
+          <div class="thumbs-wrapper" id="thumbsWrapper">
+            {% for img in images %}
+              <button class="thumb {% if forloop.first %}is-active{% endif %}" type="button">
+                <img src="{{ img.image.url }}" alt="{{ product.name }}">
+              </button>
+            {% empty %}
+              <button class="thumb is-active" type="button">
+                <img src="{% static 'images/logo.png' %}" alt="No image">
+              </button>
+            {% endfor %}
+          </div>
+        </aside>
+
+
+
+      <figure class="pdp-hero" aria-label="Product image with hover zoom">
+        <button class="hero-nav prev" type="button" aria-label="Previous image">‹</button>
+        <button class="hero-nav next" type="button" aria-label="Next image">›</button>
+
+        <img id="heroImg" src="{% if product.images.first %}{{ product.images.first.image.url }}{% else %}{% static 'images/logo.png' %}{% endif %}" alt="boAt Stone Lumos main"/>
+        <button class="zoom-reset" type="button" aria-label="Reset zoom">Reset</button>
+
+
+      </figure>
+
+
+        <aside class="pdp-info">
+          <div class="info-inner">
+            <header class="info-head">
+              <div class="rating">⭐ 4.0</div>
+                <button 
+                  class="wish wishlist-toggle-btn" 
+                  data-variant-id="{{ default_variant.id }}"
+                  aria-label="Toggle Wishlist"
+                  type="button">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" class="wishlist-icon" viewBox="0 0 24 24">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                  </svg>
+                </button>
+            </header>
+
+            <h1 class="title">{{ product.name }}</h1>
+            <p class="sub">{{ product.short_description }}</p>
+
+            <div class="price-row">
+                <span class="now">₹{{ final_price|floatformat:0 }}</span>
+                <span class="mrp">₹{{ product.base_price }}</span>
+                {% if discount_percent > 0 %}
+                    <span class="off">{{ discount_percent|floatformat:0 }}% off</span>
+                {% endif %}
+            </div>
+            <div class="tax">MRP inclusive of all taxes</div>
+            <span class="t">Choose your color:</span>
+            <div class="swatches">
+              {% for variant in product.variants.all %}
+                <div style="text-align:center;">
+                  <button
+                    class="swatch {% if forloop.first %}is-active{% endif %}"
+                    type="button"
+                    data-variant-id="{{ variant.id }}"
+                    data-hero="{% if variant.images.first %}{{ variant.images.first.image.url }}
+                              {% elif variant.image %}{{ variant.image.url }}
+                              {% elif product.images.first %}{{ product.images.first.image.url }}
+                              {% else %}{% static 'images/logo.png' %}{% endif %}">
+                    <img src="{% if variant.image %}{{ variant.image.url }}
+                              {% elif variant.images.first %}{{ variant.images.first.image.url }}
+                              {% else %}{% static 'images/logo.png' %}{% endif %}" 
+                        alt="{{ variant.color }}">
+                  </button>
+
+                  {% if variant.stock > 10 %}
+                    <p style="font-size:12px; color:green; margin-top:4px;">
+                      In stock
+                    </p>
+                  {% elif variant.stock <= 10 and variant.stock > 0 %}
+                    <p style="font-size:12px; color:rgb(252, 156, 0); margin-top:4px;">
+                      Only {{ variant.stock }} left
+                    </p>
+                  {% else %}
+                    <p style="font-size:12px; color:red; margin-top:4px;">
+                      Out of stock
+                    </p>
+                  {% endif %}
+                </div>
+              {% empty %}
+                <button class="swatch is-active" type="button" disabled>
+                  <img src="{% static 'images/logo.png' %}" alt="No variant">
+                </button>
+              {% endfor %}
+            </div>
+
+          <section class="card-row pinbox">
+            <div class="pinrow">
+              <input id="pin" type="text" placeholder="Enter pincode" inputmode="numeric" maxlength="6">
+              <button class="pin-change" id="pinBtn">Check</button>
+              <span class="truck" aria-hidden="true">🚚</span>
+            </div>
+            <div class="pin-underline"></div>
+            
+            <!-- Delivery meta section -->
+            <div id="deliveryMeta" class="pin-meta" style="display: none;">
+              <span class="ok">Free delivery</span> | <span id="deliveryDate">By Friday, 29 August</span>
+            </div>
+            
+            <!-- Delivery location info -->
+            <div id="deliveryLocation" class="pin-meta" style="display: none; color: #666; font-size: 0.9rem; margin-top: 0.25rem;">
+              Delivering to <span id="cityState"></span> - <span id="pincodeDisplay"></span>
+            </div>
+            
+            <!-- COD info -->
+            <div id="codInfo" class="pin-meta" style="display: none; color: #00c853; font-size: 0.9rem; margin-top: 0.25rem;">
+              💵 Cash on Delivery available
+            </div>
+            
+            <!-- Error message -->
+            <div id="deliveryError" class="pin-meta" style="display: none; color: #f44336; margin-top: 0.5rem;">
+              <span id="errorMessage">Pincode not serviceable</span>
+            </div>
+          </section>
+
+            <!-- <section class="rewards" style="margin-top:12px;">
+              <button class="rewards-row">
+                <span>Redeem up to 10% off additionally</span>
+                <span class="gift">Gift</span>
+              </button>
+            </section> -->
+
+          <!-- ✅ CLEANER VERSION - No inline onclick or complex inline styles -->
+          {% if offers %}
+          <h3 class="section-title">Active Offers</h3>
+          <div class="offers-grid">
+            {% for offer in offers %}
+            <article class="offer-card offer-clickable" 
+                    data-product-id="{{ product.id }}"
+                    data-coupon-code="{{ offer.code }}"
+                    data-min-items="{{ offer.min_items|default:1 }}">
+              
+              <div class="offer-head">
+                <div class="kicker">{{ offer.condition_text }}</div>
+                <div class="rule"></div>
+              </div>
+              
+              <div class="offer-copy">
+                <p class="benefit">{{ offer.discount_text }}</p>
+                <p class="code">Code : <b>{{ offer.code }}</b></p>
+              </div>
+              
+              <div class="offer-foot">
+                {% if offer.badge %}
+                  <span class="pill {% if 'Popular' in offer.badge %}pill-green{% endif %}">
+                    {{ offer.badge }}
+                  </span>
+                {% else %}
+                  <span class="pill">Best Value</span>
+                {% endif %}
+              </div>
+              
+              {% if offer.badge %}
+              {% endif %}
+            </article>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="no-offers">No active offers at the moment</p>
+          {% endif %}
+
+          <style>
+          /* Offer card hover effects */
+          .offer-card.offer-clickable {
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+          }
+
+          .offer-card.offer-clickable:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(26, 143, 107, 0.25);
+          }
+
+          .offer-card.offer-clickable:active {
+            transform: translateY(-2px);
+          }
+
+          /* Badge corner styling */
+          .offer-badge-corner {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: #111827;
+            color: #fff;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 9px;
+            font-weight: 800;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+          }
+
+          .offer-card .pill-green + .offer-badge-corner,
+          .offer-card:has(.pill-green) .offer-badge-corner {
+            background: #1a8f6b;
+          }
+
+          /* Helper text */
+          .offers-hint {
+            font-size: 11px;
+            color: #aaa;
+            margin-top: 8px;
+            text-align: center;
+          }
+
+          .no-offers {
+            color: #aaa;
+            text-align: center;
+            margin: 20px 0;
+          }
+          </style>
+
+          <script>
+          // ✅ Event delegation for offer cards (cleaner than inline onclick)
+          document.addEventListener('DOMContentLoaded', function() {
+            document.addEventListener('click', function(e) {
+              const card = e.target.closest('.offer-clickable');
+              if (!card) return;
+              
+              const productId = card.getAttribute('data-product-id');
+              const couponCode = card.getAttribute('data-coupon-code');
+              const minItems = parseInt(card.getAttribute('data-min-items')) || 1;
+              
+              if (typeof quickAddWithCoupon === 'function') {
+                quickAddWithCoupon(productId, couponCode, minItems);
+              }
+            });
+          });
+          </script>
+
+
+            <div id="pdpData"
+                data-in-stock="{{ in_stock|yesno:'true,false' }}"
+                data-stock="{{ stock|default:0 }}"
+                data-variant-stock-map='{{ variant_stock_map_json|default:"{}"|safe }}'>
+            </div>
+
+            <div class="cta-row">
+              {# Purchase CTAs (shown only when in stock) #}
+              <form id="pdpAddToCart" method="post" action="{% url 'cart_add' %}">
+                {% csrf_token %}
+                <input type="hidden" name="product_id" value="{{ product.id }}">
+                <input type="hidden" name="variant_id" id="pdpVariantId" value="{% if default_variant %}{{ default_variant.id }}{% endif %}">
+                <input type="hidden" name="quantity" id="pdpQty" value="1">
+                <button type="submit" class="btn btn-dark">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="currentColor" class="bi bi-cart3" viewBox="0 0 20 20">
+                    <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .49.598l-1 5a.5.5 0 0 1-.465.401l-9.397.472L4.415 11H13a.5.5 0 0 1 0 1H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l.84 4.479 9.144-.459L13.89 4zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+                  </svg>
+                  Add To Cart</button>
+              </form>
+
+              <form id="pdpBuyNow" method="post" action="{% url 'buy_now' %}">
+                {% csrf_token %}
+                <input type="hidden" name="product_id" value="{{ product.id }}">
+                <input type="hidden" name="variant_id" id="pdpVariantIdBuy" value="{% if default_variant %}{{ default_variant.id }}{% endif %}">
+                <input type="hidden" name="quantity" id="pdpQtyBuy" value="1">
+                <button type="submit" class="btn btn-ghost">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-lightning-charge" viewBox="0 0 16 16">
+                  <path d="M11.251.068a.5.5 0 0 1 .227.58L9.677 6.5H13a.5.5 0 0 1 .364.843l-8 8.5a.5.5 0 0 1-.842-.49L6.323 9.5H3a.5.5 0 0 1-.364-.843l8-8.5a.5.5 0 0 1 .615-.09zM4.157 8.5H7a.5.5 0 0 1 .478.647L6.11 13.59l5.732-6.09H9a.5.5 0 0 1-.478-.647L9.89 2.41z"/>
+                  </svg>  Buy Now</button>
+              </form>
+
+              {# Notify CTA (shown only when out of stock) #}
+              <div class="oos-wrap" style="display:none; width:100%">
+                <div class="oos-note" style="color:#c0392b; font-weight:700; margin-bottom:10px;margin-left:250px;">Restocking soon</div>
+                <form method="post" action="">
+                  {% csrf_token %}
+                  <input type="hidden" name="product_id" value="{{ product.id }}">
+                  <input type="hidden" name="variant_id" value="{% if default_variant %}{{ default_variant.id }}{% endif %}">
+                  <button type="submit" class="btn btn-dark" style="width:300.4px; border-radius:12px;">OUT OF STOCK</button>
+                </form>
+              </div>
+            </div>
+
+            <script>
+            (function(){
+              // Read server-provided data
+              function dataEl(){ return document.getElementById('pdpData'); }
+              function initialInStock(){
+                var el = dataEl();
+                var v = el ? el.getAttribute('data-in-stock') : 'false';
+                return String(v).toLowerCase() === 'true';
+              }
+              function fallbackStock(){
+                var el = dataEl();
+                var v = el ? parseInt(el.getAttribute('data-stock') || '0', 10) : 0;
+                return isNaN(v) ? 0 : v;
+              }
+              function stockMap(){
+                try{
+                  var el = dataEl();
+                  var s = el ? el.getAttribute('data-variant-stock-map') : '{}';
+                  return JSON.parse(s || '{}');
+                }catch(e){ return {}; }
+              }
+
+              // Keep Buy Now hidden inputs synced with main controls
+              function syncBuyNow(){
+                var v = document.getElementById('pdpVariantId');
+                var q = document.getElementById('pdpQty');
+                var vBuy = document.getElementById('pdpVariantIdBuy');
+                var qBuy = document.getElementById('pdpQtyBuy');
+                if(v && vBuy) vBuy.value = (v.value || '');
+                if(q && qBuy) qBuy.value = (q.value || '1');
+              }
+
+              // Toggle between purchase CTAs and notify CTA
+              function toggleCtas(inStock){
+                var cta = document.querySelector('.cta-row');
+                if(!cta) return;
+                var forms = cta.querySelectorAll('form');
+                var oos  = cta.querySelector('.oos-wrap');
+                if(!!inStock){
+                  forms.forEach(function(f){
+                    if(f.closest('.oos-wrap')) f.style.display = 'none';
+                    else f.style.display = '';
+                  });
+                  if(oos) oos.style.display = 'none';
+                }else{
+                  forms.forEach(function(f){
+                    if(f.closest('.oos-wrap')) f.style.display = '';
+                    else f.style.display = 'none';
+                  });
+                  if(oos) oos.style.display = '';
+                }
+              }
+
+              // Determine current stock for the selected variant
+              function currentVariantStock(){
+                var map = stockMap();
+                var vidEl = document.getElementById('pdpVariantId');
+                var vid = vidEl ? String(vidEl.value || '') : '';
+                if (vid && Object.prototype.hasOwnProperty.call(map, vid)) {
+                  var n = parseInt(map[vid] || 0, 10);
+                  return isNaN(n) ? 0 : n;
+                }
+                return fallbackStock();
+              }
+
+              function updateUiForSelection(){
+                syncBuyNow();
+                var s = currentVariantStock();
+                toggleCtas(s > 0);
+              }
+
+              // Swatch click → write the selected variant id and flip CTAs
+              document.addEventListener('click', function(e){
+                var sw = e.target.closest('[data-variant-id]');
+                if(!sw) return;
+                var vid = String(sw.getAttribute('data-variant-id') || '');
+                var hid = document.getElementById('pdpVariantId');
+                if(hid){
+                  hid.value = vid;
+                  hid.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+              });
+
+              // Initial render
+              document.addEventListener('DOMContentLoaded', function(){
+                syncBuyNow();
+                toggleCtas(initialInStock());
+              });
+
+              // React to variant/qty changes
+              document.addEventListener('change', function(e){
+                if(!e.target) return;
+                var id = e.target.id || '';
+                if (id === 'pdpVariantId' || id === 'pdpQty' ||
+                    e.target.classList.contains('js-variant') ||
+                    e.target.classList.contains('js-qty')) {
+                  updateUiForSelection();
+                }
+              });
+            })();
+            </script>
+
+
+          </div>
+        </aside>
+      </div>
+    </section>
+  </div>
+
+<!-- Warranty Section -->
+
+
+
+<section class="features_band">
+  <div class="features_item">
+    <img src="{% static 'images/quality.png' %}" alt="High Quality" class="features_icon">
+    <h4 class="features_title">High Quality</h4>
+    <p class="features_text">Crafted from top materials</p>
+  </div>
+
+  <div class="features_item">
+    <img src="{% static 'images/warranty.png' %}" alt="Warranty Protection" class="features_icon">
+    <h4 class="features_title">Warranty Protection</h4>
+    <p class="features_text">Over 2 years</p>
+  </div>
+
+  <div class="features_item">
+    <img src="{% static 'images/box.png' %}" alt="Free Shipping" class="features_icon">
+    <h4 class="features_title">Free Shipping</h4>
+    <p class="features_text">Order over 150 ₹</p>
+  </div>
+
+  <div class="features_item">
+    <img src="{% static 'images/customer.png' %}" alt="24/7 Support" class="features_icon">
+    <h4 class="features_title">24 / 7 Support</h4>
+    <p class="features_text">Dedicated support</p>
+  </div>
+</section>
+<!-- Warranty Section End -->
+
+<section class="pd-bottom">
+  <div class="pd-tabs">
+    <button class="tab active" type="button" data-tab="details">Product details</button>
+    <button class="tab" type="button" data-tab="reviews">Rating & Reviews</button>
+  </div>
+
+  <div class="pd-panel show" id="details">
+    <article class="pd-desc">
+      <h3>DESCRIPTION</h3>
+      <p>
+        {{ product.long_description  }}
+      </p>
+      
+
+      <h4>Specifications</h4>
+      <ul class="pd-specs">
+        <li>Suitable for: Outdoor Parties, Home Entertainment, College Hangouts</li>
+        <li>Connectivity: Bluetooth, AUX, USB</li>
+        <li>Special Feature: Dynamic RGB LED Lighting</li>
+        <li>Playback: Up to 8 Hours*</li>
+        <li>Sound: Powerful stereo with extra bass</li>
+      </ul>
+    </article>
+
+    <h4 class="ph-title"><span>More</span> Product Details</h4>
+
+    <!-- Single composite highlights image -->
+      <figure class="ph-hero" aria-label="Product highlights">
+        {% for dimg in product.detailed_images.all %}
+          <img 
+            src="{{ dimg.image.url }}" 
+            alt="{{ product.name }} highlight {{ forloop.counter }}" 
+            loading="lazy" 
+            decoding="async">
+        {% endfor %}
+      </figure>
+  </div>
+
+  <div class="pd-panel" id="reviews" hidden>
+    <div class="reviews-wrap">
+      <header class="rv-summary">
+        <div class="rv-score">
+          <div class="rv-score-value" id="rvAvg">4.4</div>
+          <div class="rv-stars" aria-label="Average rating 4.4 out of 5">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="rv-count"><span id="rvCount">6</span> ratings</div>
+        </div>
+
+        <div class="rv-controls">
+          <button class="rv-filter" type="button" aria-label="Filter reviews">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 5h18M6 12h12M10 19h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+          <label class="rv-sort">
+            <span>Sort</span>
+            <select id="rvSort">
+              <option value="latest" selected>Latest</option>
+              <option value="highest">Highest</option>
+              <option value="lowest">Lowest</option>
+            </select>
+          </label>
+          <a class="rv-cta" href="#rvForm">Write a Review</a>
+        </div>
+      </header>
+
+      <div class="rv-dist">
+        <div class="rv-row"><span>5</span><div class="bar"><i style="width:70%"></i></div><em>70%</em></div>
+        <div class="rv-row"><span>4</span><div class="bar"><i style="width:16%"></i></div><em>16%</em></div>
+        <div class="rv-row"><span>3</span><div class="bar"><i style="width:8%"></i></div><em>8%</em></div>
+        <div class="rv-row"><span>2</span><div class="bar"><i style="width:4%"></i></div><em>4%</em></div>
+        <div class="rv-row"><span>1</span><div class="bar"><i style="width:2%"></i></div><em>2%</em></div>
+      </div>
+
+      <div class="rv-grid" id="rvList" aria-live="polite"></div>
+
+      <nav class="rv-pager" aria-label="Reviews pages">
+        <button class="pg prev" type="button" disabled>&lt;</button>
+        <button class="pg p current" type="button" data-page="1">1</button>
+        <button class="pg p" type="button" data-page="2">2</button>
+        <button class="pg p" type="button" data-page="3">3</button>
+        <span class="pg dots">…</span>
+        <button class="pg p" type="button" data-page="5">5</button>
+        <button class="pg next" type="button">&gt;</button>
+      </nav>
+
+      <form class="rv-form" id="rvForm">
+        <h4>Write a Review</h4>
+
+        <label class="rv-q">What’s it like to use this product?</label>
+        <div class="rv-rate" role="radiogroup" aria-label="Select rating">
+          <input type="radio" name="stars" id="r5" value="5"><label for="r5">★</label>
+          <input type="radio" name="stars" id="r4" value="4"><label for="r4">★</label>
+          <input type="radio" name="stars" id="r3" value="3"><label for="r3">★</label>
+          <input type="radio" name="stars" id="r2" value="2"><label for="r2">★</label>
+          <input type="radio" name="stars" id="r1" value="1"><label for="r1">★</label>
+        </div>
+
+        <div class="rv-fields">
+          <input type="text" name="name" placeholder="Full name" required>
+          <input type="email" name="email" placeholder="Email (not shown)" required>
+        </div>
+
+        <textarea name="content" rows="6" placeholder="Share details about sound, bass, battery life, build, app EQ, and where it was used…" required></textarea>
+
+        <button class="rv-submit" type="submit">Submit Review</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+
+
+<style>
+  :root{
+  --bg-deep:#2a0d1f;
+  --bg-panel:#f1e9e6;
+  --ink:#1b1b1f;
+  --muted:#6a6a73;
+  --accent:#47f0ff;
+  --ring:rgba(71,240,255,.35);
+  --radius:14px;
+}
+
+/* Section wrapper and tabs (unchanged) */
+.pd-bottom{
+  background: radial-gradient(1200px 800px at 20% -10%, #4a1833 0%, #2a0d1f 45%, #1b0815 100%);
+  color:#fff;
+  padding:48px 0 64px;
+}
+.pd-bottom .pd-tabs{
+  display:flex; gap:24px; align-items:center;
+  border-bottom:1px solid rgba(255,255,255,.14);
+  max-width:1100px; margin:0 auto 28px; padding:0 20px 10px;
+}
+.pd-bottom .tab{
+  appearance:none; background:transparent; border:0; cursor:pointer;
+  color:#cfc9d3; padding:10px 0;
+  font:600 14px/1.2 ui-sans-serif,system-ui,Segoe UI,Roboto,Inter,Arial;
+  letter-spacing:.25px; position:relative;
+}
+.pd-bottom .tab.active{ color:#fff; }
+.pd-bottom .tab.active::after{
+  content:""; position:absolute; left:0; right:0; bottom:-11px;
+  height:2px; background:#fff; border-radius:2px;
+}
+
+/* Panels */
+.pd-panel{ max-width:1100px; margin:0 auto; padding:0 20px; }
+.pd-panel.show{ display:block; }
+.pd-panel[hidden]{ display:none; }
+
+/* Description card (unchanged) */
+.pd-desc{
+  background:var(--bg-panel); color:var(--ink); border-radius:var(--radius);
+  padding:28px 24px;
+  box-shadow:0 1px 0 rgba(0,0,0,.04), 0 12px 50px rgba(0,0,0,.18);
+}
+.pd-desc h3{ margin:0 0 10px; font:700 16px/1.1 Inter,system-ui,Arial; letter-spacing:.5px; }
+.pd-desc p{ margin:0 0 18px; color:#2c2c32; font:500 14px/1.7 Inter,system-ui,Arial; }
+.pd-desc h4{ margin:12px 0 8px; font:700 15px/1.2 Inter,system-ui,Arial; }
+.pd-specs{ margin:0; padding:0 0 0 18px; display:grid; gap:6px; color:#2b2b33; }
+
+/* Title */
+.ph-title{
+  color:#f6f2f0; margin:28px 0 16px;
+  font:800 22px/1.2 Inter,system-ui,Arial; letter-spacing:.2px;
+}
+.ph-title span{ color:#c7bac6; font-weight:700; }
+
+/* Single hero image block */
+.ph-hero{
+  position:relative;
+  overflow:hidden;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.12);
+  background:#0b0b10;
+  box-shadow:0 2px 0 rgba(255,255,255,.05) inset, 0 18px 40px rgba(0,0,0,.35);
+}
+.ph-hero img{
+  width:100%;
+  height:auto;
+  display:block;
+}
+
+/* Optional overlay caption */
+.ph-hero figcaption{
+  position:absolute; left:12px; right:12px; bottom:12px;
+  margin:0; padding:10px 14px;
+  color:#f7fbff; background:rgba(0,0,0,.50);
+  border:1px solid rgba(255,255,255,.16); border-radius:12px;
+  backdrop-filter:blur(4px);
+  font:600 13px/1.25 Inter,system-ui,Arial;
+}
+
+/* Hover/focus glow (desktop) */
+@media (hover:hover){
+  .ph-hero:hover{
+    border-color:var(--ring);
+    box-shadow:0 0 0 3px var(--ring), 0 18px 50px rgba(0,0,0,.45);
+  }
+}
+
+/* Responsive tweaks */
+@media (max-width: 720px){
+  .pd-bottom{ padding:36px 0 48px; }
+  .pd-desc{ padding:22px 16px; }
+  .ph-title{ font-size:18px; }
+  .ph-hero figcaption{ font-size:12px; padding:8px 10px; }
+}
+
+.reviews-wrap{ margin-top:20px; }
+
+/* Summary header */
+.rv-summary{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:16px; margin-bottom:18px;
+}
+.rv-score{ display:flex; align-items:center; gap:16px; }
+.rv-score-value{ font:800 28px/1.1 Inter,system-ui; color:#88e0ff; }
+.rv-stars{ display:flex; gap:4px; }
+.rv-stars span{ width:18px; height:18px; display:inline-block; }
+.rv-stars span::before{ content:"★"; color:#ffd46b; font-size:18px; opacity:.9; }
+.rv-count{ color:#d7ceda; font:600 12px/1.2 Inter,system-ui; }
+
+.rv-controls{ display:flex; align-items:center; gap:10px; }
+.rv-filter{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:34px; height:34px; border-radius:999px;
+  border:1px solid rgba(255,255,255,.2); color:#fff; background:transparent;
+}
+.rv-sort{ display:flex; align-items:center; gap:6px; color:#eee; font:600 12px Inter; }
+.rv-sort select{
+  appearance:none; background:#2e2032; color:#fff;
+  border:1px solid rgba(255,255,255,.18); border-radius:10px; padding:8px 28px 8px 10px;
+}
+.rv-cta{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:8px 12px; border-radius:999px; background:#fff; color:#1d1120;
+  text-decoration:none; font:700 12px Inter;
+}
+
+/* Distribution bars */
+.rv-dist{ margin:8px 0 18px; display:grid; gap:8px; max-width:460px; }
+.rv-row{ display:grid; grid-template-columns:16px 1fr 42px; gap:8px; align-items:center; color:#e8e0ea; }
+.rv-row .bar{ height:8px; background:rgba(255,255,255,.12); border-radius:999px; overflow:hidden; }
+.rv-row .bar i{ display:block; height:100%; background:linear-gradient(90deg,#89f7ff,#6fd0ff); }
+
+/* Cards */
+.rv-grid{ display:grid; grid-template-columns:repeat(12,1fr); gap:18px; margin:18px 0 16px; }
+.rv-card{
+  grid-column:span 6; background:#fff; color:#18181b; border-radius:14px; padding:16px 14px;
+  border:1px solid rgba(0,0,0,.06); box-shadow:0 14px 34px rgba(0,0,0,.25);
+}
+.rv-card .head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.rv-card .name{ font:700 14px Inter; color:#101014; display:flex; align-items:center; gap:6px; }
+.rv-card .badge{ font-size:12px; color:#13b981; }
+.rv-card .stars{ color:#f5b301; letter-spacing:1px; font-size:14px; }
+.rv-card .date{ color:#666; font:600 11px Inter; }
+.rv-card p{ margin:8px 0 0; color:#2d2d33; font:500 13px/1.6 Inter; }
+
+/* Pagination */
+.rv-pager{ display:flex; align-items:center; gap:8px; justify-content:center; margin:6px 0 26px; }
+.pg{ min-width:34px; height:34px; padding:0 10px; border-radius:999px; border:1px solid rgba(255,255,255,.2); color:#fff; background:transparent; }
+.pg.p{ background:#2d1a2a; }
+.pg.current{ background:#fff; color:#211223; border-color:#fff; }
+.pg:disabled{ opacity:.4; cursor:not-allowed; }
+.pg.dots{ color:#d8cfe0; border:0; }
+
+/* Write a review */
+.rv-form{ background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:16px; padding:16px; }
+.rv-form h4{ margin:0 0 8px; font:800 18px Inter; color:#fff; }
+.rv-q{ color:#d9d1db; font:600 12px Inter; }
+.rv-rate{ display:flex; flex-direction:row-reverse; gap:4px; margin:6px 0 12px; }
+.rv-rate input{ display:none; }
+.rv-rate label{ cursor:pointer; font-size:22px; color:#555; transition:.15s; }
+.rv-rate input:checked ~ label, .rv-rate label:hover, .rv-rate label:hover ~ label{ color:#ffd46b; }
+
+.rv-fields{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.rv-fields input, .rv-form textarea{
+  width:100%; border-radius:12px; border:1px solid rgba(255,255,255,.18);
+  background:#2e2032; color:#fff; padding:10px 12px; font:500 13px Inter;
+}
+.rv-submit{
+  appearance:none; border:0; border-radius:12px; padding:10px 14px; font:700 13px Inter;
+  background:#88e0ff; color:#0e0f12; cursor:pointer;
+}
+
+/* Responsive */
+@media(max-width:900px){
+  .rv-summary{ flex-direction:column; align-items:flex-start; gap:10px; }
+  .rv-grid .rv-card{ grid-column:span 12; }
+  .rv-fields{ grid-template-columns:1fr; }
+}
+
+
+</style>
+
+<script>
+  const tabs = document.querySelectorAll('.pd-tabs .tab');
+  const panels = {
+    details: document.getElementById('details'),
+    reviews: document.getElementById('reviews')
+  };
+  tabs.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      Object.values(panels).forEach(p => { p.hidden = true; p.classList.remove('show'); });
+      const target = btn.dataset.tab;
+      panels[target].hidden = false;
+      panels[target].classList.add('show');
+    });
+  });
+</script>
+
+<script>
+  // Mock reviews; replace with API data later
+  const SAMPLE_REVIEWS = [
+    { name: "Sumantha D.", verified: true, rating: 5, date: "August 15, 2025",
+      text: "Solid and reliable. The sound is rich with deep bass and the LEDs add vibe. Great for small parties." },
+    { name: "Sumanth B.", verified: true, rating: 4, date: "August 16, 2025",
+      text: "Punchy bass, clear vocals. Handle is convenient. App EQ helps tune mids." },
+    { name: "Sumantha D.", verified: true, rating: 5, date: "August 14, 2025",
+      text: "Battery life held up for an evening hangout. TWS mode filled the room." },
+    { name: "Sumanth B.", verified: true, rating: 4, date: "August 13, 2025",
+      text: "Premium feel for price. Good for movies and music alike." },
+    { name: "Sumantha D.", verified: true, rating: 5, date: "August 11, 2025",
+      text: "LED projection looks awesome on a table; guests noticed it immediately." },
+    { name: "Sumanth B.", verified: true, rating: 4, date: "August 9, 2025",
+      text: "Carry-and-go design is practical; wish charging was a tad faster." }
+  ];
+
+  const rvList = document.getElementById('rvList');
+  const rvAvg = document.getElementById('rvAvg');
+  const rvCount = document.getElementById('rvCount');
+  const rvSort = document.getElementById('rvSort');
+
+  function renderReviews(list){
+    rvList.innerHTML = list.map(r => `
+      <article class="rv-card">
+        <div class="head">
+          <div class="stars" aria-label="Rated ${r.rating} out of 5">
+            ${"★".repeat(r.rating)}${"☆".repeat(5-r.rating)}
+          </div>
+          <div class="date">${r.date}</div>
+        </div>
+        <div class="name">${r.name} ${r.verified ? '<span class="badge">✓</span>' : ''}</div>
+        <p>${r.text}</p>
+      </article>
+    `).join('');
+  }
+
+  function updateSummary(list){
+    const avg = list.reduce((a,b)=>a+b.rating,0)/list.length;
+    rvAvg.textContent = isFinite(avg) ? avg.toFixed(1) : "0.0";
+    rvCount.textContent = list.length;
+  }
+
+  let current = [...SAMPLE_REVIEWS];
+  updateSummary(current);
+  renderReviews(current);
+
+  rvSort?.addEventListener('change', e => {
+    const v = e.target.value;
+    if(v === 'highest') current.sort((a,b)=>b.rating-a.rating);
+    else if(v === 'lowest') current.sort((a,b)=>a.rating-b.rating);
+    else current = [...SAMPLE_REVIEWS];
+    renderReviews(current);
+    updateSummary(current);
+  });
+
+  // Handle new submissions (mock local insert)
+  document.getElementById('rvForm')?.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const rating = Number(fd.get('stars') || 5);
+    const now = new Date().toLocaleDateString('en-US',{month:'long', day:'numeric', year:'numeric'});
+    current.unshift({
+      name: fd.get('name') || 'Anonymous',
+      verified: false,
+      rating,
+      date: now,
+      text: fd.get('content') || ''
+    });
+    renderReviews(current);
+    updateSummary(current);
+    e.target.reset();
+  });
+</script>
+
+
+
+
+
+
+<!----------------------------------------------------- Script Area   -------------------------------------------------------->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const hero = document.getElementById('heroImg');
+  const swatches = document.querySelectorAll('.swatches .swatch');
+  const FALLBACK = hero?.getAttribute('src') || '';
+
+  // Stable nodes
+  const thumbsAside = document.getElementById('thumbs');           // aside
+  const thumbsWrapper = document.getElementById('thumbsWrapper');  // scroll box
+
+  // Helpers (wrapper only)
+  function getThumbButtons(){
+    return Array.from(thumbsWrapper.querySelectorAll('.thumb'));
+  }
+  function getGallery(){
+    return getThumbButtons().map(b => b.querySelector('img')?.src).filter(Boolean);
+  }
+
+  function preload(urls = []) {
+    urls.forEach(u => { if (u) { const i = new Image(); i.src = u; } });
+  }
+
+  function setHero(src, alt = 'Product image') {
+    hero.src = src || FALLBACK;
+    hero.alt = alt;
+  }
+
+  function bindThumb(btn, url) {
+    btn.addEventListener('click', () => {
+      setHero(url, btn.querySelector('img')?.alt || 'Variant image');
+      thumbsWrapper.querySelectorAll('.thumb').forEach(t => t.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      btn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+  }
+
+  function renderThumbs(urls = []) {
+    // render inside the scroll box
+    thumbsWrapper.innerHTML = '';
+    thumbsWrapper.classList.add('thumbs-wrapper'); // ensure max-height/overflow persist
+
+    if (!urls.length) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'thumb is-active';
+      btn.innerHTML = `<img src="${FALLBACK}" alt="Image">`;
+      bindThumb(btn, FALLBACK);
+      thumbsWrapper.appendChild(btn);
+      setHero(FALLBACK);
+      return;
+    }
+    urls.forEach((url, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'thumb' + (idx === 0 ? ' is-active' : '');
+      btn.innerHTML = `<img src="${url}" alt="Variant image ${idx+1}">`;
+      bindThumb(btn, url);
+      thumbsWrapper.appendChild(btn);
+    });
+    setHero(urls[0], 'Variant image 1');
+    preload(urls);
+  }
+
+  // API
+  async function fetchVariantImages(variantId) {
+    const res = await fetch(`/products/variant-images/${variantId}/`, {
+      headers: { Accept: 'application/json' }
+    });
+    if (!res.ok) throw new Error('Failed to load');
+    const data = await res.json();
+    return Array.isArray(data?.images) ? data.images.filter(Boolean) : [];
+  }
+
+  async function onSwatchClick(btn) {
+    document.querySelectorAll('.swatches .swatch').forEach(b => b.classList.remove('is-active'));
+    btn.classList.add('is-active');
+
+    const id = btn.dataset.variantId;
+    const fallbackHero = btn.dataset.hero || FALLBACK;
+
+    try {
+      const urls = await fetchVariantImages(id);
+      if (!urls.length) {
+        setHero(fallbackHero);
+        renderThumbs([fallbackHero]);
+        return;
+      }
+      renderThumbs(urls);
+    } catch {
+      setHero(fallbackHero);
+      renderThumbs([fallbackHero]);
+    }
+  }
+
+  // Bind existing SSR thumbs in the wrapper
+  document.querySelectorAll('#thumbsWrapper .thumb').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#thumbsWrapper .thumb').forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      const url = btn.querySelector('img')?.src;
+      setHero(url);
+    });
+  });
+
+  // Wire swatches
+  swatches.forEach(btn => btn.addEventListener('click', () => onSwatchClick(btn)));
+});
+
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const swatches = document.querySelectorAll('.swatches .swatch');
+  const variantInput = document.getElementById('pdpVariantId');
+
+  swatches.forEach(btn => {
+    btn.addEventListener('click', () => {
+      // mark active
+      document.querySelectorAll('.swatches .swatch').forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+
+      // set selected variant id for form submit
+      const vid = btn.dataset.variantId;
+      if (variantInput && vid) {
+        variantInput.value = vid;
+      }
+    });
+  });
+});
+</script>
+
+<!-- Add near the end of the page, before your existing <script> block -->
+<script src="https://unpkg.com/@panzoom/panzoom@4.6.0/dist/panzoom.min.js"></script>
+
+<script>
+// ✅ Quick Add with Coupon (boAt-style)
+function quickAddWithCoupon(productId, couponCode, minItems) {
+  // Get selected variant
+  const variantInput = document.getElementById('pdpVariantId');
+  const variantId = variantInput ? variantInput.value : '';
+  
+  if (!variantId) {
+    alert('⚠️ Please select a color variant first');
+    return;
+  }
+  
+  // Get CSRF token
+  function getCookie(name) {
+    const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+  }
+  const csrftoken = getCookie('csrftoken');
+  
+  // Show loading message
+  if (typeof showToast === 'function') {
+    showToast('⏳ Adding ' + minItems + ' items to cart...');
+  } else {
+    console.log('Adding ' + minItems + ' items to cart...');
+  }
+  
+  // Make AJAX request
+  fetch('{% url "quick_add_with_coupon" %}', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-CSRFToken': csrftoken,
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: new URLSearchParams({
+      'product_id': productId,
+      'variant_id': variantId,
+      'coupon_code': couponCode,
+      'quantity': minItems || 1
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      if (typeof showToast === 'function') {
+        showToast('✓ ' + data.message);
+      } else {
+        alert('✓ ' + data.message);
+      }
+      
+      // Update cart badge if exists
+      const badge = document.getElementById('cartBadge');
+      if (badge) {
+        const currentCount = parseInt(badge.textContent) || 0;
+        badge.textContent = currentCount + data.quantity;
+      }
+      
+      // Redirect to cart after 1 second
+      setTimeout(() => {
+        window.location.href = data.redirect_url || '/cart/';
+      }, 1000);
+    } else {
+      if (typeof showToast === 'function') {
+        showToast('❌ ' + data.message);
+      } else {
+        alert('❌ ' + data.message);
+      }
+    }
+  })
+  .catch(err => {
+    console.error('Quick add error:', err);
+    if (typeof showToast === 'function') {
+      showToast('❌ Error adding to cart');
+    } else {
+      alert('❌ Error adding to cart. Please try again.');
+    }
+  });
+}
+
+// Simple toast function if you don't have one
+function showToast(msg) {
+  let toast = document.getElementById('pdpToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'pdpToast';
+    toast.style.cssText = 'position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); color: #fff; padding: 12px 24px; border-radius: 8px; z-index: 9999; font-weight: 600; display: none; transition: opacity 0.3s;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.display = 'block';
+  toast.style.opacity = '1';
+  
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => {
+      toast.style.display = 'none';
+    }, 300);
+  }, 3000);
+}
+</script>
+<script>
+(function() {
+  'use strict';
+  
+  const pinInput = document.getElementById('pin');
+  const pinBtn = document.getElementById('pinBtn');
+  const deliveryMeta = document.getElementById('deliveryMeta');
+  const deliveryDate = document.getElementById('deliveryDate');
+  const deliveryLocation = document.getElementById('deliveryLocation');
+  const cityState = document.getElementById('cityState');
+  const pincodeDisplay = document.getElementById('pincodeDisplay');
+  const codInfo = document.getElementById('codInfo');
+  const deliveryError = document.getElementById('deliveryError');
+  const errorMessage = document.getElementById('errorMessage');
+  
+  let isPincodeChecked = false; // Track if pincode was checked
+  
+  // Only allow numbers
+  pinInput.addEventListener('input', function(e) {
+    this.value = this.value.replace(/[^0-9]/g, '');
+    
+    // ✅ Change button to "Check" when user types new pincode
+    if (isPincodeChecked) {
+      pinBtn.textContent = 'Check';
+      isPincodeChecked = false;
+      hideAllResults();
+    }
+  });
+  
+  // Check on button click
+  pinBtn.addEventListener('click', checkDelivery);
+  
+  // Check on Enter key
+  pinInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      checkDelivery();
+    }
+  });
+  
+  function checkDelivery() {
+    const pincode = pinInput.value.trim();
+    
+    // Validate
+    if (!pincode) {
+      showError('Please enter a pincode');
+      return;
+    }
+    
+    if (pincode.length !== 6) {
+      showError('Pincode must be 6 digits');
+      return;
+    }
+    
+    // Show loading
+    pinBtn.disabled = true;
+    pinBtn.textContent = 'Checking...';
+    
+    // Get CSRF token
+    const csrftoken = getCookie('csrftoken');
+    
+    // Make request
+    fetch('{% url "check_pincode_delivery" %}', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrftoken,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: `pincode=${pincode}`
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success && data.serviceable) {
+        // Show success
+        hideError();
+        deliveryMeta.style.display = 'block';
+        deliveryLocation.style.display = 'block';
+        
+        // Update delivery date
+        deliveryDate.textContent = `By ${data.delivery_date}`;
+        
+        // Update location
+        cityState.textContent = `${data.city}, ${data.state}`;
+        pincodeDisplay.textContent = pincode;
+        
+        // Show/hide COD info
+        if (data.cod_available) {
+          codInfo.textContent = '💵 Cash on Delivery available';
+          codInfo.style.color = '#00c853';
+          codInfo.style.display = 'block';
+        } else {
+          codInfo.textContent = '💳 Prepaid orders only';
+          codInfo.style.color = '#ff9800';
+          codInfo.style.display = 'block';
+        }
+        
+        // ✅ Mark as checked and change button to "Change"
+        isPincodeChecked = true;
+        pinBtn.textContent = 'Change';
+        
+        // Store in localStorage
+        localStorage.setItem('delivery_pincode', pincode);
+        localStorage.setItem('delivery_date', data.delivery_date);
+        localStorage.setItem('delivery_city', data.city);
+        localStorage.setItem('delivery_state', data.state);
+        localStorage.setItem('delivery_cod', data.cod_available);
+        
+      } else {
+        // Show error
+        showError(data.message || 'Delivery not available to this pincode');
+        
+        // ✅ Keep button as "Check" on error
+        isPincodeChecked = false;
+        pinBtn.textContent = 'Check';
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showError('Failed to check delivery. Please try again.');
+      
+      // ✅ Keep button as "Check" on error
+      isPincodeChecked = false;
+      pinBtn.textContent = 'Check';
+    })
+    .finally(() => {
+      pinBtn.disabled = false;
+    });
+  }
+  
+  function showError(message) {
+    deliveryMeta.style.display = 'none';
+    deliveryLocation.style.display = 'none';
+    codInfo.style.display = 'none';
+    deliveryError.style.display = 'block';
+    errorMessage.textContent = message;
+  }
+  
+  function hideError() {
+    deliveryError.style.display = 'none';
+  }
+  
+  function hideAllResults() {
+    deliveryMeta.style.display = 'none';
+    deliveryLocation.style.display = 'none';
+    codInfo.style.display = 'none';
+    deliveryError.style.display = 'none';
+  }
+  
+  function getCookie(name) {
+    const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+  }
+  
+  // ✅ Load saved pincode on page load
+  const savedPincode = localStorage.getItem('delivery_pincode');
+  const savedDate = localStorage.getItem('delivery_date');
+  const savedCity = localStorage.getItem('delivery_city');
+  const savedState = localStorage.getItem('delivery_state');
+  const savedCod = localStorage.getItem('delivery_cod');
+  
+  if (savedPincode && savedDate) {
+    pinInput.value = savedPincode;
+    deliveryMeta.style.display = 'block';
+    deliveryLocation.style.display = 'block';
+    deliveryDate.textContent = `By ${savedDate}`;
+    cityState.textContent = `${savedCity}, ${savedState}`;
+    pincodeDisplay.textContent = savedPincode;
+    
+    if (savedCod === 'true') {
+      codInfo.textContent = '💵 Cash on Delivery available';
+      codInfo.style.color = '#00c853';
+      codInfo.style.display = 'block';
+    } else if (savedCod === 'false') {
+      codInfo.textContent = '💳 Prepaid orders only';
+      codInfo.style.color = '#ff9800';
+      codInfo.style.display = 'block';
+    }
+    
+    // ✅ Set button to "Change" since pincode is already loaded
+    isPincodeChecked = true;
+    pinBtn.textContent = 'Change';
+  }
+})();
+</script>
+<script>
+// ====================================
+// WISHLIST TOGGLE FUNCTIONALITY
+// ====================================
+document.addEventListener('DOMContentLoaded', function() {
+    const wishlistBtn = document.querySelector('.wishlist-toggle-btn');
+    const variantIdInput = document.getElementById('pdpVariantId');
+    
+    if (!wishlistBtn) return;
+
+    // ============ CSRF Token Helper ============
+    function getCsrfToken() {
+        const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfInput) return csrfInput.value;
+        
+        // Fallback: Try to get from cookie
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        return match ? match[1] : '';
+    }
+
+    // ============ Check Wishlist Status on Page Load ============
+    function checkWishlistStatus(variantId) {
+        if (!variantId) return;
+        
+        fetch(`/wishlist/check/${variantId}/`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.in_wishlist) {
+                wishlistBtn.classList.add('in-wishlist');
+            } else {
+                wishlistBtn.classList.remove('in-wishlist');
+            }
+        })
+        .catch(error => console.error('Error checking wishlist:', error));
+    }
+
+    // ============ Toggle Wishlist (Add/Remove) ============
+    function toggleWishlist(variantId) {
+        if (!variantId) {
+            showToast('Please select a color variant', 'error');
+            return;
+        }
+        
+        wishlistBtn.classList.add('loading');
+        
+        fetch(`/wishlist/toggle/${variantId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            wishlistBtn.classList.remove('loading');
+            
+            if (data.success) {
+                if (data.in_wishlist) {
+                    wishlistBtn.classList.add('in-wishlist');
+                    showToast('Added to wishlist ❤️', 'success');
+                } else {
+                    wishlistBtn.classList.remove('in-wishlist');
+                    showToast('Removed from wishlist', 'info');
+                }
+            } else {
+                showToast(data.message || 'Something went wrong', 'error');
+            }
+        })
+        .catch(error => {
+            wishlistBtn.classList.remove('loading');
+            console.error('Error:', error);
+            showToast('Failed to update wishlist', 'error');
+        });
+    }
+
+    // ============ Toast Notification ============
+    function showToast(message, type = 'info') {
+        // Remove existing toast if any
+        const existingToast = document.querySelector('.wishlist-toast');
+        if (existingToast) existingToast.remove();
+        
+        const toast = document.createElement('div');
+        toast.className = `wishlist-toast toast-${type}`;
+        toast.textContent = message;
+        
+        const colors = {
+            success: '#10b981',
+            error: '#ef4444',
+            info: '#6b7280'
+        };
+        
+        toast.style.cssText = `
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: ${colors[type] || colors.info};
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            z-index: 99999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
+        `;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // Add toast animations
+    if (!document.getElementById('wishlist-toast-styles')) {
+        const style = document.createElement('style');
+        style.id = 'wishlist-toast-styles';
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(400px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(400px); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // ============ Get Current Selected Variant ID ============
+    function getCurrentVariantId() {
+        // First try to get from hidden input
+        if (variantIdInput && variantIdInput.value) {
+            return variantIdInput.value;
+        }
+        // Fallback to button's data attribute
+        return wishlistBtn.dataset.variantId;
+    }
+
+    // ============ Initial Check on Page Load ============
+    const initialVariantId = getCurrentVariantId();
+    checkWishlistStatus(initialVariantId);
+
+    // ============ Handle Wishlist Button Click ============
+    wishlistBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const variantId = getCurrentVariantId();
+        toggleWishlist(variantId);
+    });
+
+    // ============ Update When Variant Changes (Color Swatches) ============
+    
+    // Listen to the hidden variant input change
+    if (variantIdInput) {
+        variantIdInput.addEventListener('change', function() {
+            const newVariantId = this.value;
+            wishlistBtn.dataset.variantId = newVariantId; // Update button data
+            checkWishlistStatus(newVariantId);
+        });
+    }
+
+    // Listen to color swatch clicks (your existing swatch handler)
+    document.addEventListener('click', function(e) {
+        const swatch = e.target.closest('[data-variant-id]');
+        if (swatch && swatch.classList.contains('swatch')) {
+            // Small delay to ensure variant input is updated
+            setTimeout(() => {
+                const newVariantId = getCurrentVariantId();
+                wishlistBtn.dataset.variantId = newVariantId;
+                checkWishlistStatus(newVariantId);
+            }, 50);
+        }
+    });
+});
+</script>
+
+{% endblock %}
+

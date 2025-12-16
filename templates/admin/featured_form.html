@@ -1,0 +1,299 @@
+{% extends 'admin/admin-base.html' %}
+{% load static %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<style>
+  .form-section {
+    background: #000;
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+  }
+  
+  .section-header {
+    border-bottom: 2px solid #333;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .section-header h4 {
+    color: #8855ff;
+    font-weight: 700;
+    margin: 0;
+  }
+  
+  .form-control, .form-select {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    color: #fff;
+  }
+  
+  .form-control:focus, .form-select:focus {
+    background: #2a2a2a;
+    border-color: #8855ff;
+    color: #fff;
+    box-shadow: 0 0 0 0.25rem rgba(136, 85, 255, 0.25);
+  }
+  
+  .form-label {
+    color: #ccc;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  
+  .form-text {
+    color: #999;
+    font-size: 0.875rem;
+  }
+  
+  .btn-submit {
+    background: #8855ff;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+  }
+  
+  .btn-submit:hover {
+    background: #7744ee;
+    color: #fff;
+  }
+  
+  .alert {
+    border-radius: 8px;
+  }
+  
+  .info-box {
+    background: #2a2a2a;
+    border-left: 4px solid #8855ff;
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 4px;
+  }
+  
+  .info-box h6 {
+    color: #8855ff;
+    margin: 0 0 0.5rem 0;
+  }
+  
+  .info-box p {
+    color: #ccc;
+    margin: 0;
+    font-size: 0.9rem;
+  }
+
+  .current-image-preview {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+
+  .current-image-preview img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+  }
+
+  .price-preview {
+    background: #1e1e1e;
+    border: 2px solid #8855ff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    margin-top: 1rem;
+  }
+
+  .price-preview h3 {
+    color: #8855ff;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .errorlist {
+    color: #ff5252;
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0 0;
+    font-size: 0.875rem;
+  }
+</style>
+
+<div class="container py-5">
+  <h2 class="fw-bold mb-4" style="color: #fff;">{{ title|upper }}</h2>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Info Box -->
+  <div class="info-box">
+    <h6>✨ Featured Products</h6>
+    <p><strong>Showcase:</strong> Highlight your best-selling or premium products on homepage</p>
+    <p><strong>One Image:</strong> Upload a single high-quality product image (recommended: 800x800px)</p>
+    <p><strong>Link:</strong> Redirects users to the product detail page when clicked</p>
+  </div>
+
+  <form class="form-section" method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <!-- Product Information -->
+    <div class="section-header">
+      <h4>Product Information</h4>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-12">
+        <label for="{{ form.title.id_for_label }}" class="form-label">
+          {{ form.title.label }} <span class="text-danger">*</span>
+        </label>
+        {{ form.title }}
+        <div class="form-text">Product name (e.g., "boAt Stone Lumos")</div>
+        {% if form.title.errors %}
+          <ul class="errorlist">
+            {% for error in form.title.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+      {{ form.description }}
+      <div class="form-text">Key features and benefits (2-3 lines)</div>
+      {% if form.description.errors %}
+        <ul class="errorlist">
+          {% for error in form.description.errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+
+    <!-- Product Image -->
+    <div class="section-header mt-5">
+      <h4>Product Image</h4>
+    </div>
+
+    {% if object and object.image %}
+    <div class="current-image-preview">
+      <label class="form-label">Current Image</label><br>
+      <img src="{{ object.image.url }}" alt="{{ object.title }}">
+    </div>
+    {% endif %}
+
+    <div class="mb-4">
+      <label for="{{ form.image.id_for_label }}" class="form-label">
+        {{ form.image.label }} <span class="text-danger">*</span>
+        <span class="badge bg-success ms-2">Single Image</span>
+      </label>
+      {{ form.image }}
+      <div class="form-text">JPG, PNG - Recommended: 800x800px square aspect ratio</div>
+      {% if form.image.errors %}
+        <ul class="errorlist">
+          {% for error in form.image.errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+
+    <!-- Pricing & Link -->
+    <div class="section-header mt-5">
+      <h4>Pricing & Link</h4>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <label for="{{ form.price.id_for_label }}" class="form-label">
+          {{ form.price.label }} <span class="text-danger">*</span>
+        </label>
+        {{ form.price }}
+        <div class="form-text">Product price in ₹</div>
+        {% if form.price.errors %}
+          <ul class="errorlist">
+            {% for error in form.price.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+        <div class="price-preview" id="pricePreview" style="display:none;">
+          <h3 id="priceDisplay">₹0</h3>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <label for="{{ form.link_url.id_for_label }}" class="form-label">
+          {{ form.link_url.label }} <span class="text-danger">*</span>
+        </label>
+        {{ form.link_url }}
+        <div class="form-text">Product detail page URL</div>
+        {% if form.link_url.errors %}
+          <ul class="errorlist">
+            {% for error in form.link_url.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Display Settings -->
+    <div class="section-header mt-5">
+      <h4>Display Settings</h4>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <label for="{{ form.priority.id_for_label }}" class="form-label">{{ form.priority.label }}</label>
+        {{ form.priority }}
+        <div class="form-text">Lower number = appears first</div>
+        {% if form.priority.errors %}
+          <ul class="errorlist">
+            {% for error in form.priority.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      <div class="col-md-6">
+        <div class="form-check" style="margin-top: 2.5rem;">
+          {{ form.is_active }}
+          <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+            {{ form.is_active.label }}
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="d-flex flex-wrap gap-3 justify-content-end mt-5">
+      <a href="{% url 'banner_list' %}" class="btn btn-light">Cancel</a>
+      <button type="submit" class="btn btn-submit">✨ Save Product</button>
+    </div>
+  </form>
+</div>
+
+<script>
+// Price preview
+const priceInput = document.getElementById('{{ form.price.id_for_label }}');
+const pricePreview = document.getElementById('pricePreview');
+const priceDisplay = document.getElementById('priceDisplay');
+
+priceInput.addEventListener('input', function() {
+  const value = parseFloat(this.value) || 0;
+  if (value > 0) {
+    priceDisplay.textContent = '₹' + value.toLocaleString('en-IN');
+    pricePreview.style.display = 'block';
+  } else {
+    pricePreview.style.display = 'none';
+  }
+});
+
+// Initial price display
+if (priceInput.value) {
+  priceInput.dispatchEvent(new Event('input'));
+}
+</script>
+
+{% endblock %}

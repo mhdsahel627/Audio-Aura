@@ -1,0 +1,138 @@
+{% load static %}
+
+
+<!--=============== CSS ===============-->
+<link rel="stylesheet" href="{% static 'css/styles.css' %}" />
+
+<!-- 🔹 Top Offer Bar -->
+  <div class="bg-light text-center py-1 small m-0" style="font-size: 14px;">
+    Get 25% off your first purchase! Use code: <strong>WELCOME25</strong>
+  </div>
+
+  <!-- 🔹 Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark" style="background:#4b002b;">
+    <div class="container-fluid">
+
+     <!-- 🔹 Hamburger Button with SVG -->
+<!-- 🔹 Hamburger Menu (Mobile) -->
+    <button class="btn d-lg-none me-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu">
+      <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="white" class="bi bi-list" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/>
+      </svg>
+    </button>
+      
+      <!-- Logo -->
+      <a class="navbar-brand d-flex align-items-center" href="{% url 'home' %}">
+        <img src="{% static 'images/logo.png' %}" alt="Audio Aura" height="100" class="me-2">
+      </a>
+
+      <!-- Hamburger -->
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <!-- Menu -->
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav mx-4  ms-auto p-1" >
+          <li class="nav-item"><a class="nav-link" href="{% url 'home' %}">Home</a></li>
+
+          <!-- Dropdown -->
+<!-- Categories dropdown (replace your old dropdown block with this) -->
+          <li class="nav-item dropdown categories-dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="categoriesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Categories
+            </a>
+            <div class="bg-success dropdown-menu custom-dropdown p-0" aria-labelledby="categoriesDropdown">
+              <!-- Outer dark border container (keeps the thick border) -->
+              <div class="custom-dropdown-outer">
+                <!-- Inner semi-transparent panel (content lives here) -->
+                <div class="custom-dropdown-inner d-flex align-items-center justify-content-between">
+                  <!-- Category 1 -->
+                  <div class="cat-item text-center">
+                    <a href="" class="text-decoration-none">
+                      <img src="{% static 'images/party.webp' %}" alt="Party Speakers" class="img-fluid cat-img">
+                      <h6 class="cat-title">Party Speakers</h6>
+                    </a>
+                  </div>
+
+                  <!-- Category 2 -->
+                  <div class="cat-item text-center">
+                    <a href="" class="text-decoration-none">
+                      <img src="{% static 'images/wireless.webp' %}" alt="Wireless Speakers" class="img-fluid cat-img">
+                      <h6 class="cat-title">Wireless Speakers</h6>
+                    </a>
+                  </div>
+
+                  <!-- Category 3 -->
+                  <div class="cat-item text-center">
+                    <a href="" class="text-decoration-none">
+                      <img src="{% static 'images/soundbar.webp' %}" alt="Soundbars" class="img-fluid cat-img">
+                      <h6 class="cat-title ">Soundbars</h6>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </li>
+
+
+
+          <li class="nav-item"><a class="nav-link" href="{% url 'shop' %}">Shop</a></li>
+          <li class="nav-item"><a class="nav-link" href="#">New Arrivals</a></li>
+          <li class="nav-item"><a class="nav-link" href="#">About</a></li>
+          <li class="nav-item"><a class="nav-link" href="#">Contact</a></li>
+        </ul>
+
+        <!-- Search -->
+        <form class="d-flex me-3" role="search">
+          <input class="form-control form-control-sm" type="search" placeholder="What are you looking for?">
+          <button class="btn btn-sm btn-outline-light ms-2" type="submit">Search</button>
+        </form>
+
+        <!-- 🔹 Profile Dropdown -->
+        <ul class="navbar-nav mb-2 mb-lg-0">
+          {% if user.is_authenticated %}
+            <li class="nav-item">
+              <a class="nav-link d-flex align-items-center cart-btn" href="">
+                <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="currentColor" class="bi bi-cart3" viewBox="0 0 16 16">
+                  <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .49.598l-1 5a.5.5 0 0 1-.465.401l-9.397.472L4.415 11H13a.5.5 0 0 1 0 1H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l.84 4.479 9.144-.459L13.89 4zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+                </svg>
+              </a>
+            </li>           
+            <li class="nav-item">
+              <a class="nav-link d-flex align-items-center wishlist-btn" href="">
+                <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25"
+                    fill="white" class="bi bi-heart-fill" viewBox="0 0 16 16">
+                  <path fill-rule="evenodd" 
+                        d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 
+                          3.562-3.248 8 1.314"/>
+                </svg>
+              </a>
+            </li>   
+            <li class="nav-item dropdown">
+              <a class="nav-link  d-flex align-items-center" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown">
+                <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="white" class="bi bi-person-circle" viewBox="0 0 16 16">
+  <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
+  <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
+</svg>
+                
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end text-white">
+                <li><a class="dropdown-item" href="#">Account</a></li>
+                <li><a class="dropdown-item" href="#">My Orders</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{% url 'logout' %}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-left" viewBox="0 0 16 16">
+  <path fill-rule="evenodd" d="M6 12.5a.5.5 0 0 0 .5.5h8a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-8a.5.5 0 0 0-.5.5v2a.5.5 0 0 1-1 0v-2A1.5 1.5 0 0 1 6.5 2h8A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 5 12.5v-2a.5.5 0 0 1 1 0z"/>
+  <path fill-rule="evenodd" d="M.146 8.354a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L1.707 7.5H10.5a.5.5 0 0 1 0 1H1.707l2.147 2.146a.5.5 0 0 1-.708.708z"/>
+</svg> Logout</a></li>
+              </ul>
+            </li>            
+          {% else %}
+            <li class="nav-item"><a class="nav-link" href="{% url 'signup' %}">Sign Up</a></li>
+            <li class="nav-item"><a class="nav-link" href="{% url 'signin' %}">Sign In</a></li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+    x
+  </nav>

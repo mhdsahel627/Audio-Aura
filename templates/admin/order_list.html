@@ -1,0 +1,591 @@
+{% extends 'admin/admin-base.html' %}
+{% load static %}
+{% block title %}Order list{% endblock %}
+
+{% block content %}
+<style>
+/* Page background */
+.orders-page{
+  min-height:100%;
+  padding:24px 24px 40px;
+  background:radial-gradient(1200px 700px at 10% 0%, #4a0036 0%, #2a0b32 40%, #151225 100%);
+  color:#e8e7ee;
+  font-family:ui-sans-serif, system-ui, -apple-system, Segoe UI, Inter, Roboto, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+/* Topbar */
+.topbar{ display:flex; align-items:center; gap:16px; justify-content:space-between; margin-bottom:18px; }
+.breadcrumbs{ display:flex; align-items:center; gap:8px; color:#c8c3d8; font-size:14px; }
+.crumb{ color:#d9d5e6; text-decoration:none; }
+.crumb:hover{ text-decoration:underline; }
+.crumb.current{ color:#ffffff; opacity:.9; }
+.sep{ opacity:.5; }
+.ol-search input{
+  width:320px; max-width:40vw; padding:10px 14px; border-radius:12px;
+  border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.08);
+  color:#fff; outline:none; box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);
+}
+.ol-search input::placeholder{ color:#d0cde0aa; }
+
+/* Filter row */
+.filters{ display:flex; align-items:center; justify-content:space-between; gap:16px; margin:18px 0 16px; flex-wrap:wrap; }
+
+/* Order List Filters (namespaced to avoid sidebar conflicts) */
+.olf.segmented{
+  display:inline-flex; align-items:center;
+  gap:12px; padding:6px 10px; border-radius:14px;
+  background:#fff; color:#7b869a; border:2px solid #eceef4;
+  box-shadow:0 2px 0 rgba(0,0,0,.06), 0 10px 24px rgba(0,0,0,.12);
+}
+.olf .olf-btn{
+  margin-left: -6px;
+  text-decoration: none;
+  position:relative; border:0; background:transparent; color:#72809a;
+  font-weight:700; font-size:14px; line-height:1;
+  padding:6px 10px; border-radius:10px; cursor:pointer;
+  transition:color .2s ease, background .2s ease, transform .02s ease;
+}
+.olf .olf-btn:hover{ color:#4b5567; }
+.olf .olf-btn.is-active{
+  background:#000; color:#fff; box-shadow:inset 0 -1px 0 rgba(255,255,255,.08);padding: 8px 8px 8px 8px;
+}
+.olf .olf-btn:active{ transform:translateY(1px); }
+/* Optional extra-compact */
+.olf.segmented.sm{ gap:8px; padding:4px 8px; border-radius:12px; }
+.olf.segmented.sm .olf-btn{ font-size:13px; padding:5px 8px; border-radius:8px; }
+
+/* Right action buttons (kept generic but do not conflict with olf) */
+.actions{ display:flex; gap:10px; flex-wrap:wrap; }
+.actions .btn{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:10px 14px; font-size:14px; border-radius:12px;
+  border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.08);
+  color:#fff; cursor:pointer; transition:.2s ease;
+}
+.actions .btn:hover{ background:rgba(255,255,255,.12); }
+.icon{ filter:grayscale(100%); }
+
+/* Glass card */
+.card{
+  border-radius:14px; border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.06); backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px); box-shadow:0 10px 30px rgba(0,0,0,.35);
+}
+
+/* Table */
+.table-wrap{ overflow-x:auto; }
+table.orders{ width:100%; border-collapse:separate; border-spacing:0; color:#e9e6f5; font-size:14px; }
+.orders thead th{
+  text-align:left; padding:14px 16px; background:rgba(255,255,255,.04);
+  color:#cbc6dc; font-weight:600; position:sticky; top:0; z-index:1;
+}
+.orders thead th:first-child{ border-top-left-radius:14px; }
+.orders thead th:last-child{ border-top-right-radius:14px; }
+.orders tbody tr{ border-bottom:1px solid rgba(255,255,255,.08); }
+.orders tbody td{ padding:14px 16px; vertical-align:middle; color:#f2f1f7; }
+.orders tbody tr:hover{ background:rgba(255,255,255,.06); }
+
+/* Columns */
+.col-product{ width:28%; }
+.col-customer{ width:22%; }
+
+/* Links */
+.link{ color:#6eb6ff; text-decoration:none; }
+.link:hover{ text-decoration:underline; }
+
+/* Cells */
+.product-cell{ display:flex; align-items:center; gap:12px; }
+.thumb{ width:32px; height:32px; border-radius:8px; background:#cfcadf; opacity:.35; }
+.pmeta .pname{ font-weight:600; }
+.pmeta .pmore{ font-size:12px; color:#c8c3d8; }
+
+.customer .cname{ font-weight:600; }
+.customer .cemail{ font-size:12px; color:#c8c3d8; }
+
+/* Status badges */
+.badge{
+  display:inline-flex; align-items:center; padding:6px 10px; border-radius:999px;
+  font-size:12px; font-weight:600; letter-spacing:.2px;
+  background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.24);
+}
+.badge-processing{ background:rgba(255,170,0,.18); border-color:rgba(255,170,0,.35); color:#ffd27a; }
+.badge-shipped{ background:rgba(102,179,255,.18); border-color:rgba(102,179,255,.35); color:#a7d6ff; }
+.badge-delivered{ background:rgba(84,214,135,.2); border-color:rgba(84,214,135,.4); color:#8af2b7; }
+.badge-cancelled{ background:rgba(255,90,90,.2); border-color:rgba(255,90,90,.4); color:#ffb4b4; }
+
+/* Footer + pager */
+.table-footer{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px 16px 16px; }
+.hint{ color:#c8c3d8; font-size:13px; }
+.pager{ display:flex; align-items:center; gap:6px; }
+.pg{
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:34px; height:34px; padding:0 10px; border-radius:8px;
+  color:#e8e7ee; text-decoration:none; background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12); transition:.2s ease;
+}
+.pg:hover{ background:rgba(255,255,255,.12); }
+.pg.current{ background:#ffffff; color:#141224; border-color:transparent; font-weight:700; }
+.pg.disabled{ opacity:.4; pointer-events:none; }
+
+/* Responsive tweaks */
+@media (max-width:900px){
+  .ol-search input{ width:220px; }
+  .col-customer,.col-product{ width:auto; }
+}
+@media (max-width:680px){
+  .orders thead{ display:none; }
+  .orders tbody tr{ display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; padding:10px 8px; }
+  .orders tbody td{ padding:6px 8px; }
+  .orders tbody td:nth-child(1){ grid-column:1 / -1; }
+  .orders tbody td:nth-child(2){ grid-column:1 / -1; }
+}
+/* Toolbar container (optional, you can keep background: none inline) */
+.orders-toolbar{
+  margin:0 0 18px;
+  padding:14px 14px 10px;
+  border-radius:18px;
+  background: radial-gradient(120% 140% at 0% 0%, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 40%),
+             linear-gradient(135deg,#2a073a 0%,#1a0830 40%,#0a0a22 100%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 10px 26px rgba(0,0,0,.25);
+  color:#eae7f2;
+}
+
+.ot-row{ display:flex; align-items:center; gap:16px; }
+.ot-top{ margin-bottom:12px; }
+.ot-bc{ display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.2px; }
+
+/* Right-side actions row */
+.ot-acts{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+
+/* Main button look (for Select Dates / Order status / Filter) */
+.ot-btn{
+  display:inline-flex; align-items:center; gap:10px;
+  height:44px; padding:12px 16px; border-radius:14px;
+  background:rgba(255,255,255,.08); color:#fff;
+  border:1px solid rgba(255,255,255,.16);
+  font-weight:700; cursor:pointer;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 6px 16px rgba(0,0,0,.24);
+  transition: transform .15s ease, background .2s ease, border-color .2s ease;
+}
+.ot-btn:hover{
+  transform:translateY(-1px);
+  background:rgba(255,255,255,.12);
+  border-color:rgba(151,190,255,.5);
+}
+.ot-ic{ opacity:.9; }
+
+/* Dropdown wrapper + panel */
+.ot-dd{ position:relative; }
+
+.ot-panel{
+  position:absolute;
+  top:54px; right:0;
+  min-width:260px;
+  z-index:30;
+  padding:12px;
+  border-radius:14px;
+  background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+  border:1px solid rgba(255,255,255,.18);
+  box-shadow:0 14px 34px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.12);
+  backdrop-filter:blur(10px);
+  display:none;
+}
+
+.ot-dd.is-open > .ot-panel{ display:block; }
+
+.ot-panel h6{
+  margin:0 0 8px;
+  font-weight:800;
+  color:#000000;
+  opacity:.9;
+}
+
+.ot-field{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+
+.ot-panel input[type="date"],
+.ot-panel select{
+  height:42px;
+  padding:0 12px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.16);
+  background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+  color:#000000;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
+  width:100%;
+}
+.ot-panel select option{ color:#111; }
+
+.ot-row-in{ display:flex; gap:10px; }
+
+.ot-actions-rows{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:8px;
+}
+
+.ot-small{
+  height:36px;
+  padding:0 12px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.10);
+  color:#000000;
+  font-weight:700;
+  cursor:pointer;
+  text-decoration:none;
+}
+
+/* Listbox options (status + sort) */
+.lb{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  max-height:280px;
+  overflow:auto;
+}
+
+.lb-opt{
+  width:100%;
+  text-align:left;
+  background:rgba(255,255,255,.06);
+  color:#000000;
+  border:1px solid rgb(126 115 115 / 26%);
+  border-radius:10px;
+  padding:10px 12px;
+  font-weight:700;
+  cursor:pointer;
+  transition:background .15s, transform .05s;
+}
+.lb-opt:hover{
+  background:#241939;
+  color:wheat;
+}
+.lb-opt[aria-selected="true"]{
+  background:rgba(119,170,255,.25);
+  border-color:rgba(119,170,255,.6);
+}
+
+/* Responsive tweak if needed */
+@media(max-width:900px){
+  .ot-top,.ot-bottom{ flex-wrap:wrap; gap:12px; }
+  .ot-bottom{ justify-content:flex-start; }
+  .ot-acts{ width:100%; }
+}
+.orders-toolbar{
+      display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+
+}
+</style>
+
+<div class="orders-page">
+  
+
+  <div class="topbar">
+    <div class="breadcrumbs">
+      <a href="{% url 'admin_dashboard' %}" class="crumb">Dashboard</a>
+      <span class="sep">›</span>
+      <span class="crumb current">Order List</span>
+    </div>
+    <div class="ol-search">
+      <form class="ol-search" method="get">
+        <input type="text" placeholder="Search Order…" name="q" value="{{ q }}">
+        {% if range %}<input type="hidden" name="range" value="{{ range }}">{% endif %}
+        {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+        {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+      </form>
+    </div>
+  </div>
+
+  <div class="filters">
+    <!-- Namespaced segmented control to avoid conflicts -->
+    <div class="olf segmented">
+      <a href="?range=all{% if q %}&q={{ q }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}"
+        class="olf-btn {% if range == 'all' %}is-active{% endif %}">All Time</a>
+      <a href="?range=12m{% if q %}&q={{ q }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}"
+        class="olf-btn {% if range == '12m' %}is-active{% endif %}">12 Months</a>
+      <a href="?range=30d{% if q %}&q={{ q }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}"
+        class="olf-btn {% if range == '30d' %}is-active{% endif %}">30 Days</a>
+      <a href="?range=7d{% if q %}&q={{ q }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}"
+        class="olf-btn {% if range == '7d' %}is-active{% endif %}">7 Days</a>
+      <a href="?range=24h{% if q %}&q={{ q }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}"
+        class="olf-btn {% if range == '24h' %}is-active{% endif %}">24 Hour</a>
+    </div>
+
+<div class="orders-toolbar">
+    <div class="ot-row ot-bottom">
+      <div class="ot-acts">
+        <!-- Select Dates -->
+        <div class="ot-dd" id="adm-dd-dates">
+          <button type="button" class="ot-btn ot-trigger">
+            <span class="ot-ic">▦</span><span>Select Dates</span>
+          </button>
+          <div class="ot-panel">
+            <h6>Date range</h6>
+            <form id="adm-dates-form" method="get" action="{% url 'order_list' %}">
+              <input type="hidden" name="q" value="{{ q }}">
+              <input type="hidden" name="range" value="{{ range }}">
+              <input type="hidden" name="status" value="{{ status }}">
+              <input type="hidden" name="sort" value="{{ sort }}">
+              <div class="ot-row-in">
+                <div class="ot-field">
+                  <input type="date" id="adm-from-input" name="from" value="{{ request.GET.from }}">
+                </div>
+                <div class="ot-field">
+                  <input type="date" id="adm-to-input" name="to" value="{{ request.GET.to }}">
+                </div>
+              </div>
+              <div class="ot-actions-rows">
+                <a class="ot-small"
+                   href="{% url 'order_list' %}?{% if q %}q={{q}}&{% endif %}{% if range %}range={{range}}&{% endif %}{% if status %}status={{status}}&{% endif %}{% if sort %}sort={{sort}}{% endif %}">
+                  Clear
+                </a>
+                <button class="ot-small" type="submit">Apply</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Status -->
+        <div class="ot-dd" id="adm-dd-status">
+          <button type="button" class="ot-btn ot-trigger">
+            <span class="ot-ic">🏷</span>
+            <span id="adm-status-label">{{ status|default:"Order status" }}</span>
+          </button>
+          <div class="ot-panel">
+            <h6>Status</h6>
+            <div class="lb" role="listbox" aria-labelledby="adm-status-label">
+              <button class="lb-opt" data-value="">All status</button>
+              <button class="lb-opt" data-value="processing">Processing</button>
+              <button class="lb-opt" data-value="shipped">Shipped</button>
+              <button class="lb-opt" data-value="delivered">Delivered</button>
+              <button class="lb-opt" data-value="cancelled">Cancelled</button>
+
+              <form id="adm-status-form" method="get" action="{% url 'order_list' %}">
+                <input type="hidden" name="q" value="{{ q }}">
+                <input type="hidden" name="range" value="{{ range }}">
+                <input type="hidden" name="from" value="{{ request.GET.from }}">
+                <input type="hidden" name="to" value="{{ request.GET.to }}">
+                <input type="hidden" name="sort" value="{{ sort }}">
+                <input type="hidden" name="status" id="adm-status-input" value="{{ status }}">
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sort -->
+        <div class="ot-dd" id="adm-dd-sort">
+          <button type="button" class="ot-btn ot-trigger">
+            <span class="ot-ic">⚙</span><span>Filter</span>
+          </button>
+          <div class="ot-panel">
+            <h6>Sort by</h6>
+            <div class="lb" role="listbox" aria-label="Sort by">
+              <button class="lb-opt" data-value="-total_amount">Amount high → low</button>
+              <button class="lb-opt" data-value="total_amount">Amount low → high</button>
+              <button class="lb-opt" data-value="-created_at">Newest</button>
+              <button class="lb-opt" data-value="created_at">Oldest</button>
+
+              <form id="adm-sort-form" method="get" action="{% url 'order_list' %}">
+                <input type="hidden" name="q" value="{{ q }}">
+                <input type="hidden" name="range" value="{{ range }}">
+                <input type="hidden" name="from" value="{{ request.GET.from }}">
+                <input type="hidden" name="to" value="{{ request.GET.to }}">
+                <input type="hidden" name="status" value="{{ status }}">
+                <input type="hidden" name="sort" id="adm-sort-input" value="{{ sort|default:'-created_at' }}">
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <a href="{% url 'admin_action_requests' %}">
+          <button type="button" class="ot-btn">Pending Requests</button>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table class="orders">
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th class="col-product">Product</th>
+            <th>Date</th>
+            <th class="col-customer">Customer</th>
+            <th>Total</th>
+            <th>Payment</th>
+            <th>Status</th>
+            <th>Brand</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in orders %}
+          <a class="link" href="{% url 'admin_order_detail' o.id %}">
+        <tr>
+            <td><a class="link" href="{% url 'admin_order_detail' o.id %}">#{{ o.id }}</a></td>
+          <td>
+            <div class="product-cell">
+              {% if o.image_url %}
+                <img src="{{ o.image_url }}" alt="{{ o.primary_item_name }}"
+                    style="width:32px;height:32px;border-radius:8px;object-fit:cover;">
+              {% else %}
+                <span class="thumb" aria-hidden="true"></span>
+              {% endif %}
+              <div class="pmeta">
+                <div class="pname">{{ o.primary_item_name }}</div>
+                {% if o.items_count > 1 %}
+                  <div class="pmore">+{{ o.items_count|add:"-1" }} other products</div>
+                {% else %}
+                  <div class="pmore">1 product</div>
+                {% endif %}
+              </div>
+            </div>
+          </td>
+
+            <td>{{ o.human_date }}</td>
+            <td>
+              <div class="customer">
+                <div class="cname">{{ o.customer_name }}</div>
+                <div class="cemail">{{ o.customer_email }}</div>
+              </div>
+            </td>
+            <td>{{ o.total_display }}</td>
+            <td>{{ o.payment_method }}</td>
+            <td>
+              {% if o.status == 'processing' %}
+                <span class="badge badge-processing">Processing</span>
+              {% elif o.status == 'shipped' %}
+                <span class="badge badge-shipped">Shipped</span>
+              {% elif o.status == 'delivered' %}
+                <span class="badge badge-delivered">Delivered</span>
+              {% elif o.status == 'cancelled' %}
+                <span class="badge badge-cancelled">Cancelled</span>
+              {% else %}
+                <span class="badge">{{ o.status|title }}</span>
+              {% endif %}
+            </td>
+            <td>{{ o.brand_name }}</td>
+          </tr>
+          </a>
+  
+          {% empty %}
+          <tr><td colspan="8" class="empty">No orders found</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="table-footer">
+      <div class="hint">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} from {{ page_obj.paginator.count }}</div>
+        <div class="pager">
+          {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if range %}&range={{ range }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}" class="pg">‹</a>
+          {% else %}
+            <span class="pg disabled">‹</span>
+          {% endif %}
+
+          {% for num in page_range %}
+            {% if num == page_obj.number %}
+              <span class="pg current">{{ num }}</span>
+            {% else %}
+              <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if range %}&range={{ range }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}" class="pg">{{ num }}</a>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if range %}&range={{ range }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}" class="pg">›</a>
+          {% else %}
+            <span class="pg disabled">›</span>
+          {% endif %}
+        </div>
+    </div>
+  </div>
+</div>
+<script>
+// Generic dropdown open/close (same as user)
+document.addEventListener('click', function(e){
+  const trigger = e.target.closest('.ot-trigger');
+  const dropdown = e.target.closest('.ot-dd');
+
+  if (!dropdown && !trigger) {
+    document.querySelectorAll('.ot-dd.is-open').forEach(n => n.classList.remove('is-open'));
+    return;
+  }
+  if (trigger) {
+    const wrap = trigger.closest('.ot-dd');
+    const open = wrap.classList.contains('is-open');
+    document.querySelectorAll('.ot-dd.is-open').forEach(n => n.classList.remove('is-open'));
+    if (!open) wrap.classList.add('is-open');
+  }
+  if (e.target.closest('.ot-panel')) {
+    e.stopPropagation();
+  }
+});
+
+// STATUS dropdown
+(function(){
+  const menu  = document.querySelector('#adm-dd-status');
+  if (!menu) return;
+  const label = document.querySelector('#adm-status-label');
+  const input = document.querySelector('#adm-status-input');
+  const form  = document.querySelector('#adm-status-form');
+
+  menu.addEventListener('click', function(e){
+    const opt = e.target.closest('.lb-opt');
+    if (!opt) return;
+    menu.querySelectorAll('.lb-opt').forEach(b => b.removeAttribute('aria-selected'));
+    opt.setAttribute('aria-selected','true');
+    label.textContent = opt.dataset.value ? opt.textContent : 'Order status';
+    input.value = opt.dataset.value || '';
+    form.submit();
+  });
+})();
+
+// SORT dropdown
+(function(){
+  const wrap = document.querySelector('#adm-dd-sort');
+  if (!wrap) return;
+  const input = document.querySelector('#adm-sort-input');
+  const form  = document.querySelector('#adm-sort-form');
+
+  wrap.querySelectorAll('.lb-opt').forEach(b => {
+    if (b.dataset.value === (input.value || '-created_at')) {
+      b.setAttribute('aria-selected','true');
+    }
+  });
+
+  wrap.addEventListener('click', function(e){
+    const opt = e.target.closest('.lb-opt');
+    if (!opt) return;
+    wrap.querySelectorAll('.lb-opt').forEach(b => b.removeAttribute('aria-selected'));
+    opt.setAttribute('aria-selected','true');
+    input.value = opt.dataset.value;
+    form.submit();
+  });
+})();
+
+// DATES dropdown
+(function(){
+  const form = document.querySelector('#adm-dates-form');
+  if (!form) return;
+  const from = form.querySelector('#adm-from-input');
+  const to   = form.querySelector('#adm-to-input');
+
+  from.addEventListener('change', ()=> {
+    if (to.value && to.value < from.value) to.value = from.value;
+    to.min = from.value;
+  });
+  to.addEventListener('change', ()=> {
+    if (from.value && to.value < from.value) from.value = to.value;
+    from.max = to.value;
+  });
+})();
+</script>
+
+{% endblock %}

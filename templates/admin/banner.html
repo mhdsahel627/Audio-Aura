@@ -1,0 +1,823 @@
+{% extends 'admin/admin-base.html' %}
+{% load static %}
+{% load video_filters %} 
+{% block title %}Banner Management{% endblock %}
+{% block content %}
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  .banner-container {
+    padding: 2.5rem;
+    background: radial-gradient(1200px 700px at 10% 0%, #4a0036 0%, #2a0b32 40%, #151225 100%);
+    min-height: 100vh;
+  }
+
+  .page-header {
+    text-align: center;
+    margin-bottom: 3rem;
+    animation: fadeInDown 0.6s ease;
+  }
+
+  .page-header h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    color: white;
+    text-shadow: 2px 4px 8px rgba(0,0,0,0.2);
+    margin-bottom: 0.5rem;
+  }
+
+  .page-header p {
+    color: rgba(255,255,255,0.9);
+    font-size: 1.2rem;
+  }
+
+  /* Messages */
+  .messages {
+    max-width: 1400px;
+    margin: 0 auto 2rem;
+  }
+
+  .alert {
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    animation: slideInRight 0.4s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+  }
+
+  .alert-success {
+    background: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+  }
+
+  .alert-error {
+    background: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+  }
+
+  .alert-info {
+    background: #d1ecf1;
+    color: #0c5460;
+    border-left: 4px solid #17a2b8;
+  }
+
+  /* Section Cards */
+  .section-wrapper {
+    max-width: 1400px;
+    margin: 0 auto 2.5rem;
+    animation: fadeInUp 0.6s ease;
+  }
+
+  .section-header {
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px 20px 0 0;
+    padding: 1.5rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 3px solid #667eea;
+  }
+
+  .section-title-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .section-icon-wrapper {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  }
+
+  .section-title-text h2 {
+    font-size: 1.5rem;
+    color: #2d3748;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+  }
+
+  .section-title-text p {
+    font-size: 0.9rem;
+    color: #718096;
+  }
+
+  .add-button {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 0.9rem 2rem;
+    border-radius: 50px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    text-decoration: none;
+  }
+
+  .add-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+  }
+
+  .section-content {
+    background: white;
+    border-radius: 0 0 20px 20px;
+    padding: 0;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+  }
+
+  /* Grid Layout for Cards */
+  .items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+    padding: 2rem;
+  }
+
+  .item-card {
+    background: linear-gradient(to bottom, #f8f9fa, #ffffff);
+    border-radius: 15px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 2px solid #e9ecef;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  }
+
+  .item-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 30px rgba(102, 126, 234, 0.2);
+    border-color: #667eea;
+  }
+
+  .item-media-wrapper {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+    background: #f0f0f0;
+  }
+
+  .item-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+
+  .item-card:hover .item-image {
+    transform: scale(1.05);
+  }
+
+  .item-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .media-type-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  /* Deal Images Grid */
+  .deal-images-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .deal-image-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .deal-image-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .item-body {
+    padding: 1.5rem;
+  }
+
+  .item-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 0.5rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .item-description {
+    font-size: 0.9rem;
+    color: #718096;
+    margin-bottom: 1rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.5;
+  }
+
+  .item-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e9ecef;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .status-badge {
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .status-active {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  .status-inactive {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
+  .deal-badge {
+    background: linear-gradient(135deg, #000000, #4d6011);
+    color: white;
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .price-tag {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 0.5rem 1.2rem;
+    border-radius: 25px;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+/* ===== ULTRA PREMIUM GLASSMORPHISM BUTTONS ===== */
+.item-actions {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  margin-top: 0.5rem;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 1rem 1.2rem;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  font-size: 0.95rem;
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+
+/* Edit Button - Premium Blue Glass */
+.btn-edit {
+  background: linear-gradient(135deg, rgb(0 0 0 / 90%) 0%, rgb(13 65 133 / 90%) 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.btn-edit::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.btn-edit:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5), 
+              0 4px 15px rgba(102, 126, 234, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.btn-edit:hover::before {
+  opacity: 1;
+}
+
+/* Toggle Button - Premium Pink Glass */
+.btn-toggle {
+  background:linear-gradient(135deg, rgb(0 0 0 / 90%) 0%, rgb(27 118 95 / 90%) 100%) ;
+  color: white;
+  box-shadow: 0 4px 15px rgba(240, 147, 251, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.btn-toggle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.btn-toggle:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 10px 30px rgba(240, 147, 251, 0.5), 
+              0 4px 15px rgba(245, 87, 108, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.btn-toggle:hover::before {
+  opacity: 1;
+}
+
+/* Delete Button - Premium Red Glass */
+.btn-delete {
+  background:linear-gradient(135deg, rgb(0 0 0 / 90%) 0%, rgb(195 21 44 / 90%) 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.btn-delete::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.btn-delete:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 10px 30px rgba(255, 107, 107, 0.5), 
+              0 4px 15px rgba(238, 90, 111, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.btn-delete:hover::before {
+  opacity: 1;
+}
+
+/* Active State */
+.action-btn:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+/* Button Icons with Shadow */
+.action-btn span:first-child {
+  font-size: 1.1rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #a0aec0;
+  }
+
+  .empty-state-icon {
+    font-size: 5rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+
+  .empty-state h3 {
+    font-size: 1.5rem;
+    color: #4a5568;
+    margin-bottom: 0.5rem;
+  }
+
+  .empty-state p {
+    font-size: 1rem;
+  }
+
+  /* Animations */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes fadeInDown {
+    from {
+      opacity: 0;
+      transform: translateY(-30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(100px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .items-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .section-header {
+      flex-direction: column;
+      gap: 1rem;
+      text-align: center;
+    }
+
+    .page-header h1 {
+      font-size: 2rem;
+    }
+
+    .item-actions {
+      flex-direction: column;
+    }
+  }
+  .item-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+/* Remove muted for better user experience */
+.item-video:hover {
+  cursor: pointer;
+}
+
+</style>
+
+<div class="banner-container">
+  <!-- Page Header -->
+  <div class="page-header">
+    <h1>🎨 Banner Management</h1>
+    <p>Manage your promotional banners, featured products, and highlights</p>
+  </div>
+
+  <!-- Django Messages -->
+  {% if messages %}
+  <div class="messages">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">
+      <span>{{ message }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Section 1: Main Banner Carousel -->
+  <div class="section-wrapper">
+    <div class="section-header">
+      <div class="section-title-group">
+        <div class="section-icon-wrapper">🎯</div>
+        <div class="section-title-text">
+          <h2>Main Banner Carousel</h2>
+          <p>Hero banners with image/video support</p>
+        </div>
+      </div>
+      <a href="{% url 'banner_add' %}" class="add-button">
+        <span>+</span> Add Banner
+      </a>
+    </div>
+    <div class="section-content">
+      {% if banners %}
+      <div class="items-grid">
+        {% for banner in banners %}
+        <div class="item-card">
+          <div class="item-media-wrapper">
+{% if banner.media_type == 'video' and banner.video %}
+  <video class="item-video" 
+         controls 
+         preload="auto"
+         playsinline
+         style="width: 100%; height: 100%; object-fit: cover; background: #000;">
+    <source src="{{ banner.video.url|video_url }}" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+  <span class="media-type-badge">🎬 Video</span>
+{% elif banner.image %}
+
+              <img src="{{ banner.image.url }}" alt="{{ banner.title }}" class="item-image" onerror="this.src='https://via.placeholder.com/400x200?text=Banner'">
+              <span class="media-type-badge">🖼️ Image</span>
+            {% else %}
+              <img src="https://via.placeholder.com/400x200?text=No+Media" alt="No media" class="item-image">
+            {% endif %}
+          </div>
+
+          <div class="item-body">
+            <h3 class="item-title">{{ banner.title }}</h3>
+            {% if banner.description %}
+            <p class="item-description">{{ banner.description }}</p>
+            {% endif %}
+            <div class="item-meta">
+              <span class="status-badge {% if banner.is_active %}status-active{% else %}status-inactive{% endif %}">
+                <span>●</span> {{ banner.is_active|yesno:"Active,Inactive" }}
+              </span>
+              <span class="deal-badge">📅 {{ banner.days_left }} days left</span>
+            </div>
+            <div class="item-actions">
+              <a href="{% url 'banner_edit' banner.pk %}" class="action-btn btn-edit">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
+                  <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
+                  <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/>
+                </svg>
+              </a>
+              <a href="{% url 'banner_toggle' banner.pk %}" class="action-btn btn-toggle">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-power" viewBox="0 0 16 16">
+                  <path d="M7.5 1v7h1V1z"/>
+                  <path d="M3 8.812a5 5 0 0 1 2.578-4.375l-.485-.874A6 6 0 1 0 11 3.616l-.501.865A5 5 0 1 1 3 8.812"/>
+                </svg>
+              </a>
+              <form method="post" action="{% url 'banner_delete' banner.pk %}" style="flex: 1; margin: 0;">
+                {% csrf_token %}
+                <button type="submit" class="action-btn btn-delete" onclick="return confirm('Delete this banner?')" style="width: 100%;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash3" viewBox="0 0 16 16">
+                    <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>
+                  </svg>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">🎯</div>
+        <h3>No Banners Yet</h3>
+        <p>Add your first banner to get started</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Section 2: Limited Time Deals -->
+  <div class="section-wrapper">
+    <div class="section-header">
+      <div class="section-title-group">
+        <div class="section-icon-wrapper">⚡</div>
+        <div class="section-title-text">
+          <h2>Limited Time Deals</h2>
+          <p>Manage deals with countdown timer (up to 6 images)</p>
+        </div>
+      </div>
+      <a href="{% url 'deal_add' %}" class="add-button">
+        <span>+</span> Add Deal
+      </a>
+    </div>
+    <div class="section-content">
+      {% if deals %}
+      <div class="items-grid">
+        {% for deal in deals %}
+        <div class="item-card">
+          {% if deal.images.exists %}
+          <div class="item-media-wrapper">
+            <img src="{{ deal.images.first.image.url }}" alt="{{ deal.title }}" class="item-image" onerror="this.src='https://via.placeholder.com/400x200?text=Deal'">
+            {% if deal.images.count > 1 %}
+            <span class="media-type-badge">📸 {{ deal.images.count }} images</span>
+            {% endif %}
+          </div>
+          {% else %}
+          <div class="item-media-wrapper">
+            <img src="https://via.placeholder.com/400x200?text=No+Images" alt="No images" class="item-image">
+          </div>
+          {% endif %}
+          <div class="item-body">
+            <h3 class="item-title">{{ deal.title }}</h3>
+            {% if deal.description %}
+            <p class="item-description">{{ deal.description }}</p>
+            {% endif %}
+            
+            {% if deal.images.count > 1 %}
+            <div class="deal-images-grid">
+              {% for img in deal.images.all|slice:":6" %}
+              <div class="deal-image-item">
+                <img src="{{ img.image.url }}" alt="Deal image">
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+            
+            <div class="item-meta">
+              <span class="deal-badge">🔥 {{ deal.days_left }} days left</span>
+              <span class="status-badge {% if deal.is_active %}status-active{% else %}status-inactive{% endif %}">
+                <span>●</span> {{ deal.is_active|yesno:"Active,Inactive" }}
+              </span>
+            </div>
+            <div class="item-actions">
+              <a href="{% url 'deal_edit' deal.pk %}" class="action-btn btn-edit">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
+                  <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
+                  <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/>
+                </svg>
+              </a>
+              <a href="{% url 'deal_toggle' deal.pk %}" class="action-btn btn-toggle">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-power" viewBox="0 0 16 16">
+                  <path d="M7.5 1v7h1V1z"/>
+                  <path d="M3 8.812a5 5 0 0 1 2.578-4.375l-.485-.874A6 6 0 1 0 11 3.616l-.501.865A5 5 0 1 1 3 8.812"/>
+                </svg>
+              </a>
+              <form method="post" action="{% url 'deal_delete' deal.pk %}" style="flex: 1; margin: 0;">
+                {% csrf_token %}
+                <button type="submit" class="action-btn btn-delete" onclick="return confirm('Delete this deal?')" style="width: 100%;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash3" viewBox="0 0 16 16">
+                    <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>
+                  </svg>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">⚡</div>
+        <h3>No Deals Yet</h3>
+        <p>Add your first limited time deal</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Section 3: Featured Products -->
+  <div class="section-wrapper">
+    <div class="section-header">
+      <div class="section-title-group">
+        <div class="section-icon-wrapper">✨</div>
+        <div class="section-title-text">
+          <h2>Featured Products</h2>
+          <p>Showcase premium products on homepage</p>
+        </div>
+      </div>
+      <a href="{% url 'featured_add' %}" class="add-button">
+        <span>+</span> Add Product
+      </a>
+    </div>
+    <div class="section-content">
+      {% if featured_products %}
+      <div class="items-grid">
+        {% for product in featured_products %}
+        <div class="item-card">
+          <div class="item-media-wrapper">
+            {% if product.image %}
+            <img src="{{ product.image.url }}" alt="{{ product.title }}" class="item-image" onerror="this.src='https://via.placeholder.com/400x200?text=Product'">
+            {% else %}
+            <img src="https://via.placeholder.com/400x200?text=No+Image" alt="No image" class="item-image">
+            {% endif %}
+          </div>
+          <div class="item-body">
+            <h3 class="item-title">{{ product.title }}</h3>
+            {% if product.description %}
+            <p class="item-description">{{ product.description }}</p>
+            {% endif %}
+            <div class="item-meta">
+              <span class="price-tag">{{ product.formatted_price }}</span>
+              <span class="status-badge {% if product.is_active %}status-active{% else %}status-inactive{% endif %}">
+                <span>●</span> {{ product.is_active|yesno:"Active,Inactive" }}
+              </span>
+            </div>
+            <div class="item-actions">
+              <a href="{% url 'featured_edit' product.pk %}" class="action-btn btn-edit">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
+                  <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
+                  <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/>
+                </svg>
+              </a>
+              <a href="{% url 'featured_toggle' product.pk %}" class="action-btn btn-toggle">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-power" viewBox="0 0 16 16">
+                    <path d="M7.5 1v7h1V1z"/>
+                    <path d="M3 8.812a5 5 0 0 1 2.578-4.375l-.485-.874A6 6 0 1 0 11 3.616l-.501.865A5 5 0 1 1 3 8.812"/>
+                  </svg>
+              </a>
+              <form method="post" action="{% url 'featured_delete' product.pk %}" style="flex: 1; margin: 0;">
+                {% csrf_token %}
+                <button type="submit" class="action-btn btn-delete" onclick="return confirm('Delete this product?')" style="width: 100%;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash3" viewBox="0 0 16 16">
+                    <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>
+                  </svg>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">✨</div>
+        <h3>No Featured Products Yet</h3>
+        <p>Add your first featured product to showcase</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+// Auto-hide messages after 5 seconds
+setTimeout(() => {
+  const alerts = document.querySelectorAll('.alert');
+  alerts.forEach(alert => {
+    alert.style.animation = 'fadeOut 0.5s ease';
+    setTimeout(() => alert.remove(), 500);
+  });
+}, 5000);
+
+// Add fadeOut animation
+const style = document.createElement('style');
+style.textContent = '@keyframes fadeOut { to { opacity: 0; transform: translateX(100px); } }';
+document.head.appendChild(style);
+</script>
+
+{% endblock %}

@@ -1,0 +1,304 @@
+{% extends 'admin/admin-base.html' %}
+{% load static %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<style>
+  .form-section {
+    background: #000;
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+  }
+  
+  .section-header {
+    border-bottom: 2px solid #333;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .section-header h4 {
+    color: #8855ff;
+    font-weight: 700;
+    margin: 0;
+  }
+  
+  .form-control, .form-select {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    color: #fff;
+  }
+  
+  .form-control:focus, .form-select:focus {
+    background: #2a2a2a;
+    border-color: #8855ff;
+    color: #fff;
+    box-shadow: 0 0 0 0.25rem rgba(136, 85, 255, 0.25);
+  }
+  
+  .form-label {
+    color: #ccc;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  
+  .form-text {
+    color: #999;
+    font-size: 0.875rem;
+  }
+  
+  .btn-submit {
+    background: #8855ff;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+  }
+  
+  .btn-submit:hover {
+    background: #7744ee;
+    color: #fff;
+  }
+  
+  .alert {
+    border-radius: 8px;
+  }
+  
+  .info-box {
+    background: #2a2a2a;
+    border-left: 4px solid #8855ff;
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 4px;
+  }
+  
+  .info-box h6 {
+    color: #8855ff;
+    margin: 0 0 0.5rem 0;
+  }
+  
+  .info-box p {
+    color: #ccc;
+    margin: 0;
+    font-size: 0.9rem;
+  }
+
+  .existing-images {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+    background: #1e1e1e;
+    padding: 1rem;
+    border-radius: 8px;
+  }
+
+  .existing-image-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid #333;
+  }
+
+  .existing-image-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .image-count-badge {
+    background: #8855ff;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    display: inline-block;
+    font-weight: 600;
+  }
+
+  .errorlist {
+    color: #ff5252;
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0 0;
+    font-size: 0.875rem;
+  }
+</style>
+
+<div class="container py-5">
+  <h2 class="fw-bold mb-4" style="color: #fff;">{{ title|upper }}</h2>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Info Box -->
+  <div class="info-box">
+    <h6>⚡ Limited Time Deals</h6>
+    <p><strong>Images:</strong> Upload 1-6 product images to showcase in the deal carousel</p>
+    <p><strong>Countdown:</strong> Automatically displays "Days/Hours Left" based on end date</p>
+    <p><strong>Auto-expire:</strong> Deal automatically hides when countdown reaches zero</p>
+  </div>
+
+  <form class="form-section" method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <!-- Basic Information -->
+    <div class="section-header">
+      <h4>Deal Information</h4>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-12">
+        <label for="{{ form.title.id_for_label }}" class="form-label">
+          {{ form.title.label }} <span class="text-danger">*</span>
+        </label>
+        {{ form.title }}
+        {% if form.title.errors %}
+          <ul class="errorlist">
+            {% for error in form.title.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+      {{ form.description }}
+      <div class="form-text">Compelling description to attract customers</div>
+      {% if form.description.errors %}
+        <ul class="errorlist">
+          {% for error in form.description.errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+
+    <!-- Deal Images -->
+    <div class="section-header mt-5">
+      <h4>Deal Images (1-6 images)</h4>
+    </div>
+
+    {% if object and object.images.exists %}
+    <div class="mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <label class="form-label">Current Images</label>
+        <span class="image-count-badge">{{ object.images.count }}/6</span>
+      </div>
+      <div class="existing-images">
+        {% for img in object.images.all %}
+        <div class="existing-image-item">
+          <img src="{{ img.image.url }}" alt="Deal image {{ forloop.counter }}">
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="mb-4">
+      <label class="form-label">
+        {% if object %}Add More Images{% else %}Upload Deal Images{% endif %}
+        <span class="badge bg-warning text-dark ms-2">Max 6 total</span>
+      </label>
+      <input type="file" name="deal_images" multiple accept="image/*" class="form-control">
+      <div class="form-text">
+        {% if object %}
+          You can add {{ 6|add:object.images.count|default:0|add:"-"|add:object.images.count }} more images ({{ object.images.count }}/6 used)
+        {% else %}
+          Select 1-6 images for this deal
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Call to Action -->
+    <div class="section-header mt-5">
+      <h4>Call to Action</h4>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <label for="{{ form.cta_text.id_for_label }}" class="form-label">
+          {{ form.cta_text.label }} <span class="text-danger">*</span>
+        </label>
+        {{ form.cta_text }}
+        <div class="form-text">Button text (e.g., "Buy Now", "Shop Deal")</div>
+        {% if form.cta_text.errors %}
+          <ul class="errorlist">
+            {% for error in form.cta_text.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      <div class="col-md-8">
+        <label for="{{ form.cta_url.id_for_label }}" class="form-label">
+          {{ form.cta_url.label }} <span class="text-danger">*</span>
+        </label>
+        {{ form.cta_url }}
+        <div class="form-text">Product or category URL</div>
+        {% if form.cta_url.errors %}
+          <ul class="errorlist">
+            {% for error in form.cta_url.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Validity Period -->
+    <div class="section-header mt-5">
+      <h4>Deal Duration</h4>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <label for="{{ form.starts_on.id_for_label }}" class="form-label">
+          {{ form.starts_on.label }} <span class="text-danger">*</span>
+        </label>
+        {{ form.starts_on }}
+        {% if form.starts_on.errors %}
+          <ul class="errorlist">
+            {% for error in form.starts_on.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      <div class="col-md-4">
+        <label for="{{ form.ends_on.id_for_label }}" class="form-label">
+          {{ form.ends_on.label }} <span class="text-danger">*</span>
+        </label>
+        {{ form.ends_on }}
+        {% if form.ends_on.errors %}
+          <ul class="errorlist">
+            {% for error in form.ends_on.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      <div class="col-md-2">
+        <label for="{{ form.priority.id_for_label }}" class="form-label">{{ form.priority.label }}</label>
+        {{ form.priority }}
+        <div class="form-text">Display order</div>
+      </div>
+
+      <div class="col-md-2">
+        <div class="form-check" style="margin-top: 2.5rem;">
+          {{ form.is_active }}
+          <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+            {{ form.is_active.label }}
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="d-flex flex-wrap gap-3 justify-content-end mt-5">
+      <a href="{% url 'banner_list' %}" class="btn btn-light">Cancel</a>
+      <button type="submit" class="btn btn-submit">⚡ Save Deal</button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

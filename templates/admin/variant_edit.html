@@ -1,0 +1,215 @@
+{% extends 'admin/admin-base.html' %}
+{% load static %}
+
+{% block title %}Edit variant{% endblock %}
+
+{% block content %}
+<style>
+  .variant-card { border: 1px solid #333; padding: 16px; border-radius: 10px; margin-bottom: 16px; background: #0f0f10; color: #e6e6e6; }
+  .variant-actions { display:flex; gap:8px; align-items:center; }
+  .thumb { position: relative; width: 100px; height: 100px; border-radius: 8px; overflow: hidden; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb .remove-btn { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%; background: #e5484d; color: #fff; border: none; line-height: 24px; text-align: center; cursor: pointer; }
+  .image-upload { border: 2px dashed #666; border-radius: 10px; padding: 36px 20px; text-align: center; background: #151515; cursor: pointer; transition: border .25s, background .25s; min-height: 150px; }
+  .image-upload.highlight { border-color: #5b7cfa; background: #1b1b1b; }
+  .form-text { margin-top: .25rem; font-size: .875rem; color: rgba(186,198,210,.75); }
+  .btn-choose { background:#2a2a2a; color:#fff; border:1px solid #444; }
+</style>
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} mb-3">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="container py-4">
+  <div id="error-alert" class="alert alert-danger d-none" role="alert"></div>
+
+  <div class="variant-card">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <h4 class="m-0">Variant: {{ variant.color }}</h4>
+      <div class="variant-actions">
+        <a href="{% url 'view_variants' product.id %}" class="btn btn-outline-light btn-sm">Back</a>
+      </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" id="variant-form">
+      {% csrf_token %}
+
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label">Color</label>
+          <input type="text" name="color" class="form-control" value="{{ variant.color }}" required aria-describedby="color-help">
+          <div id="color-help" class="form-text">Enter the variant color.</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Stock</label>
+          <input type="number" min="0" name="stock" class="form-control" value="{{ variant.stock }}" aria-describedby="stock-help">
+          <div id="stock-help" class="form-text">Enter the stock quantity.</div>
+        </div>
+      </div>
+
+      <!-- Existing images with inline red X -->
+      <div class="mb-2 d-flex flex-wrap gap-2" id="existing-variant-images">
+        {% for img in images %}
+          <div class="thumb" data-existing-img="{{ img.id }}">
+            <img src="{{ img.image.url }}" alt="Variant image">
+            <button type="button" class="remove-btn" aria-label="Remove image" data-id="{{ img.id }}">×</button>
+            <input type="hidden" name="remove_image_ids[]" value="" data-hidden-for="{{ img.id }}">
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- DnD uploader for new images -->
+      <div class="mb-3">
+        <label class="form-label">Add Images (max 10)</label>
+        <div class="image-upload" id="drop-area" tabindex="0" aria-label="Drag & drop images, or click to choose">
+          <p class="mb-3">Drag & drop images, or click to choose</p>
+          <input type="file" name="variant_images" id="variant_images" multiple accept="image/*" style="opacity:0;width:1px;height:1px;position:absolute;">
+          <button type="button" class="btn btn-choose btn-sm" id="choose-btn" aria-label="Choose variant images">Choose Images</button>
+        </div>
+        <div class="variant-preview mt-2 d-flex flex-wrap gap-2" id="preview"></div>
+        <div class="form-text">Existing + new must not exceed 6.</div>
+      </div>
+
+      <div class="text-end">
+        <button type="submit" class="btn btn-success">Update</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const MAX_VARIANT_IMAGES = 15;
+  const MAX_FILE_SIZE = 15 * 1024 * 1024;
+
+  const form = document.getElementById("variant-form");
+  const drop = document.getElementById("drop-area");
+  const input = document.getElementById("variant_images");
+  const choose = document.getElementById("choose-btn");
+  const preview = document.getElementById("preview");
+  const errorAlert = document.getElementById("error-alert");
+
+  function showError(msg){
+    errorAlert.textContent = msg;
+    errorAlert.classList.remove("d-none");
+    setTimeout(()=>errorAlert.classList.add("d-none"), 3000);
+  }
+
+  ["dragenter","dragover","dragleave","drop"].forEach(evt => {
+    document.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); }, false);
+  });
+
+  function makePreviewCard(file) {
+    const card = document.createElement("div");
+    card.className = "thumb";
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(file);
+    const btn = document.createElement("button");
+    btn.className = "remove-btn";
+    btn.type = "button";
+    btn.textContent = "×";
+    btn.addEventListener("click", () => {
+      // rebuild FileList without this file by identity
+      const dt2 = new DataTransfer();
+      [...input.files].forEach(f => { if (f !== file) dt2.items.add(f); });
+      input.files = dt2.files;
+      if (card.parentNode) card.parentNode.removeChild(card);
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    card.appendChild(img);
+    card.appendChild(btn);
+    return card;
+  }
+
+  function handleFreshFiles(freshFiles) {
+    if (!freshFiles || !freshFiles.length) return;
+
+    const existingCount = document.querySelectorAll('#existing-variant-images .thumb').length;
+    const markedRemovals = [...document.querySelectorAll('input[name="remove_image_ids[]"]')].filter(h => h.value).length;
+
+    // start from current input selection
+    const dt = new DataTransfer();
+    if (input.files && input.files.length) {
+      [...input.files].forEach(f => dt.items.add(f));
+    }
+
+    for (const f of freshFiles) {
+      if (!f.type || !f.type.startsWith("image/")) { showError("Only image files allowed."); continue; }
+      if (f.size > MAX_FILE_SIZE) { showError("Image exceeds max size."); continue; }
+      // de-duplicate against dt.files (prevents double-add)
+      const dup = [...dt.files].some(x => x === f || (x.name === f.name && x.size === f.size && x.lastModified === f.lastModified));
+      if (dup) continue;
+
+      const totalAfter = (existingCount - markedRemovals) + (dt.files.length + 1);
+      if (totalAfter > MAX_VARIANT_IMAGES) { showError(`Maximum ${MAX_VARIANT_IMAGES} images allowed.`); break; }
+
+      dt.items.add(f);
+      preview.appendChild(makePreviewCard(f));
+    }
+
+    requestAnimationFrame(() => {
+      input.files = dt.files;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      console.log("after drop/choose, input count:", input.files.length);
+    });
+  }
+
+  // Choose and drop bindings — pass only fresh lists
+  choose.addEventListener("click", () => input.click());
+  drop.addEventListener("click", () => input.click());
+
+  ["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => {
+    e.preventDefault(); e.stopPropagation(); drop.classList.add("highlight");
+  }));
+  ["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => {
+    e.preventDefault(); e.stopPropagation(); drop.classList.remove("highlight");
+  }));
+
+  drop.addEventListener("drop", e => handleFreshFiles(e.dataTransfer.files));
+
+  // Important: do not pass input.files into handle again; use e.target.files
+  input.addEventListener("change", (e) => handleFreshFiles(e.target.files));
+
+  // existing image removal visual marker
+  document.querySelectorAll("#existing-variant-images .remove-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id;
+      const hidden = document.querySelector(`input[data-hidden-for="${id}"]`);
+      if (hidden) hidden.value = id;
+      const card = btn.closest(".thumb");
+      if (card) { card.style.opacity = 0.4; card.setAttribute("aria-disabled", "true"); }
+    });
+  });
+
+  form.addEventListener("submit", (e) => {
+    const existingCount = document.querySelectorAll('#existing-variant-images .thumb').length;
+    const markedRemovals = [...document.querySelectorAll('input[name="remove_image_ids[]"]')].filter(h => h.value).length;
+    const newCount = input.files ? input.files.length : 0;
+    if ((existingCount - markedRemovals + newCount) > MAX_VARIANT_IMAGES){
+      e.preventDefault();
+      showError(`Maximum ${MAX_VARIANT_IMAGES} images allowed.`);
+    }
+  });
+});
+
+// Mark existing image for removal (server-side deletion)
+document.querySelectorAll("#existing-variant-images .remove-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const id = btn.dataset.id;
+    const hidden = document.querySelector(`input[data-hidden-for="${id}"]`);
+    if (hidden) hidden.value = id;            // populate remove_image_ids[]
+    const card = btn.closest(".thumb");
+    if (card) {
+      card.style.opacity = 0.4;               // visual feedback
+      card.setAttribute("aria-disabled", "true");
+    }
+  });
+});
+</script>
+
+
+
+
+{% endblock %}

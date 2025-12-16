@@ -1,0 +1,170 @@
+{% extends 'admin/admin-base.html' %}
+{% load static %}
+
+{% block title %}Add variant{% endblock %}
+
+{% block content %}
+<style>
+  .variant-card { border: 1px solid #333; padding: 16px; border-radius: 10px; margin-bottom: 16px; background: #0f0f10; color: #e6e6e6; }
+  .thumb { position: relative; width: 100px; height: 100px; border-radius: 8px; overflow: hidden; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb .remove-btn { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%; background: #e5484d; color: #fff; border: none; line-height: 24px; text-align: center; cursor: pointer; }
+  .image-upload { border: 2px dashed #666; border-radius: 10px; padding: 36px 20px; text-align: center; background: #151515; cursor: pointer; transition: border .25s, background .25s; min-height: 150px; }
+  .image-upload.highlight { border-color: #5b7cfa; background: #1b1b1b; }
+  .form-text { margin-top: .25rem; font-size: .875rem; color: rgba(186,198,210,.75); }
+  .btn-choose { background:#2a2a2a; color:#fff; border:1px solid #444; }
+</style>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} mb-3">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="container py-4">
+  <div id="error-alert" class="alert alert-danger d-none" role="alert"></div>
+
+  <div class="variant-card">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <h4 class="m-0">Add Variant: {{ product.name }}</h4>
+      <a class="btn btn-outline-light btn-sm" href="{% url 'view_variants' product.id %}">Back</a>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" id="variant-form">
+      {% csrf_token %}
+
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label">Color</label>
+          <input name="color" class="form-control" required aria-describedby="color-help">
+          <div id="color-help" class="form-text">Enter the variant color.</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Stock</label>
+          <input type="number" min="0" name="stock" class="form-control" value="0" aria-describedby="stock-help">
+          <div id="stock-help" class="form-text">Enter the stock quantity.</div>
+        </div>
+      </div>
+
+        <div class="mb-3">
+            <label class="form-label">Variant Images (max 15)</label>
+            <div class="image-upload" id="drop-area" tabindex="0" aria-label="Drag & drop images, or click to choose">
+            <p class="mb-3">Drag & drop images, or click to choose</p>
+            <input type="file" name="variant_images" id="variant_images" multiple accept="image/*" style="opacity:0;width:1px;height:1px;position:absolute;">
+            <button type="button" class="btn btn-choose btn-sm" id="choose-btn" aria-label="Choose variant images">Choose Images</button>
+            </div>
+            <div class="variant-preview mt-2 d-flex flex-wrap gap-2" id="preview"></div>
+            <div class="form-text">Up to 15 images.</div>
+        </div>
+
+        <!-- Hidden bucket for per-file inputs -->
+        <div id="hidden-file-bucket" style="display:none;"></div>
+
+        <div class="text-end">
+            <a class="btn btn-light" href="{% url 'view_variants' product.id %}">Cancel</a>
+            <button type="submit" class="btn btn-success">Save</button>
+        </div>
+    </form>
+  </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+  const MAX_VARIANT_IMAGES = 15;
+  const MAX_FILE_SIZE = 15 * 1024 * 1024;
+
+  const form = document.getElementById("variant-form");
+  const drop = document.getElementById("drop-area");
+  const input = document.getElementById("variant_images");
+  const choose = document.getElementById("choose-btn");
+  const preview = document.getElementById("preview");
+  const bucket = document.getElementById("hidden-file-bucket");
+  const errorAlert = document.getElementById("error-alert");
+
+  function showError(msg){
+    errorAlert.textContent = msg;
+    errorAlert.classList.remove("d-none");
+    setTimeout(()=>errorAlert.classList.add("d-none"), 3000);
+  }
+
+  ["dragenter","dragover","dragleave","drop"].forEach(evt => {
+    document.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); }, false);
+  });
+
+  function createHiddenInputForFile(file) {
+    const hidden = document.createElement("input");
+    hidden.type = "file";
+    hidden.name = "variant_images";
+    hidden.style.display = "none";
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    hidden.files = dt.files;
+    bucket.appendChild(hidden);
+    return hidden;
+  }
+
+  function makePreviewCard(file, hiddenInput) {
+    const card = document.createElement("div");
+    card.className = "thumb";
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(file);
+    const btn = document.createElement("button");
+    btn.className = "remove-btn";
+    btn.type = "button";
+    btn.textContent = "×";
+    let removed = false;
+    btn.addEventListener("click", () => {
+      if (removed) return;
+      removed = true; btn.disabled = true;
+      if (hiddenInput && hiddenInput.parentNode) hiddenInput.parentNode.removeChild(hiddenInput);
+      if (card.parentNode) card.parentNode.removeChild(card);
+    });
+    card.appendChild(img);
+    card.appendChild(btn);
+    return card;
+  }
+
+  function appendFiles(freshFiles) {
+    if (!freshFiles || !freshFiles.length) return;
+    const currentCount = bucket.querySelectorAll('input[type="file"][name="variant_images"]').length;
+    let added = 0;
+    for (const f of freshFiles) {
+      if (!f.type || !f.type.startsWith("image/")) { showError("Only image files allowed."); continue; }
+      if (f.size > MAX_FILE_SIZE) { showError("Image exceeds max size."); continue; }
+      if (currentCount + added + 1 > MAX_VARIANT_IMAGES) { showError(`Maximum ${MAX_VARIANT_IMAGES} images allowed.`); break; }
+
+      const dup = [...bucket.querySelectorAll('input[type="file"][name="variant_images"]')].some(inp => {
+        const x = inp.files && inp.files[0];
+        return x && x.name === f.name && x.size === f.size && x.lastModified === f.lastModified;
+      });
+      if (dup) continue;
+
+      const hidden = createHiddenInputForFile(f);
+      preview.appendChild(makePreviewCard(f, hidden));
+      added++;
+    }
+  }
+
+  choose.addEventListener("click", () => input.click());
+  drop.addEventListener("click", () => input.click());
+  drop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } });
+
+  ["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => {
+    e.preventDefault(); e.stopPropagation(); drop.classList.add("highlight");
+  }));
+  ["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => {
+    e.preventDefault(); e.stopPropagation(); drop.classList.remove("highlight");
+  }));
+
+  drop.addEventListener("drop", e => appendFiles(e.dataTransfer.files));
+  input.addEventListener("change", (e) => appendFiles(e.target.files));
+
+  form.addEventListener("submit", () => {
+    const count = bucket.querySelectorAll('input[type="file"][name="variant_images"]').length;
+    console.log("submit file inputs:", count);
+  });
+});
+
+</script>
+
+{% endblock %}

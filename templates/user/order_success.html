@@ -1,0 +1,123 @@
+{% extends "user/base.html" %}
+{% load static %}
+{% block title %}Order Success - Audio Aura{% endblock %}
+{% block content %}
+<style>
+  :root{
+    --ink:#0e0f12; --muted:#82858c; --line:#edf0f5; --card:#ffffff;
+    --ok:#19C09F; --bg1:#1a0622; --bg2:#2c0b2d;
+  }
+  .hero{
+    background: radial-gradient(1200px 600px at 20% 10%, rgba(255,255,255,.06), transparent) ,
+                linear-gradient(180deg, var(--bg1), var(--bg2));
+    padding:56px 0 72px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+  .grid{display:grid;grid-template-columns:1fr 520px;gap:34px;align-items:start}
+  @media(max-width:1024px){.grid{grid-template-columns:1fr}}
+
+  /* Left column */
+  .left{color:#fff;text-align:left}
+  .title{font-weight:900;font-size:28px;margin:0 100px 10px}
+  .lead{color:#d9dbe1;margin:0 0 26px}
+  .art{display:block;width:482px;max-width:100%;height:auto;margin:10px 0 18px}
+  .note{color:#cfd3dc;font-size:14px;margin:6px 70px 18px}
+  .btns{display:flex;gap:12px;flex-wrap:wrap;margin:0px 0px 0px 105px;}
+  .btn{height:31px;padding:0px 14px 0px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.2);
+       font-weight:500;text-decoration:none;display:inline-flex;align-items:center}
+  .btn.primary{background:#2d8cff;color:#fff;border-color:#2d8cff}
+  .btn.ghost{background:transparent;color:#fff}
+
+  /* Right receipt card */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:26px;box-shadow:0 16px 40px rgba(0,0,0,.18)}
+  .rcpt{padding:26px}
+  .tick{height:64px;width:64px;margin:0 auto 10px;border-radius:50%;
+        background:#e9fbf6;display:flex;align-items:center;justify-content:center;
+        color:#0e9f82;font-size:28px;font-weight:900}
+  .rt{font-weight:800;text-align:center;margin:0 0 12px}
+  .sep{height:1px;background:#f1f3f6;margin:14px 0}
+  .row{display:grid;grid-template-columns:160px 1fr;gap:12px;padding:12px 0;border-bottom:1px dashed #eef1f5}
+  .row:last-child{border-bottom:0}
+  .k{color:#7a8088}
+  .v{color:#111}
+  .total .k{font-weight:800}
+  .total .v{font-weight:900}
+  /* Items */
+  .item{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #f2f3f6}
+  .item:last-child{border-bottom:0}
+  .thumb{width:56px;height:56px;border-radius:12px;background:#f4f6f9;overflow:hidden}
+  .thumb img{width:100%;height:100%;object-fit:cover}
+  .iname{font-weight:700;font-size:14px}
+  .imeta{color:#7a8088;font-size:12px;margin-top:2px}
+</style>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="grid">
+
+      <!-- Left -->
+      <div class="left">
+        <h1 class="title">Thank You for Your Order!</h1>
+        <p class="lead">Your order has been successfully placed. Here are the order details.</p>
+
+        <!-- Illustration -->
+        <img class="art" src="https://res.cloudinary.com/dxndvadjt/image/upload/v1765253262/paymentsucces_ibfzgr.png" alt="Order success illustration">
+
+        <p class="note">An email confirmation will be sent shortly with the order details.</p>
+        <div class="btns">
+          <a class="btn primary" href="{% url 'orders' %}">View Orders</a>
+          <a class="btn ghost" href="{% url 'shop' %}">Continue Shopping</a>
+        </div>
+      </div>
+
+      <!-- Right receipt -->
+      <div class="card">
+        <div class="rcpt">
+          <div class="tick">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="#28a745" class="bi bi-patch-check-fill" viewBox="0 0 16 16">
+              <path d="M10.067.87a2.89 2.89 0 0 0-4.134 0l-.622.638-.89-.011a2.89 2.89 0 0 0-2.924 2.924l.01.89-.636.622a2.89 2.89 0 0 0 0 4.134l.637.622-.011.89a2.89 2.89 0 0 0 2.924 2.924l.89-.01.622.636a2.89 2.89 0 0 0 4.134 0l.622-.637.89.011a2.89 2.89 0 0 0 2.924-2.924l-.01-.89.636-.622a2.89 2.89 0 0 0 0-4.134l-.637-.622.011-.89a2.89 2.89 0 0 0-2.924-2.924l-.89.01zm.287 5.984-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7 8.793l2.646-2.647a.5.5 0 0 1 .708.708"/>
+            </svg>
+          </div>
+          <h3 class="rt">Payment Success!</h3>
+          <div class="sep"></div>
+
+          <div class="row"><div class="k">Order Id</div><div class="v">{{ order_id }}</div></div>
+          <div class="row"><div class="k">Payment Time</div><div class="v">{{ payment_time }}</div></div>
+          <div class="row"><div class="k">Payment Method</div><div class="v">{{ payment_method }}</div></div>
+          <div class="row"><div class="k">Sender Name</div><div class="v">{{ sender_name }}</div></div>
+          <div class="row total"><div class="k">Amount</div><div class="v">₹{{ amount }}</div></div>
+
+
+          <div class="sep"></div>
+
+        {% for it in items %}
+          <div class="item">
+            <div class="thumb">
+              {% if it.image %}<img src="{{ it.image }}" alt="{{ it.name }}">{% endif %}
+            </div>
+            <div>
+              <div class="iname">{{ it.name }}</div>
+              <div class="imeta">Qty: {{ it.qty }}</div>
+            </div>
+            <div>₹{{ it.line_total }}</div>
+          </div>
+        {% endfor %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<script>
+    // Disable back after order success
+    history.pushState(null, null, location.href);
+    window.onpopstate = function () {
+        history.go(1);
+    };
+</script>
+
+<meta http-equiv="Cache-Control" content="no-store" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+{% endblock %}

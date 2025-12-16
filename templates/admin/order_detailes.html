@@ -1,0 +1,897 @@
+{% extends 'admin/admin-base.html' %}
+{% load tz %}
+{% load static %}
+{% block title %}Order Details{% endblock %}
+{% block content %}
+<style>
+/* Page */
+.od-page {
+  min-height: 100vh;
+  padding: 32px 24px 60px;
+  background: radial-gradient(1200px 700px at 10% 0%, #4a0036 0%, #2a0b32 40%, #151225 100%);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+}
+
+.od-wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Header */
+.od-header {
+  margin-bottom: 32px;
+}
+
+.od-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.od-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.od-invoice-btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.95);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.od-pending-btn {
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, .16);
+    background: rgba(255, 255, 255, .08);
+    color: #fff;
+    cursor: pointer;
+    transition: .2s 
+ease;
+}
+
+.od-invoice-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.od-bc {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.od-bc a {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.od-bc a:hover {
+  color: #ffffff;
+}
+
+/* Grid Layout */
+.od-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.od-main-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 1200px) {
+  .od-grid {
+    grid-template-columns: 1fr;
+  }
+  .od-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Card */
+.od-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.od-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.od-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+.od-card-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+/* Badge */
+.od-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.od-badge.processing {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.od-badge.packed {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.od-badge.shipping {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.od-badge.delivered {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.od-badge.placed {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/* Info Row */
+.od-info-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.od-info-row:last-child {
+  border-bottom: none;
+}
+
+.od-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: linear-gradient(135deg, #323338 0%, #764ba2 100%);
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.od-info-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.od-label {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.od-value {
+  font-size: 15px;
+  color: #0f172a;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+/* Address Card */
+.od-address-content {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.od-address-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.od-address-text {
+  font-size: 14px;
+  color: #1e293b;
+  line-height: 1.6;
+}
+
+/* Order List */
+.od-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.od-product-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #d1fae5;
+  color: #065f46;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.od-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-bottom: 20px;
+}
+
+.od-table thead th {
+  text-align: left;
+  padding: 14px 12px;
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.od-table tbody td {
+  padding: 16px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  font-size: 14px;
+}
+
+.od-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.od-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.od-product-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.od-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  flex-shrink: 0;
+}
+
+.od-sku-link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.od-sku-link:hover {
+  text-decoration: underline;
+}
+
+.od-right {
+  text-align: right;
+  font-weight: 700;
+}
+
+/* Totals */
+.od-totals {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.od-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  font-size: 14px;
+  color: #475569;
+}
+
+.od-total-row.grand {
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 2px solid #e2e8f0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.od-coupon-code {
+  font-size: 12px;
+  color: #64748b;
+  margin-left: 6px;
+}
+
+/* Actions */
+.od-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.od-btn {
+  flex: 1;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.od-btn-secondary {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.od-btn-secondary:hover {
+  background: #e2e8f0;
+}
+
+.od-btn-danger {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.od-btn-danger:hover {
+  background: #dc2626;
+}
+
+/* Status Timeline */
+/* Progress variables */
+.od-timeline{
+  --line:#e2e8f0;          /* base track */
+  --fill:#42A603;          /* filled color */
+  --steps:5;               /* total steps */
+  --active:1;              /* current active step (1..5) */
+  position:relative;
+  padding-left:40px;
+}
+
+/* base track (already present, keep or replace) */
+.od-timeline::before{
+  content:"";
+  position:absolute;
+  left:18px;
+  top:0;
+  bottom:0;
+  width:3px;
+  background:var(--line);
+  border-radius:2px;
+}
+/* filled portion */
+.od-timeline::after{
+  content:"";
+  position:absolute;
+  left:18px;
+  top:0;
+  width:3px;
+  height:calc(( (var(--active) - 1) / (var(--steps) - 1) ) * 100%);
+  background:var(--fill);
+  border-radius:2px;
+  transition:height .35s ease;
+}
+
+/* color completed dots */
+.od-timeline[data-step] .od-step:nth-child(-n+var(--active)) .od-step-icon{
+  background:var(--fill);
+  color:#fff;
+}
+
+/* map data-step to --active (fallback if CSS var from inline style not used) */
+.od-timeline[data-step="1"]{ --active:1; }
+.od-timeline[data-step="2"]{ --active:2; }
+.od-timeline[data-step="3"]{ --active:3; }
+.od-timeline[data-step="4"]{ --active:4; }
+.od-timeline[data-step="5"]{ --active:5; }
+
+.od-step {
+  position: relative;
+  padding-bottom: 32px;
+}
+
+.od-step:last-child {
+  padding-bottom: 0;
+}
+
+.od-step-icon {
+  position: absolute;
+  left: -40px;
+  top: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: #f1f5f9;
+  color: #94a3b8;
+  border: 3px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1;
+}
+
+.od-step.active .od-step-icon {
+  background: #42A603;
+  color: #ffffff;
+}
+
+.od-step-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 6px 0;
+}
+
+.od-step-desc {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0 0 8px 0;
+}
+
+.od-step-time {
+  font-size: 13px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.od-step.active .od-step-title {
+  color: #397613;;
+}
+/* Update status controls */
+.od-status-update{
+  margin:-4px 0 16px 0;
+  display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+}
+.od-select{
+  appearance:none; -webkit-appearance:none;
+  padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0; background:#fff;
+  font-weight:600; color:#1e293b; min-width:180px;
+  background-image: linear-gradient(45deg, transparent 50%, #94a3b8 50%), 
+                    linear-gradient(135deg, #94a3b8 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(1em + 2px), calc(100% - 13px) calc(1em + 2px);
+  background-size: 6px 6px, 6px 6px; background-repeat:no-repeat;
+}
+.od-btn-primary{
+  background:#111827; color:#fff; border:none; border-radius:12px; padding:10px 16px; font-weight:700; cursor:pointer;
+}
+.od-btn-primary:hover{ filter:brightness(1.05); }
+.sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+
+</style>
+
+<div class="od-page">
+  <div class="od-wrap">
+    <!-- Header -->
+    <div class="od-header">
+      
+      <div class="od-header-top">
+        <h1 class="od-title">Order Details</h1>
+        <div>
+          <a href="{% url 'admin_action_requests' %}" ><button class="od-pending-btn" >Pending Requests</button></a>
+          <a class="od-invoice-btn" href="{% url 'admin_download_invoice' order.id %}">📄 Invoice</a>
+        </div>
+        
+        
+        
+
+        <!-- <button class="od-invoice-btn">
+          <span>📄</span>
+          Invoice
+        </button> -->
+      </div>
+      <div class="od-bc">
+        <a href="{% url 'admin_dashboard' %}">Dashboard</a>
+        <span>›</span>
+        <a href="{% url 'order_list' %}">Order List</a>
+        <span>›</span>
+        <span>Order Details</span>
+      </div>
+    </div>
+
+    <!-- Top Grid -->
+    <div class="od-grid">
+      <!-- Order Card -->
+      <div class="od-card">
+        <div class="od-card-header">
+          <h3 class="od-card-title">Order #{{ order.id }}</h3>
+          <span class="od-badge {% if order.delivered_at %}delivered{% elif order.shipped_at %}shipping{% elif order.packed_at %}packed{% elif order.processing_at %}processing{% else %}placed{% endif %}">
+            {% if order.delivered_at %}Delivered{% elif order.shipped_at %}Shipping{% elif order.packed_at %}Packed{% elif order.processing_at %}Processing{% else %}Order Placed{% endif %}
+          </span>
+        </div>
+        <div>
+          <div class="od-info-row">
+            <div class="od-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-calendar-check" viewBox="0 0 16 16">
+              <path d="M10.854 7.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7.5 9.793l2.646-2.647a.5.5 0 0 1 .708 0"/>
+              <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/>
+              </svg>
+            </div>
+            <div class="od-info-content">
+              <div class="od-label">Added</div>
+              <div class="od-value">{{ order.created_at|date:"d M Y" }}</div>
+            </div>
+          </div>
+          <div class="od-info-row">
+            <div class="od-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-credit-card-2-back" viewBox="0 0 16 16">
+                <path d="M11 5.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5z"/>
+                <path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm13 2v5H1V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1m-1 9H2a1 1 0 0 1-1-1v-1h14v1a1 1 0 0 1-1 1"/>
+              </svg>
+            </div>
+            <div class="od-info-content">
+              <div class="od-label">Payment Method</div>
+              <div class="od-value">{{ order.payment_method|default:"—" }}</div>
+            </div>
+          </div>
+          <div class="od-info-row">
+            <div class="od-icon">🏷</div>
+            <div class="od-info-content">
+              <div class="od-label">Brand Name</div>
+              <div class="od-value">{{ order.brand_name|default:"—" }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer Card -->
+      <div class="od-card">
+        <div class="od-card-header">
+          <h3 class="od-card-title">Customer</h3>
+        </div>
+        <div>
+          <div class="od-info-row">
+            <div class="od-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-person-fill" viewBox="0 0 16 16">
+                <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/>
+              </svg>
+            </div>
+            <div class="od-info-content">
+              <div class="od-label">Customer</div>
+              <div class="od-value">{{ order.customer_name|default:"—" }}</div>
+            </div>
+          </div>
+          <div class="od-info-row">
+            <div class="od-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope" viewBox="0 0 16 16">
+                <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1zm13 2.383-4.708 2.825L15 11.105zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741M1 11.105l4.708-2.897L1 5.383z"/>
+              </svg>
+            </div>
+            <div class="od-info-content">
+              <div class="od-label">Email</div>
+              <div class="od-value">{{ order.customer_email|default:"—" }}</div>
+            </div>
+          </div>
+          <div class="od-info-row">
+            <div class="od-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-telephone" viewBox="0 0 16 16">
+                <path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.6 17.6 0 0 0 4.168 6.608 17.6 17.6 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.68.68 0 0 0-.58-.122l-2.19.547a1.75 1.75 0 0 1-1.657-.459L5.482 8.062a1.75 1.75 0 0 1-.46-1.657l.548-2.19a.68.68 0 0 0-.122-.58zM1.884.511a1.745 1.745 0 0 1 2.612.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.68.68 0 0 0 .178.643l2.457 2.457a.68.68 0 0 0 .644.178l2.189-.547a1.75 1.75 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.6 18.6 0 0 1-7.01-4.42 18.6 18.6 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877z"/>
+              </svg>
+            </div>
+            <div class="od-info-content">
+              <div class="od-label">Phone</div>
+              <div class="od-value">{{ order.customer_phone|default:"—" }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Address Card -->
+      <div class="od-card">
+        <div class="od-card-header">
+          <h3 class="od-card-title">Address</h3>
+        </div>
+        <div class="od-address-content">
+          <div class="od-address-label">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-geo-alt" viewBox="0 0 16 16">
+            <path d="M12.166 8.94c-.524 1.062-1.234 2.12-1.96 3.07A32 32 0 0 1 8 14.58a32 32 0 0 1-2.206-2.57c-.726-.95-1.436-2.008-1.96-3.07C3.304 7.867 3 6.862 3 6a5 5 0 0 1 10 0c0 .862-.305 1.867-.834 2.94M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10"/>
+            <path d="M8 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4m0 1a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/>
+          </svg>
+                      Deliver To</div>
+          <div class="od-address-text">{{ order.shipping_address|default:"—" }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="od-main-grid">
+      <!-- Order List -->
+      <div class="od-card">
+        <div class="od-list-header">
+          <h3 class="od-card-title">Order List</h3>
+          <span class="od-product-count">
+            <span>📦</span>
+            {{ items|length }} Products
+          </span>
+        </div>
+
+        <table class="od-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>SKU</th>
+              <th>QTY</th>
+              <th>Price</th>
+              <th class="od-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for it in items %}
+            <tr>
+              <td>
+              <!-- Product cell thumbnail -->
+              <div class="od-product-cell">
+                {% if it.image %}
+                  <img src="{{ it.image }}" alt="{{ it.name }}" class="od-thumb" style="width:48px;height:48px;border-radius:10px;object-fit:cover;">
+                {% else %}
+                  <div class="od-thumb"></div>
+                {% endif %}
+                <span>{{ it.name }}</span>
+              </div>
+
+              </td>
+              <!-- admin/order_detailes.html -->
+              <td><span class="od-sku-link">{{ it.sku|default:it.name }}</span></td>
+
+
+              <td>{{ it.quantity }} pcs</td>
+              <td>₹{{ it.price }}</td>
+              <td class="od-right">₹{{ it.line_total }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" style="text-align: center; padding: 40px; color: #94a3b8;">No items</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <div class="od-totals">
+          <div class="od-total-row">
+            <span>Subtotal</span>
+            <span>₹{{ order.subtotal|default:"0" }}</span>
+          </div>
+          <div class="od-total-row">
+            <span>Delivery Charge</span>
+            <span>{% if order.shipping_fee %}₹{{ order.shipping_fee }}{% else %}₹0{% endif %}</span>
+          </div>
+          {% if order.coupon_code %}
+          <div class="od-total-row">
+            <span>Coupon <span class="od-coupon-code">{{ order.coupon_code }}</span></span>
+            <span>-₹{{ order.coupon_discount }}</span>
+          </div>
+          {% endif %}
+          <div class="od-total-row grand">
+            <span>Grand Total</span>
+            <span>₹{{ order.total|default:"0" }}</span>
+          </div>
+        </div>
+
+        <div class="od-actions">
+          <a href="{% url 'order_list' %}" class="od-btn od-btn-secondary">GO Back</a>
+          {% if order.can_return %}
+          <form method="post" action="{% url 'return_order' order.id %}" style="flex: 1;">
+            {% csrf_token %}
+            <button class="od-btn od-btn-danger" type="submit" style="width: 100%;">Return Order</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Status Timeline -->
+<!-- Status Timeline -->
+<div class="od-card">
+  <div class="od-card-header">
+    <h3 class="od-card-title">Order Status</h3>
+    
+    <!-- ✅ Show update form ONLY if admin can update -->
+    {% if order.can_update_status %}
+      <div class="od-status-update">
+        <form method="post" action="{% url 'admin_order_detail' order.id %}">
+          {% csrf_token %}
+          <label class="sr-only" for="status">Update Status</label>
+          
+          <select id="status" name="status" class="od-select">
+            {% for a in allowed_actions %}
+              <option value="{{ a|lower }}">{{ a|title }}</option>
+            {% empty %}
+              <option disabled>No actions available</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="od-btn od-btn-primary">Update</button>
+        </form>
+      </div>
+      
+      <!-- ✅ Show warning for partially cancelled orders -->
+      {% if is_partially_cancelled %}
+
+      {% endif %}
+      
+    {% else %}
+      <!-- ✅ Optimized: Show message when updates are blocked -->
+      {% if order.all_items_cancelled %}
+        <div style="padding: 10px 14px; background: #fee2e2; color: #991b1b; border-radius: 10px; font-size: 13px; font-weight: 600;">
+          ✗ All items cancelled - No updates allowed
+        </div>
+      {% elif order.status == 'DELIVERED' %}
+        <div style="padding: 10px 14px; background: #d1fae5; color: #065f46; border-radius: 10px; font-size: 13px; font-weight: 600;">
+          ✓ Order Delivered - Final state
+        </div>
+      {% elif order.status == 'RETURNED' %}
+        <div style="padding: 10px 14px; background: #fef3c7; color: #92400e; border-radius: 10px; font-size: 13px; font-weight: 600;">
+          ↩ Order Returned - No updates allowed
+        </div>
+      {% else %}
+        <div style="padding: 10px 14px; background: #e2e8f0; color: #475569; border-radius: 10px; font-size: 13px; font-weight: 600;">
+          No updates available for this order
+        </div>
+      {% endif %}
+
+    {% endif %}
+  </div>
+
+  <div class="od-timeline" data-step="{% if current_step < 0 %}0{% else %}{{ current_step|add:1 }}{% endif %}" style="--steps:5;">
+    <div class="od-step {% if current_step >= 0 %}active{% endif %}">
+      <div class="od-step-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 512 512" fill="white">
+          <path d="M 19.2 51.2 Q 1.6 52.8 0 70.4 Q 1.6 88 19.2 89.6 L 56 89.6 L 56 89.6 Q 60.8 89.6 61.6 95.2 L 103.2 312 L 103.2 312 Q 107.2 332 123.2 345.6 Q 138.4 358.4 160 358.4 L 256.8 358.4 L 256.8 358.4 Q 256 352 256 345.6 Q 256 332.8 258.4 320 L 160 320 L 160 320 Q 144.8 319.2 140.8 304.8 L 136.8 281.6 L 136.8 281.6 L 271.2 281.6 L 271.2 281.6 Q 282.4 260 300 243.2 L 129.6 243.2 L 129.6 243.2 L 104.8 115.2 L 104.8 115.2 L 416.8 115.2 L 416.8 115.2 L 392.8 204.8 L 392.8 204.8 Q 394.4 204.8 396.8 204.8 Q 414.4 204.8 431.2 208.8 L 456 116.8 L 456 116.8 Q 459.2 101.6 450.4 89.6 Q 440.8 77.6 424.8 76.8 L 96 76.8 L 96 76.8 Q 84 52.8 56 51.2 L 19.2 51.2 L 19.2 51.2 Z M 140.8 460.8 Q 162.4 460 174.4 441.6 Q 184 422.4 174.4 403.2 Q 162.4 384.8 140.8 384 Q 119.2 384.8 107.2 403.2 Q 97.6 422.4 107.2 441.6 Q 119.2 460 140.8 460.8 L 140.8 460.8 Z M 512 345.6 Q 512 314.4 496.8 288 L 496.8 288 L 496.8 288 Q 481.6 261.6 454.4 245.6 Q 427.2 230.4 396.8 230.4 Q 366.4 230.4 339.2 245.6 Q 312 261.6 296.8 288 Q 281.6 314.4 281.6 345.6 Q 281.6 376.8 296.8 403.2 Q 312 429.6 339.2 445.6 Q 366.4 460.8 396.8 460.8 Q 427.2 460.8 454.4 445.6 Q 481.6 429.6 496.8 403.2 Q 512 376.8 512 345.6 L 512 345.6 Z M 432.8 311.2 Q 441.6 303.2 450.4 311.2 Q 458.4 320 450.4 328.8 L 392.8 386.4 L 392.8 386.4 Q 384 394.4 375.2 386.4 L 343.2 354.4 L 343.2 354.4 Q 335.2 345.6 343.2 336.8 Q 352 328.8 360.8 336.8 L 384 359.2 L 384 359.2 L 432.8 311.2 L 432.8 311.2 Z" />
+        </svg>
+      </div>
+      <h4 class="od-step-title">Order Placed</h4>
+      <p class="od-step-desc">An order has been placed.</p>
+      <div class="od-step-time">{{ order.placed_at|date:"d/m/Y, H:i"|default:"—" }}</div>
+    </div>
+
+    <div class="od-step {% if current_step >= 1 %}active{% endif %}">
+      <div class="od-step-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-hourglass-split" viewBox="0 0 16 16">
+          <path d="M2.5 15a.5.5 0 1 1 0-1h1v-1a4.5 4.5 0 0 1 2.557-4.06c.29-.139.443-.377.443-.59v-.7c0-.213-.154-.451-.443-.59A4.5 4.5 0 0 1 3.5 3V2h-1a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1h-1v1a4.5 4.5 0 0 1-2.557 4.06c-.29.139-.443.377-.443.59v.7c0 .213.154.451.443.59A4.5 4.5 0 0 1 12.5 13v1h1a.5.5 0 0 1 0 1zm2-13v1c0 .537.12 1.045.337 1.5h6.326c.216-.455.337-.963.337-1.5V2zm3 6.35c0 .701-.478 1.236-1.011 1.492A3.5 3.5 0 0 0 4.5 13s.866-1.299 3-1.48zm1 0v3.17c2.134.181 3 1.48 3 1.48a3.5 3.5 0 0 0-1.989-3.158C8.978 9.586 8.5 9.052 8.5 8.351z"/>
+        </svg>
+      </div>
+      <h4 class="od-step-title">Processing</h4>
+      <p class="od-step-desc">Seller has processed your order.</p>
+      <div class="od-step-time">{{ order.processing_at|date:"d/m/Y, H:i"|default:"—" }}</div>
+    </div>
+
+    <div class="od-step {% if current_step >= 2 %}active{% endif %}">
+      <div class="od-step-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-seam" viewBox="0 0 16 16">
+          <path d="M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5l2.404.961L10.404 2zm3.564 1.426L5.596 5 8 5.961 14.154 3.5zm3.25 1.7-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.762V6.838L1 4.239v7.923zM7.443.184a1.5 1.5 0 0 1 1.114 0l7.129 2.852A.5.5 0 0 1 16 3.5v8.662a1 1 0 0 1-.629.928l-7.185 2.874a.5.5 0 0 1-.372 0L.63 13.09a1 1 0 0 1-.63-.928V3.5a.5.5 0 0 1 .314-.464z"/>
+        </svg>
+      </div>
+      <h4 class="od-step-title">Packed</h4>
+      <p class="od-step-desc">Order packaged and ready.</p>
+      <div class="od-step-time">{{ order.packed_at|date:"d/m/Y, H:i"|default:"—" }}</div>
+    </div>
+
+    <div class="od-step {% if current_step >= 3 %}active{% endif %}">
+      <div class="od-step-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 640 512" fill="white">
+          <path d="M64 96c0-35.3 28.7-64 64-64l288 0c35.3 0 64 28.7 64 64l0 32 50.7 0c17 0 33.3 6.7 45.3 18.7L621.3 192c12 12 18.7 28.3 18.7 45.3L640 384c0 35.3-28.7 64-64 64l-3.3 0c-10.4 36.9-44.4 64-84.7 64s-74.2-27.1-84.7-64l-102.6 0c-10.4 36.9-44.4 64-84.7 64s-74.2-27.1-84.7-64l-3.3 0c-35.3 0-64-28.7-64-64l0-48-40 0c-13.3 0-24-10.7-24-24s10.7-24 24-24l112 0c13.3 0 24-10.7 24-24s-10.7-24-24-24L24 240c-13.3 0-24-10.7-24-24s10.7-24 24-24l176 0c13.3 0 24-10.7 24-24s-10.7-24-24-24L24 144c-13.3 0-24-10.7-24-24S10.7 96 24 96l40 0zM576 288l0-50.7-45.3-45.3-50.7 0 0 96 96 0zM256 424a40 40 0 1 0 -80 0 40 40 0 1 0 80 0zm232 40a40 40 0 1 0 0-80 40 40 0 1 0 0 80z"/>
+        </svg>
+      </div>
+      <h4 class="od-step-title">Shipping</h4>
+      <p class="od-step-desc">Order is on the way.</p>
+      <div class="od-step-time">{{ order.shipped_at|date:"d/m/Y, H:i"|default:"—" }}</div>
+    </div>
+
+    <div class="od-step {% if current_step >= 4 %}active{% endif %}">
+      <div class="od-step-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-house-check" viewBox="0 0 16 16">
+          <path d="M7.293 1.5a1 1 0 0 1 1.414 0L11 3.793V2.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v3.293l2.354 2.353a.5.5 0 0 1-.708.708L8 2.207l-5 5V13.5a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 2 13.5V8.207l-.646.647a.5.5 0 1 1-.708-.708z"/>
+          <path d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7m1.679-4.493-1.335 2.226a.75.75 0 0 1-1.174.144l-.774-.773a.5.5 0 0 1 .708-.707l.547.547 1.17-1.951a.5.5 0 1 1 .858.514"/>
+        </svg>
+      </div>
+      <h4 class="od-step-title">Delivered</h4>
+      <p class="od-step-desc">Package delivered.</p>
+      <div class="od-step-time">{{ order.delivered_at|timezone:"Asia/Kolkata"|date:"d/m/Y, h:i A"|default:"—" }}</div>
+    </div>
+  </div>
+</div>
+
+    </div>
+  </div>
+</div>
+<script>
+  // Map backend status value to step index
+  const STEP_MAP = {
+    placed: 1,
+    processing: 2,
+    packed: 3,
+    shipping: 4,
+    delivered: 5
+  };
+
+  const form = document.querySelector('.od-status-update form');
+  const select = form?.querySelector('#status');
+  const timeline = document.querySelector('.od-timeline');
+  const steps = [...document.querySelectorAll('.od-timeline .od-step')];
+
+  // Initialize once on load (if you render current status server-side)
+  function setStep(n){
+    const clamped = Math.min(Math.max(n,1), 5);
+    timeline.dataset.step = String(clamped);
+    // optional: reflect on icons/titles
+    steps.forEach((el, idx) => {
+      el.classList.toggle('active', idx < clamped);
+    });
+  }
+
+  // If updating via normal POST, the server will re-render with the new step.
+  // For instant UI feedback (AJAX-like without a full rewrite):
+  form?.addEventListener('change', () => {
+    const val = (select.value || '').toLowerCase();
+    const newStep = STEP_MAP[val] ?? 1;
+    setStep(newStep);
+  });
+
+  // Call once if you already know the current step in a data attribute:
+  // setStep(Number(timeline.dataset.step || 1));
+</script>
+
+{% endblock %}

@@ -1,0 +1,168 @@
+{% extends 'admin/admin-base.html' %}
+{% load static %}
+
+{% block title %}Add Deal{% endblock %}
+
+{% block content %}
+<style>
+.add-deal {
+  min-height: 100%;
+  background: radial-gradient(1200px 600px at 20% -10%, #4c0d3c 0%, #1a0820 60%, #0f0714 100%);
+  padding: 32px 16px 64px;
+  color: #fff;
+}
+.card {
+  max-width: 1040px; margin: 0 auto; background:#fff; color:#111;
+  border-radius: 18px; box-shadow: 0 6px 24px rgba(0,0,0,.35); padding: 22px;
+}
+.hd { text-align:center; font-weight: 800; margin-bottom: 6px; }
+.sub { text-align:center; color:#666; margin-bottom: 16px; }
+
+.grid { display:grid; grid-template-columns: 1fr 1fr; gap:18px; }
+@media (max-width: 880px){ .grid{grid-template-columns:1fr;} }
+
+.fg label { font-weight:700; display:block; margin:6px 0 8px; }
+.fg input[type=text], .fg input[type=url], .fg textarea, .fg input[type=date], .fg input[type=number]{
+  width:100%; border:1px solid #ddd; border-radius:10px; padding:10px 12px; background:#fafafa;
+}
+.fg textarea{ min-height:96px; resize:vertical; }
+
+.drop {
+  border:2px dashed #e8e8ef; border-radius:12px; background:#fafbff;
+  display:grid; place-items:center; padding:28px 14px; text-align:center; color:#6b7280;
+}
+.drop .ico { width:42px; height:42px; border-radius:12px; display:grid; place-items:center; background:#eef; color:#5a5ad7; margin-bottom:10px; }
+.drop .btn { margin-top:10px; background:#e9e9ff; color:#3730a3; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; }
+.preview img{ width:100%; border-radius:12px; margin-top:10px; object-fit:cover; }
+
+.row { display:flex; gap:18px; flex-wrap:wrap; }
+.group { flex:1 1 260px; background:#fff; border:1px solid #efefef; border-radius:12px; padding:10px 12px; box-shadow:0 1px 0 #f3f3f3; }
+.glab { font-weight:800; background:#0f0f10; color:#fff; display:inline-block; padding:6px 12px; border-radius:8px; margin-bottom:8px; }
+.chk { display:flex; align-items:center; gap:10px; margin-top:12px; }
+
+.actions { display:flex; justify-content:center; margin-top:22px; gap:12px; }
+.btn { border:1px solid #ddd; background:#fff; border-radius:10px; padding:12px 20px; cursor:pointer; }
+.btn.primary { background:#0f0f10; color:#fff; border-color:#0f0f10; }
+.btn.ghost { background:transparent; color:#0f0f10; }
+.help { color:#6b7280; font-size:13px; margin-top:6px; }
+</style>
+
+<div class="add-deal">
+  <form class="card" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <h2 class="hd">Add New Deal</h2>
+    <div class="sub">Create the homepage “Deals of the Month” section content and schedule with a countdown end date.</div>
+
+    <div class="grid">
+      <div class="fg">
+        <label>Title</label>
+        <input type="text" name="title" placeholder="Deals Of The Month" required>
+      </div>
+      <div class="fg">
+        <label>CTA Text</label>
+        <input type="text" name="cta_text" placeholder="Buy Now" required>
+      </div>
+      <div class="fg" style="grid-column:1/-1">
+        <label>Subtitle</label>
+        <textarea name="subtitle" placeholder="Short promotional copy shown under the heading…"></textarea>
+      </div>
+
+      <div class="fg">
+        <label>CTA URL</label>
+        <input type="url" name="cta_url" placeholder="/products/slug-or-full-url" required>
+        <div class="help">Use absolute URL for external links or a site path for internal pages.</div>
+      </div>
+      <div class="fg">
+        <label>Priority</label>
+        <input type="number" name="priority" min="1" value="1">
+        <div class="help">Lower number shows earlier when multiple deals are active.</div>
+      </div>
+
+      <div class="fg">
+        <label>Starts On</label>
+        <input type="date" name="starts_on" id="startDate" required>
+      </div>
+      <div class="fg">
+        <label>Ends On</label>
+        <input type="date" name="ends_on" id="endDate" required>
+        <div class="help">Countdown targets this date.</div>
+      </div>
+
+      <div class="fg">
+        <label>Left Image (primary)</label>
+        <div class="drop" id="dropL">
+          <div>
+            <div class="ico">🖼️</div>
+            <div>Drag and drop image here, or click add image</div>
+            <button class="btn" type="button" id="btnL">Add Image</button>
+          </div>
+          <input type="file" name="left_image" id="fileL" accept="image/*" hidden required>
+        </div>
+        <div class="preview"><img id="imgL" alt=""></div>
+      </div>
+
+      <div class="fg">
+        <label>Right Image (optional)</label>
+        <div class="drop" id="dropR">
+          <div>
+            <div class="ico">🖼️</div>
+            <div>Drag and drop image here, or click add image</div>
+            <button class="btn" type="button" id="btnR">Add Image</button>
+          </div>
+          <input type="file" name="right_image" id="fileR" accept="image/*" hidden>
+        </div>
+        <div class="preview"><img id="imgR" alt=""></div>
+      </div>
+
+      <div class="fg" style="grid-column:1/-1">
+        <div class="chk">
+          <input type="checkbox" id="is_active" name="is_active" checked>
+          <label for="is_active">Active</label>
+          <span class="help">Uncheck to save as draft; you can activate later.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <a class="btn" href="">Cancel</a>
+      <button class="btn primary" type="submit">Save Deal</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function(){
+  setupDZ('btnL','fileL','dropL','imgL');
+  setupDZ('btnR','fileR','dropR','imgR');
+
+  function setupDZ(btnId, fileId, dropId, imgId){
+    const btn = document.getElementById(btnId);
+    const input = document.getElementById(fileId);
+    const dz = document.getElementById(dropId);
+    const img = document.getElementById(imgId);
+    btn.addEventListener('click', ()=> input.click());
+    dz.addEventListener('click', ()=> input.click());
+    ;['dragenter','dragover'].forEach(evn=>dz.addEventListener(evn, e=>{e.preventDefault(); dz.style.background='#f2f5ff';}));
+    ;['dragleave','drop'].forEach(evn=>dz.addEventListener(evn, e=>{e.preventDefault(); dz.style.background='#fafbff';}));
+    dz.addEventListener('drop', e=>{
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        input.files = e.dataTransfer.files; preview(input, img);
+      }
+    });
+    input.addEventListener('change', ()=> preview(input, img));
+  }
+  function preview(input, img){
+    const f = input.files[0]; if(!f) return;
+    img.src = URL.createObjectURL(f);
+    img.parentElement.style.display = 'block';
+  }
+
+  // date guards: end >= start
+  const s = document.getElementById('startDate'), e = document.getElementById('endDate');
+  function guard(){
+    if (s.value && e.value && e.value < s.value) { alert('End date must be on or after start date'); e.value=''; }
+  }
+  s.addEventListener('change', guard); e.addEventListener('change', guard);
+})();
+</script>
+{% endblock %}

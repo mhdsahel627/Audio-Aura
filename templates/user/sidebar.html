@@ -1,0 +1,478 @@
+{% load static %}
+<aside class="side">
+  <div class="head head-xl">
+    <div class="head-inner">
+      <div class="avatar avatar-xl">
+        {% if user.profile.avatar %}
+          <img src="{{ user.profile.avatar.url }}" alt="">
+        {% else %}
+          <img src="{% static 'images/userprofile.png' %}" alt="">
+        {% endif %}
+        <div class="avatar-ring"></div>
+      </div>
+      <div class="uname uname-xl">{{ user.get_full_name|default:user.username }}</div>
+    </div>
+  </div>
+
+  <nav class="menu">
+    <a class="mi {% if active_tab == 'profile' %}is-active{% endif %}" href="{% url 'profile' %}">
+      <span class="ic">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-person-square" viewBox="0 0 16 16">
+          <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
+          <path d="M2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2zm12 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1v-1c0-1-1-4-6-4s-6 3-6 4v1a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/>
+        </svg>
+      </span>
+      <span>My Profile</span>
+      <span class="arrow">→</span>
+    </a>
+
+    <a class="mi {% if active_tab == 'address_manage' %}is-active{% endif %}" href="{% url 'address' %}">
+      <span class="ic">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-send-fill" viewBox="0 0 16 16">
+          <path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.471z"/>
+        </svg>
+      </span>
+      <span>My Address</span>
+      <span class="arrow">→</span>
+    </a>
+
+    <a class="mi {% if active_tab == 'orders' %}is-active{% endif %}" href="{% url 'orders' %}">
+      <span class="ic">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-handbag-fill" viewBox="0 0 16 16">
+          <path d="M8 1a2 2 0 0 0-2 2v2H5V3a3 3 0 1 1 6 0v2h-1V3a2 2 0 0 0-2-2M5 5H3.36a1.5 1.5 0 0 0-1.483 1.277L.85 13.13A2.5 2.5 0 0 0 3.322 16h9.355a2.5 2.5 0 0 0 2.473-2.87l-1.028-6.853A1.5 1.5 0 0 0 12.64 5H11v1.5a.5.5 0 0 1-1 0V5H6v1.5a.5.5 0 0 1-1 0z"/>
+        </svg>
+      </span>
+      <span>My Order</span>
+      <span class="arrow">→</span>
+    </a>
+
+    <a class="mi {% if active_tab == 'wishlist' %}is-active{% endif %}" href="{% url 'wishlist:list' %}">
+      <span class="ic">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-heart-fill" viewBox="0 0 16 16">
+          <path fill-rule="evenodd" d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314"/>
+        </svg>
+      </span>
+      <span>My Wishlist</span>
+      <span class="badge">({{ wishlist_count|default:0 }})</span>
+      <span class="arrow">→</span>
+    </a>
+
+    <a class="mi {% if active_tab == 'wallet' %}is-active{% endif %}" href="{% url 'wallet' %}">
+      <span class="ic">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-wallet2" viewBox="0 0 16 16">
+          <path d="M12.136.326A1.5 1.5 0 0 1 14 1.78V3h.5A1.5 1.5 0 0 1 16 4.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 13.5v-9a1.5 1.5 0 0 1 1.432-1.499zM5.562 3H13V1.78a.5.5 0 0 0-.621-.484zM1.5 4a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5z"/>
+        </svg>
+      </span>
+      <span>My Wallet</span>
+      <span class="arrow">→</span>
+    </a>
+
+    <a class="mi {% if active_tab == 'password' %}is-active{% endif %}" href="{% url 'password_change' %}">
+      <span class="ic">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-lock-fill" viewBox="0 0 16 16">
+          <path fill-rule="evenodd" d="M8 0a4 4 0 0 1 4 4v2.05a2.5 2.5 0 0 1 2 2.45v5a2.5 2.5 0 0 1-2.5 2.5h-7A2.5 2.5 0 0 1 2 13.5v-5a2.5 2.5 0 0 1 2-2.45V4a4 4 0 0 1 4-4m0 1a3 3 0 0 0-3 3v2h6V4a3 3 0 0 0-3-3"/>
+        </svg>
+      </span>
+      <span>Change password</span>
+      <span class="arrow">→</span>
+    </a>
+
+    <a class="mi {% if active_tab == 'refer' %}is-active{% endif %}" href="{% url 'refer_code' %}">
+      <span class="ic">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-people" viewBox="0 0 16 16">
+          <path d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1zm-7.978-1L7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002-.014.002zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4m3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0M6.936 9.28a6 6 0 0 0-1.23-.247A7 7 0 0 0 5 9c-4 0-5 3-5 4q0 1 1 1h4.216A2.24 2.24 0 0 1 5 13c0-1.01.377-2.042 1.09-2.904.243-.294.526-.569.846-.816M4.92 10A5.5 5.5 0 0 0 4 13H1c0-.26.164-1.03.76-1.724.545-.636 1.492-1.256 3.16-1.275ZM1.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0m3-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4"/>
+        </svg>
+      </span>
+      <span>Referral Code</span>
+      <span class="arrow">→</span>
+    </a>
+
+    <a class="mi logout-btn" href="{% url 'logout' %}">
+      <span class="ic">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-left" viewBox="0 0 16 16">
+          <path fill-rule="evenodd" d="M6 12.5a.5.5 0 0 0 .5.5h8a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-8a.5.5 0 0 0-.5.5v2a.5.5 0 0 1-1 0v-2A1.5 1.5 0 0 1 6.5 2h8A1.5 1.5 0 0 1 16 3.5v9a.5.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 5 12.5v-2a.5.5 0 0 1 1 0z"/>
+          <path fill-rule="evenodd" d="M.146 8.354a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L1.707 7.5H10.5a.5.5 0 0 1 0 1H1.707l2.147 2.146a.5.5 0 0 1-.708.708z"/>
+        </svg>
+      </span>
+      <span>Log out</span>
+      <span class="arrow">→</span>
+    </a>
+  </nav>
+</aside>
+
+<style>
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(-15px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% center;
+    }
+    100% {
+      background-position: 200% center;
+    }
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .side {
+    background: #fff;
+    color: #121316;
+    border: 1px solid #edf0f5;
+    border-radius: 36px;
+    box-shadow: 0 18px 48px rgba(0,0,0,.18);
+    overflow: visible;
+    position: relative;
+    animation: fadeInUp 0.6s ease-out;
+  }
+
+  /* Glowing border effect */
+  .side::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 36px;
+    background: linear-gradient(45deg, #3247ff, #ff32e5, #32ff7e, #3247ff);
+    background-size: 300% 300%;
+    opacity: 0;
+    z-index: -1;
+    transition: opacity 0.5s ease;
+    animation: shimmer 3s linear infinite;
+  }
+
+  .side:hover::before {
+    opacity: 0.3;
+  }
+
+  .head-xl {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+    border-radius: 32px;
+    padding: 28px 28px;
+    border: 1px solid #eef1f5;
+    box-shadow: 0 10px 26px rgba(0,0,0,.10);
+    position: relative;
+    overflow: hidden;
+    animation: fadeInUp 0.7s ease-out 0.1s backwards;
+  }
+
+  /* Subtle background animation */
+  .head-xl::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(50, 71, 255, 0.05) 0%, transparent 70%);
+    animation: spin 20s linear infinite;
+    pointer-events: none;
+  }
+
+  .head-xl .head-inner {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .avatar-xl {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    overflow: hidden;
+    box-shadow: 0 8px 22px rgba(0,0,0,.12);
+    position: relative;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .avatar-xl:hover {
+    transform: scale(1.08) rotate(5deg);
+    box-shadow: 0 12px 32px rgba(50, 71, 255, 0.3);
+  }
+
+  /* Animated ring around avatar */
+  .avatar-ring {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    background: linear-gradient(45deg, #3247ff, #ff32e5, #32ff7e) border-box;
+    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    animation: spin 3s linear infinite;
+  }
+
+  .avatar-xl:hover .avatar-ring {
+    opacity: 1;
+  }
+
+  .avatar-xl img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: all 0.4s ease;
+  }
+
+  .avatar-xl:hover img {
+    transform: scale(1.1);
+  }
+
+  .uname-xl {
+    font-size: 40px;
+    font-weight: 800;
+    letter-spacing: .2px;
+    color: #111;
+    background: linear-gradient(135deg, #111 0%, #3247ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    background-size: 200% 200%;
+    animation: shimmer 3s ease infinite;
+    transition: all 0.3s ease;
+  }
+
+  .uname-xl:hover {
+    letter-spacing: 1px;
+  }
+
+  .avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    box-shadow: 0 6px 18px rgba(0,0,0,.08);
+  }
+
+  .uname {
+    font-size: 22px;
+    font-weight: 900;
+  }
+
+  .menu {
+    padding: 8px 10px 14px 0;
+  }
+
+  .menu a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .menu a:visited {
+    color: inherit;
+  }
+
+  .mi {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    font-weight: 800;
+    color: #171a1f;
+    letter-spacing: .1px;
+    line-height: 1.1;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: slideInRight 0.4s ease-out backwards;
+  }
+
+  .mi:nth-child(1) { animation-delay: 0.1s; }
+  .mi:nth-child(2) { animation-delay: 0.15s; }
+  .mi:nth-child(3) { animation-delay: 0.2s; }
+  .mi:nth-child(4) { animation-delay: 0.25s; }
+  .mi:nth-child(5) { animation-delay: 0.3s; }
+  .mi:nth-child(6) { animation-delay: 0.35s; }
+  .mi:nth-child(7) { animation-delay: 0.4s; }
+  .mi:nth-child(8) { animation-delay: 0.45s; }
+
+  /* Hover effect with slide-in background */
+  .mi::before {
+    content: '';
+    position: absolute;
+    left: -100%;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(50, 71, 255, 0.08), transparent);
+    transition: left 0.5s ease;
+  }
+
+  .mi:hover::before {
+    left: 100%;
+  }
+
+  .mi + .mi {
+    margin-top: 4px;
+  }
+
+  .mi:hover {
+    background: #f5f7fb;
+    transform: translateX(8px);
+    box-shadow: 0 4px 12px rgba(50, 71, 255, 0.1);
+  }
+
+  .mi:active {
+    transform: translateX(8px) translateY(1px);
+  }
+
+  .ic {
+    width: 26px;
+    font-size: 18px;
+    opacity: .95;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+  }
+
+  .mi:hover .ic {
+    transform: scale(1.2) rotate(5deg);
+    color: #3247ff;
+  }
+
+  .mi.is-active .ic {
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  /* Arrow indicator */
+  .arrow {
+    margin-left: auto;
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: all 0.3s ease;
+    color: #3247ff;
+    font-weight: 900;
+  }
+
+  .mi:hover .arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .badge {
+    background: linear-gradient(135deg, #eef2ff, #dbe4ff);
+    color: #3247ff;
+    border-radius: 999px;
+    padding: 0 8px;
+    margin-left: 6px;
+    font-size: 12px;
+    font-weight: 900;
+    box-shadow: 0 2px 8px rgba(50, 71, 255, 0.2);
+    transition: all 0.3s ease;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .mi:hover .badge {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(50, 71, 255, 0.3);
+  }
+
+  .mi.is-active {
+    background: linear-gradient(135deg, #f1f6ff, #e8f0ff);
+    color: #1144cc;
+    box-shadow: inset 0 0 0 2px #dbe7ff, 0 4px 12px rgba(17, 68, 204, 0.15);
+    transform: translateX(8px);
+  }
+
+  .mi.is-active::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 60%;
+    background: linear-gradient(180deg, #3247ff, #1144cc);
+    border-radius: 2px 0 0 2px;
+    box-shadow: 0 0 12px rgba(50, 71, 255, 0.6);
+  }
+
+  /* Logout button special styling */
+  .logout-btn {
+    margin-top: 12px;
+    border-top: 2px solid #f0f2f8;
+    padding-top: 16px;
+  }
+
+  .logout-btn:hover {
+    background: linear-gradient(135deg, #fff5f5, #ffe5e5);
+    color: #dc2626;
+  }
+
+  .logout-btn:hover .ic {
+    color: #dc2626;
+    animation: float 1s ease-in-out infinite;
+  }
+
+  @media(min-width:1101px) {
+    .side {
+      width: 360px;
+    }
+  }
+
+  @media(max-width:600px) {
+    .avatar-xl {
+      width: 84px;
+      height: 84px;
+    }
+    .uname-xl {
+      font-size: 28px;
+    }
+    .head-xl {
+      padding: 20px;
+    }
+    .mi {
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+  }
+</style>

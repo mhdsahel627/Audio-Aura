@@ -1,0 +1,416 @@
+{% extends "user/base.html" %}
+{% load static %}
+{% block title %} Contact Us {% endblock %}
+{% block content %}
+
+<style>
+    .contact-hero {
+        background: linear-gradient(135deg, #000000 0%, #462567 100%);
+        padding: 60px 20px;
+        text-align: center;
+        color: white;
+    }
+    
+    .contact-hero h1 {
+        font-size: 3rem;
+        margin-bottom: 15px;
+        font-weight: 700;
+    }
+    
+    .contact-hero p {
+        font-size: 1.2rem;
+        opacity: 0.95;
+    }
+    
+    .contact-container {
+        max-width: 1200px;
+        margin: -50px auto 80px;
+        padding: 0 20px;
+        position: relative;
+        z-index: 10;
+    }
+    
+    .contact-wrapper {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        overflow: hidden;
+    }
+    
+    .contact-info {
+        background: linear-gradient(135deg, #000000 0%, #462567 100%);
+        padding: 60px 40px;
+        color: white;
+    }
+    
+    .contact-info h2 {
+        font-size: 2rem;
+        margin-bottom: 20px;
+        font-weight: 700;
+    }
+    
+    .contact-info p {
+        opacity: 0.9;
+        margin-bottom: 40px;
+        line-height: 1.7;
+    }
+    
+    .info-item {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 30px;
+        transition: transform 0.3s ease;
+    }
+    
+    .info-item:hover {
+        transform: translateX(10px);
+    }
+    
+    .info-icon {
+        width: 50px;
+        height: 50px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-right: 20px;
+        flex-shrink: 0;
+    }
+    
+    .info-content h3 {
+        font-size: 1.1rem;
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+    
+    .info-content p {
+        margin: 0;
+        opacity: 0.9;
+    }
+    
+    .social-links {
+        display: flex;
+        gap: 15px;
+        margin-top: 40px;
+    }
+    
+    .social-link {
+        width: 45px;
+        height: 45px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        color: white;
+        font-size: 1.3rem;
+        transition: background 0.3s ease, transform 0.3s ease;
+    }
+    
+    .social-link:hover {
+        background: rgba(255,255,255,0.3);
+        transform: scale(1.1);
+    }
+    
+    .contact-form {
+        padding: 60px 40px;
+    }
+    
+    .contact-form h2 {
+        font-size: 2rem;
+        color: #2d3748;
+        margin-bottom: 30px;
+        font-weight: 700;
+    }
+    
+    .form-group {
+        margin-bottom: 25px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #4a5568;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+    
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 15px;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        font-family: inherit;
+    }
+    
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .form-group textarea {
+        resize: vertical;
+        min-height: 120px;
+    }
+    
+    .submit-btn {
+        width: 100%;
+        padding: 15px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .submit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+    
+    .faq-section {
+        max-width: 1200px;
+        margin: 80px auto;
+        padding: 0 20px;
+    }
+    
+    .faq-title {
+        font-size: 2.5rem;
+        color: #2d3748;
+        text-align: center;
+        margin-bottom: 50px;
+        font-weight: 700;
+    }
+    
+    .faq-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 30px;
+    }
+    
+    .faq-card {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .faq-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+    }
+    
+    .faq-card h3 {
+        color: #667eea;
+        font-size: 1.3rem;
+        margin-bottom: 15px;
+        font-weight: 600;
+    }
+    
+    .faq-card p {
+        color: #4a5568;
+        line-height: 1.7;
+    }
+    
+    .success-message {
+        display: none;
+        padding: 15px;
+        background: #48bb78;
+        color: white;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    
+    @media (max-width: 968px) {
+        .contact-wrapper {
+            grid-template-columns: 1fr;
+        }
+        
+        .contact-hero h1 {
+            font-size: 2.5rem;
+        }
+        
+        .faq-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="contact-hero">
+    <h1>Get in Touch</h1>
+    <p>We'd love to hear from you. Send us a message and we'll respond as soon as possible.</p>
+</div>
+
+<div class="contact-container">
+    <div class="contact-wrapper">
+        <!-- Contact Information -->
+        <div class="contact-info">
+            <h2>Contact Information</h2>
+            <p>Have questions about our speakers or need help with your order? We're here to help!</p>
+            
+            <div class="info-item">
+                <div class="info-icon">📧</div>
+                <div class="info-content">
+                    <h3>Email</h3>
+                    <p>support@audioaura.com</p>
+                </div>
+            </div>
+            
+            <div class="info-item">
+                <div class="info-icon">📞</div>
+                <div class="info-content">
+                    <h3>Phone</h3>
+                    <p>+91 123 456 7890</p>
+                    <p style="font-size: 0.9rem; margin-top: 5px;">Mon-Sat: 9:00 AM - 6:00 PM</p>
+                </div>
+            </div>
+            
+            <div class="info-item">
+                <div class="info-icon">📍</div>
+                <div class="info-content">
+                    <h3>Location</h3>
+                    <p>Kottayam, Kerala</p>
+                    <p>India</p>
+                </div>
+            </div>
+            
+            <div class="info-item">
+                <div class="info-icon">⏰</div>
+                <div class="info-content">
+                    <h3>Business Hours</h3>
+                    <p>Monday - Saturday: 9:00 AM - 6:00 PM</p>
+                    <p>Sunday: Closed</p>
+                </div>
+            </div>
+            
+            <div class="social-links">
+                <a href="#" class="social-link">📘</a>
+                <a href="#" class="social-link">📷</a>
+                <a href="#" class="social-link">🐦</a>
+                <a href="#" class="social-link">💼</a>
+            </div>
+        </div>
+        
+        <!-- Contact Form -->
+        <div class="contact-form">
+            <div class="success-message" id="successMessage">
+                Thank you! Your message has been sent successfully. We'll get back to you soon.
+            </div>
+            
+            <h2>Send us a Message</h2>
+            <form method="post" id="contactForm">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label for="name">Full Name *</label>
+                    <input type="text" id="name" name="name" required placeholder="John Doe">
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email Address *</label>
+                    <input type="email" id="email" name="email" required placeholder="john@example.com">
+                </div>
+                
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" name="phone" placeholder="+91 123 456 7890">
+                </div>
+                
+                <div class="form-group">
+                    <label for="subject">Subject *</label>
+                    <select id="subject" name="subject" required>
+                        <option value="">Select a subject</option>
+                        <option value="product">Product Inquiry</option>
+                        <option value="order">Order Support</option>
+                        <option value="technical">Technical Support</option>
+                        <option value="warranty">Warranty & Returns</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="message">Message *</label>
+                    <textarea id="message" name="message" required placeholder="Tell us how we can help you..."></textarea>
+                </div>
+                
+                <button type="submit" class="submit-btn">Send Message</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- FAQ Section -->
+<div class="faq-section">
+    <h2 class="faq-title">Frequently Asked Questions</h2>
+    <div class="faq-grid">
+        <div class="faq-card">
+            <h3>🚚 What is your shipping policy?</h3>
+            <p>We offer free shipping on orders above ₹2000. Standard delivery takes 3-5 business days. Express shipping is available for faster delivery.</p>
+        </div>
+        
+        <div class="faq-card">
+            <h3>↩️ What is your return policy?</h3>
+            <p>We offer a 30-day return policy on all products. Items must be in original condition with all packaging and accessories included.</p>
+        </div>
+        
+        <div class="faq-card">
+            <h3>🛡️ Do products come with warranty?</h3>
+            <p>Yes! All our speakers come with manufacturer warranty. Warranty periods vary by brand and product, typically ranging from 1-2 years.</p>
+        </div>
+        
+        <div class="faq-card">
+            <h3>💳 What payment methods do you accept?</h3>
+            <p>We accept all major credit/debit cards, UPI, net banking, and popular digital wallets. Cash on delivery is also available for select areas.</p>
+        </div>
+        
+        <div class="faq-card">
+            <h3>📦 How can I track my order?</h3>
+            <p>Once your order ships, you'll receive a tracking number via email and SMS. You can track your order status in your account dashboard.</p>
+        </div>
+        
+        <div class="faq-card">
+            <h3>🎧 Do you offer installation support?</h3>
+            <p>For complex speaker systems, we provide installation guides and video tutorials. Professional installation services are available in select cities.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('contactForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Show success message
+    document.getElementById('successMessage').style.display = 'block';
+    
+    // Reset form
+    this.reset();
+    
+    // Hide success message after 5 seconds
+    setTimeout(function() {
+        document.getElementById('successMessage').style.display = 'none';
+    }, 5000);
+    
+    // Scroll to success message
+    document.getElementById('successMessage').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
+</script>
+
+{% endblock %}

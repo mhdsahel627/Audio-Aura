@@ -1,0 +1,332 @@
+{% extends "user/base.html" %}
+{% load static %}
+{% block title %} About {% endblock %}
+{% block content %}
+
+<style>
+    .about-hero {
+        background: linear-gradient(135deg, #000000 0%, #462567 100%);
+        padding: 80px 20px;
+        text-align: center;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .about-hero::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255, 251, 251, 0.555) 1px, transparent 1px);
+        background-size: 50px 50px;
+        animation: moveBackground 6s linear infinite;
+    }
+    
+    @keyframes moveBackground {
+        0% { transform: translate(0, 0); }
+        100% { transform: translate(50px, 50px); }
+    }
+    
+    .about-hero h1 {
+        font-size: 3.5rem;
+        margin-bottom: 20px;
+        position: relative;
+        z-index: 1;
+        font-weight: 700;
+    }
+    
+    .about-hero p {
+        font-size: 1.3rem;
+        max-width: 700px;
+        margin: 0 auto;
+        position: relative;
+        z-index: 1;
+        opacity: 0.95;
+    }
+    
+    .about-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 60px 20px;
+    }
+    
+    .about-section {
+        margin-bottom: 80px;
+    }
+    
+    .section-title {
+        font-size: 2.5rem;
+        color: #ffffff;
+        margin-top: 80px;
+        margin-bottom: 30px;
+        text-align: center;
+        font-weight: 700;
+    }
+    
+    .story-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 50px;
+        align-items: center;
+        margin-bottom: 60px;
+    }
+    
+    .story-text {
+        font-size: 1.1rem;
+        line-height: 1.8;
+        color: #c1c3c6;
+    }
+    
+    .story-text p {
+        margin-bottom: 20px;
+    }
+    
+    .story-image {
+        position: relative;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        height: 400px;
+        background: linear-gradient(135deg, #000000 0%, #462567 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .story-image::before{
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 251, 251, 0.555) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: moveBackground 6s linear infinite;
+    }
+    
+    .story-image img {
+        width: 100%;
+        height: 100%;
+        opacity: 0.9;
+    }
+    
+    .values-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 30px;
+        margin-top: 50px;
+    }
+    
+    .value-card {
+        background: white;
+        padding: 40px 30px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        text-align: center;
+    }
+    
+    .value-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+    }
+    
+    .value-icon {
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 25px;
+        font-size: 2rem;
+    }
+    
+    .value-card h3 {
+        font-size: 1.5rem;
+        color: #2d3748;
+        margin-bottom: 15px;
+        font-weight: 600;
+    }
+    
+    .value-card p {
+        color: #718096;
+        line-height: 1.7;
+        font-size: 1rem;
+    }
+    
+    .stats-section {
+            background: linear-gradient(135deg, #000000 0%, #2c3b7c 100%);
+        padding: 80px 20px;
+        text-align: center;
+        color: white;
+        margin: 80px 0;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 40px;
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+    
+    .stat-item h3 {
+        font-size: 3.5rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+    
+    .stat-item p {
+        font-size: 1.2rem;
+        opacity: 0.9;
+    }
+    
+    .mission-box {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        padding: 50px;
+        border-radius: 20px;
+        text-align: center;
+        margin-top: 50px;
+        border: 2px solid rgba(102, 126, 234, 0.2);
+    }
+    
+    .mission-box h3 {
+        font-size: 2rem;
+        color: #ffffff;
+        margin-bottom: 20px;
+        font-weight: 700;
+    }
+    
+    .mission-box p {
+        font-size: 1.2rem;
+        color: #c1c3c6;
+        line-height: 1.8;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    @media (max-width: 768px) {
+        .about-hero h1 {
+            font-size: 2.5rem;
+        }
+        
+        .story-content {
+            grid-template-columns: 1fr;
+        }
+        
+        .section-title {
+            font-size: 2rem;
+        }
+        
+        .story-image {
+            height: 300px;
+        }
+    }
+</style>
+
+<div class="about-hero">
+    <h1>Welcome to Audio Aura</h1>
+    <p>Where Premium Sound Meets Exceptional Design</p>
+</div>
+
+<div class="about-container">
+    <!-- Our Story Section -->
+    <div class="about-section">
+        <h2 class="section-title">Our Story</h2>
+        <div class="story-content">
+            <div class="story-text">
+                <p>Audio Aura was born from a simple belief: everyone deserves to experience music the way artists intended it to be heard. We started our journey with a passion for exceptional sound quality and a commitment to making premium audio accessible to all.</p>
+                <p>From compact portable speakers to powerful home audio systems, we curate only the finest speaker products that deliver crystal-clear sound, deep bass, and immersive audio experiences. Each product in our collection is carefully selected to meet our high standards of quality and performance.</p>
+                <p>Today, we're proud to serve thousands of music lovers, audiophiles, and casual listeners who trust us to enhance their audio journey.</p>
+            </div>
+            <div class="story-image">
+                <img src="https://res.cloudinary.com/dxndvadjt/image/upload/v1765253421/LS_JBL_Flip_7_Tomorrowland_Xray_Lifestyle_01_904x560px_quyoqs.png" alt="">
+            </div>
+        </div>
+    </div>
+
+    <!-- Mission Section -->
+    <div class="mission-box">
+        <h3>Our Mission</h3>
+        <p>To deliver world-class audio experiences through carefully curated speaker products that combine cutting-edge technology, superior craftsmanship, and stunning design. We believe great sound should be accessible, reliable, and transformative.</p>
+    </div>
+
+    <!-- Our Values Section -->
+    <div class="about-section">
+        <h2 class="section-title">What We Stand For</h2>
+        <div class="values-grid">
+            <div class="value-card">
+                <div class="value-icon">🎵</div>
+                <h3>Sound Quality First</h3>
+                <p>We never compromise on audio quality. Every speaker we offer delivers exceptional sound clarity and performance.</p>
+            </div>
+            <div class="value-card">
+                <div class="value-icon">✨</div>
+                <h3>Curated Selection</h3>
+                <p>We handpick each product to ensure you get only the best speakers from trusted brands worldwide.</p>
+            </div>
+            <div class="value-card">
+                <div class="value-icon">💎</div>
+                <h3>Premium Experience</h3>
+                <p>From browsing to delivery, we provide a seamless shopping experience that matches the quality of our products.</p>
+            </div>
+            <div class="value-card">
+                <div class="value-icon">🤝</div>
+                <h3>Customer First</h3>
+                <p>Your satisfaction drives everything we do. We're here to help you find the perfect speaker for your needs.</p>
+            </div>
+            <div class="value-card">
+                <div class="value-icon">🚀</div>
+                <h3>Innovation</h3>
+                <p>We stay ahead of audio technology trends to bring you the latest and most innovative speaker solutions.</p>
+            </div>
+            <div class="value-card">
+                <div class="value-icon">🌍</div>
+                <h3>Accessibility</h3>
+                <p>Great sound should be for everyone. We offer speakers across all price ranges without compromising quality.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Section -->
+<div class="stats-section">
+    <h2 style="font-size: 2.5rem; margin-bottom: 50px; font-weight: 700;">Audio Aura in Numbers</h2>
+    <div class="stats-grid">
+        <div class="stat-item">
+            <h3>500+</h3>
+            <p>Premium Speakers</p>
+        </div>
+        <div class="stat-item">
+            <h3>10K+</h3>
+            <p>Happy Customers</p>
+        </div>
+        <div class="stat-item">
+            <h3>50+</h3>
+            <p>Top Brands</p>
+        </div>
+        <div class="stat-item">
+            <h3>4.9★</h3>
+            <p>Average Rating</p>
+        </div>
+    </div>
+</div>
+
+<div class="about-container">
+    <div class="about-section" style="text-align: center;">
+        <h2 class="section-title">Join the Audio Aura Family</h2>
+        <p style="font-size: 1.2rem; color: #4a5568; max-width: 700px; margin: 0 auto 30px; line-height: 1.8;">
+            Whether you're looking for portable Bluetooth speakers, home theater systems, or professional studio monitors, we have the perfect audio solution for you. Experience sound like never before.
+        </p>
+        <a href="{% url 'shop' %}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; border-radius: 50px; text-decoration: none; font-size: 1.1rem; font-weight: 600; margin-top: 20px; transition: transform 0.3s ease; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);">
+            Explore Our Collection
+        </a>
+    </div>
+</div>
+
+{% endblock %}

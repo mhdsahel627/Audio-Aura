@@ -1,0 +1,90 @@
+{% extends "admin/admin-base.html" %}
+{% load static %}
+{% block title %}Pending Requests{% endblock %}
+
+{% block content %}
+<style>
+  .ar-wrap{max-width:1200px;margin:24px auto;padding:0 16px;}
+  .ar-hdr{display:flex;justify-content:space-between;align-items:center;margin:8px 0 16px;}
+  .ar-h1{font-size:24px;font-weight:800;margin:0;}
+  .ar-table{width:100%;border-collapse:separate;border-spacing:0;box-shadow:0 4px 18px rgba(0,0,0,.06);border-radius:12px;overflow:hidden;border: 2px solid #e2e8f0;}
+  .ar-table thead th{background:#f8fafc;color:#475569;text-transform:uppercase;font-size:12px;letter-spacing:.4px;padding:12px;text-align:left;}
+  .ar-table tbody td{padding: 30px 30px 1px 30px;vertical-align:top;font-size:14px;color:#0f172a;}
+  .ar-k{display:inline-block;padding:4px 10px;border-radius:16px;font-weight:700;font-size:12px;}
+  .ar-k.CANCEL{background:#fee2e2;color:#991b1b;}
+  .ar-k.RETURN{background:#dcfce7;color:#065f46;}
+  .ar-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:10px;font-weight:700;font-size:13px;border:1px solid transparent;cursor:pointer;text-decoration:none;}
+  .btn-approve{background:#0f172a;color:#fff;}
+  .btn-approve:hover{filter:brightness(1.05);}
+  .btn-reject{background:#f1f5f9;color:#111827;border-color:#e5e7eb;}
+  .btn-reject:hover{background:#e5e7eb;}
+  .muted{color:#64748b;font-size:12px;}
+  .empty{padding:28px;text-align:center;color:#64748b;border:1px dashed #e2e8f0;border-radius:12px;background:#fafafa;}
+  .trr{
+    background:#64748b;
+  }
+  .theadd{
+    background: black;
+    color: white    ;
+  }
+</style>
+
+<div class="ar-wrap">
+  <div class="ar-hdr">
+    <h1 class="ar-h1">Pending Cancel/Return Requests</h1>
+    <a href="{% url 'order_list' %}" class="btn btn-reject">Back to Orders</a>
+  </div>
+
+  {% if pending %}
+    <table class="ar-table">
+      <thead>
+        <tr class="theadd">
+          <th>Requested</th>
+          <th>Order</th>
+          <th>Item</th>
+          <th>Kind</th>
+          <th>User</th>
+          <th>Reason</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in pending %}
+          <tr class="trr">
+            <td>
+              {{ r.requested_at|date:"d M Y, H:i" }}<br>
+              <span class="muted">ID: {{ r.id }}</span>
+            </td>
+            <td>
+              {{ r.order.order_number }}<br>
+              <span class="muted">{{ r.order.user.email }}</span>
+            </td>
+            <td>
+              {{ r.item.product_name }}<br>
+              <span class="muted">Item #{{ r.item.id }}</span>
+            </td>
+            <td><span class="ar-k {{ r.kind }}">{{ r.get_kind_display }}</span></td>
+            <td>{{ r.requested_by.get_full_name|default:r.requested_by.username }}</td>
+            <td style="max-width:320px;">{{ r.reason|default:"—" }}</td>
+            <td>
+              <div class="ar-actions">
+                <form method="post" action="{% url 'approve_action_request' r.id %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-approve">Approve</button>
+                </form>
+                <form method="post" action="{% url 'reject_action_request' r.id %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-reject">Reject</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty">No pending requests.</div>
+  {% endif %}
+</div>
+{% endblock %}

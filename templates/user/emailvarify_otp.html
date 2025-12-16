@@ -1,0 +1,216 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Aura - Verify OTP</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { 
+      font-family: 'Inter', sans-serif; 
+      min-height: 100vh;
+      background: linear-gradient(to bottom, #130325, #450623);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .otp-input {
+      width: 3rem;
+      height: 3rem;
+      text-align: center;
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: white;
+      border-radius: 0.5rem;
+      border: 2px solid #555;
+      background: transparent;
+      transition: 0.3s;
+    }
+    .otp-input:focus {
+      border-color: #ec4899;
+      box-shadow: 0 0 0 3px rgba(236,72,153,0.2);
+      outline: none;
+    }
+
+    .speaker-image {
+      display: block;
+    }
+    @media (max-width: 991px) {
+      .speaker-image {
+        display: none;
+      }
+    }
+    .custom-toast {
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    padding: 12px 24px;
+    margin-top: 10px;
+    border-radius: 16px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    opacity: 0;
+    transform: translateY(-30px) scale(0.95);
+    animation: slideDown 0.5s forwards, fadeOut 0.5s 3s forwards;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-30px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes fadeOut {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-30px) scale(0.95);
+    }
+  }
+  </style>
+</head>
+<body>
+
+  <div class="w-full max-w-6xl rounded-lg overflow-hidden flex flex-col md:flex-row shadow-xl border border-gray-700">
+    
+    <!-- Left Side -->
+    <div class="speaker-image md:w-1/2">
+      <img src="{% static 'images/Screenshot 2025-10-06 182700.png' %}" alt="Speaker" class="w-full h-full object-cover">
+    </div>
+
+    <!-- Right Side - OTP Form -->
+    <div class="w-full md:w-1/2 flex items-center justify-center p-6 sm:p-10">
+      <div id="notification-container" 
+     class="fixed top-5 left-1/2 transform -translate-x-1/2 p-3 space-y-2 z-50 w-auto max-w-md">
+
+
+        {% if messages %}
+          {% for message in messages %}
+            <div class="custom-toast {{ message.tags|default:'info' }}">
+              <span>{{ message }}</span>
+            </div>
+          {% endfor %}
+        {% endif %}
+
+      </div>      
+      <div class="w-full max-w-sm text-center">
+
+        <!-- Logo -->
+        <div class="flex items-center justify-center mb-6 sm:mb-10">
+          <img src="{% static 'images/logo.png' %}" alt="Audio Aura Logo" class="h-[216px]">
+        </div>
+
+        <h1 class="text-2xl sm:text-3xl font-bold text-white mb-3 sm:mb-4">Verify OTP</h1>
+        
+        <p class="text-gray-300 mb-6 sm:mb-8 text-sm sm:text-base leading-relaxed">
+          We’ve sent an OTP to your email
+          <br>
+          <span class="text-pink-400 font-semibold">{{ email }}</span>
+        </p>
+
+        <!-- OTP Form -->
+    <!-- OTP Form -->
+    <form method="POST" action="{% url 'verify_email_change' %}">
+    {% csrf_token %}
+
+    <!-- 4 single-digit inputs -->
+    <div class="flex justify-center space-x-3 sm:space-x-4 mb-6 sm:mb-8">
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*"
+            class="otp-input" data-index="0" aria-label="First digit">
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*"
+            class="otp-input" data-index="1" aria-label="Second digit">
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*"
+            class="otp-input" data-index="2" aria-label="Third digit">
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]*"
+            class="otp-input" data-index="3" aria-label="Fourth digit">
+    </div>
+
+    <!-- Hidden field to submit combined OTP -->
+    <input type="hidden" name="otp" id="otp-hidden">
+
+    <!-- Countdown & Resend -->
+    <div class="text-center mb-6 sm:mb-8 space-y-2 text-sm sm:text-base">
+        <p class="text-gray-400">
+        <span class="font-medium">Send code again in</span>
+        <span class="ml-2 text-white" id="countdown">00:20</span>
+        </p>
+        <p class="text-gray-400">
+        Didn’t receive a code?
+        <a href="{% url 'resend_email_change_otp' %}"
+            class="text-pink-400 font-medium hover:text-pink-300 transition-colors ml-1"
+            id="resendBtn">Resend</a>
+        </p>
+    </div>
+
+    <!-- Verify Button -->
+    <button type="submit"
+            class="w-full py-3 sm:py-4 text-white font-semibold text-base sm:text-lg rounded-lg bg-black hover:bg-gray-800 transition">
+        Verify
+    </button>
+    </form>
+
+    <script>
+    // Compose 4-digit OTP into hidden field and handle focus movement
+    const otpInputs = document.querySelectorAll('.otp-input');
+    const hiddenInput = document.getElementById('otp-hidden');
+
+    function updateHidden() {
+        hiddenInput.value = Array.from(otpInputs).map(i => (i.value || '').trim()).join('');
+    }
+
+    otpInputs.forEach((input, idx) => {
+        input.addEventListener('input', (e) => {
+        // accept only digits
+        e.target.value = e.target.value.replace(/\D/g, '').slice(0, 1);
+        if (e.target.value && idx < otpInputs.length - 1) {
+            otpInputs[idx + 1].focus();
+        }
+        updateHidden();
+        });
+        input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+            otpInputs[idx - 1].focus();
+        }
+        });
+    });
+
+    // 20-second countdown (optional)
+    let countdown = 20;
+    const countdownElement = document.getElementById('countdown');
+    const timer = setInterval(() => {
+        countdown--;
+        if (countdown >= 0) {
+        const m = Math.floor(countdown / 60).toString().padStart(2, '0');
+        const s = (countdown % 60).toString().padStart(2, '0');
+        countdownElement.textContent = `${m}:${s}`;
+        } else {
+        clearInterval(timer);
+        countdownElement.textContent = '00:00';
+        }
+    }, 1000);
+    </script>
+
+   <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const toasts = document.querySelectorAll('.custom-toast');
+    toasts.forEach(toast => {
+      setTimeout(() => {
+        toast.remove();
+      }, 4000); // 3s visible + 1s buffer
+    });
+  });
+</script>
+
+</body>
+</html>

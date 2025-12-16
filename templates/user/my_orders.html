@@ -1,0 +1,470 @@
+{% extends "user/base.html" %}
+{% load static %}
+{% block title %}My Orders{% endblock %}
+{% block content %}
+<style>
+  :root{ --paper:#fff; --ink:#0f1115; --muted:#6b7280; --shadow:0 8px 24px #000001; }
+
+  .my_orders{
+    font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial,'Noto Sans','Liberation Sans',sans-serif;
+    padding:40px 0 60px;
+    background: radial-gradient(1200px 700px at 15% -10%, rgba(255,255,255,.06), transparent),
+              linear-gradient(180deg,#16031f,#2a0830);
+  }
+  .orders-shell{ max-width:1240px; margin:0 auto; padding:0 16px; }
+
+  .orders-grid{ display:grid; grid-template-columns:360px 1fr; gap:28px; align-items:start;margin: 0px -86px 0px -98px; }
+  @media(max-width:1100px){ .orders-grid{ grid-template-columns:1fr; } }
+
+  /* ORDER CARD */
+  .oc{ background:var(--paper); border-radius:20px; box-shadow:var(--shadow); padding:5px 13px 5px 5px; margin-bottom:33px; display:grid; grid-template-columns:170px 1fr auto; gap:18px; align-items:center; }
+  .oc-img{ position:relative; width:150px; height:173px; border-radius:15px; overflow:hidden; background:#1207; }
+  .oc-img img{ width:100%; height:148px; object-fit:cover; }
+  .oc-badge{ position:absolute; right:0; bottom:0; left:0; font-size:11px; line-height:1; padding:8px; border-radius:0; font-weight:700; text-align:center; background:#ffc107; }
+  .left{ display:flex; }
+
+  .oc-ttl h3{ font-size:22px; font-weight:600; color:var(--ink); margin:0; }
+  .oc-rule{ height:1px; background:#000; margin:8px 0; }
+  .oc-rows{ display:grid; grid-template-columns:repeat(2,auto); gap:8px 24px; color:var(--ink); }
+  .oc-actions{ display:flex; flex-direction:column; gap:10px; align-items:flex-end; }
+  .status{ font-size:13px; color:var(--muted); }
+  .status b{ font-weight:800; }
+  .s-green{ color:#19a463; } .s-blue{ color:#1491ff; } .s-red{ color:#f04444; } .s-orange{ color:#ff9800; }
+
+  .pill{ height:32px; padding:0 12px; border-radius:8px; background:#0f1115; color:#fff; font-weight:700; font-size:14px; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:6px; transition:.2s; border:none; cursor:pointer; }
+  .pill:hover{ background:#1c1f25; transform:translateY(-1px); }
+  
+  /* ✅ Retry button styling */
+  .pill.retry{ background:#f44336; color:#fff; }
+  .pill.retry:hover{ background:#d32f2f; box-shadow:0 4px 12px rgba(244,67,54,.4); }
+  
+  /* ✅ Failed order notice */
+  .failed-notice{ 
+    font-size:12px; 
+    color:#f44336; 
+    font-weight:600; 
+    padding:8px 12px; 
+    background:#ffebee; 
+    border-radius:8px; 
+    margin-top:8px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .failed-notice.expired{
+    color:#757575;
+    background:#f5f5f5;
+  }
+  
+  .right-note{ font-weight:700; color:var(--ink); }
+  .orders-bg{ border-radius:30px; padding:16px 16px 14px; background:#fff; }
+  hr{ margin:12px 74px 8px 2px; color:black; opacity:1.25; }
+
+  /* Toolbar */
+  .orders-toolbar{
+    margin:0 0 18px; padding:14px 14px 10px; border-radius:18px;
+    background: radial-gradient(120% 140% at 0% 0%, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 40%),
+              linear-gradient(135deg,#2a073a 0%,#1a0830 40%,#0a0a22 100%);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 10px 26px rgba(0,0,0,.25);
+    color:#eae7f2;
+  }
+  .ot-row{ display:flex; align-items:center; gap:16px; }
+  .ot-top{ margin-bottom:12px; }
+  .ot-bc{ display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.2px; }
+
+  .ot-search{ margin-left:auto; min-width:0; }
+  .ot-input{
+    width:480px; max-width:100%; height:44px;
+    border:1px solid rgba(255,255,255,.16);
+    background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+    color:#fff; padding:14px 18px; border-radius:14px; outline:none;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 6px 20px rgba(0,0,0,.25);
+    transition:border-color .2s, box-shadow .2s;
+  }
+  .ot-input::placeholder{ color:rgba(255,255,255,.65); }
+  .ot-input:focus{ border-color:rgba(119,170,255,.65); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 0 0 3px rgba(79,120,255,.25), 0 10px 28px rgba(0,0,0,.35); }
+
+  .ot-bottom{ justify-content:space-between; gap:16px; }
+  .ot-chips{ display:flex; align-items:center; gap:18px; background:#fff; color:#2c3350; padding:7px 16px; border-radius:14px; box-shadow:0 10px 22px rgba(0,0,0,.25), inset 0 0 0 1px rgba(0,0,0,.05); flex-wrap:wrap; row-gap:8px; }
+  .chip{ color:#2c3350; text-decoration:none; font-weight:600; opacity:.9; padding:6px 0; border-radius:8px; margin-left: -7px;}
+  .chip.is-on {
+    padding: 6px;
+    background: black;
+    color: #ffffff;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, .65);
+  }
+
+  .ot-acts{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  .ot-btn{ display:inline-flex; align-items:center; gap:10px; height:44px; padding:12px 16px; border-radius:14px; background:rgba(255,255,255,.08); color:#fff; border:1px solid rgba(255,255,255,.16); font-weight:700; cursor:pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 6px 16px rgba(0,0,0,.24); transition: transform .15s ease, background .2s ease, border-color .2s ease; }
+  .ot-btn:hover{ transform:translateY(-1px); background:rgba(255,255,255,.12); border-color:rgba(151,190,255,.5); }
+  .ot-ic{ opacity:.9; }
+
+  /* Dropdown popovers */
+  .ot-dd{ position:relative; }
+  .ot-panel{
+    position:absolute; top:54px; right:0; min-width:260px; z-index:30; padding:12px; border-radius:14px;
+    background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+    border:1px solid rgba(255,255,255,.18); box-shadow:0 14px 34px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.12);
+    backdrop-filter:blur(10px); display:none;
+  }
+  .ot-dd.is-open>.ot-panel{ display:block; }
+  .ot-panel h6{ margin:0 0 8px; font-weight:800; color:#000000; opacity:.9; }
+  .ot-field{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .ot-panel input[type="date"], .ot-panel select{
+    height:42px; padding:0 12px; border-radius:10px; border:1px solid rgba(255,255,255,.16);
+    background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04)); color:#000000;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.12); width:100%;
+  }
+  .ot-panel select option{ color:#111; }
+  .ot-row-in{ display:flex; gap:10px; }
+  .ot-actions-rows{ display:flex; justify-content:flex-end; gap:10px; margin-top:8px; }
+  .ot-small{ height:36px; padding:0 12px; border-radius:10px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.10); color:#000000; font-weight:700; cursor:pointer; text-decoration: none;}
+  
+  /* listbox look */
+  .lb{ display:flex; flex-direction:column; gap:6px; max-height:280px; overflow:auto; }
+  .lb-opt{
+    width:100%; text-align:left; background:rgba(255,255,255,.06); color:#000000;
+    border: 1px solid rgb(126 115 115 / 26%); border-radius:10px; padding:10px 12px;
+    font-weight:700; cursor:pointer; transition:background .15s, transform .05s;
+  }
+  .lb-opt:hover{ background:#241939;color: wheat; }
+  .lb-opt[aria-selected="true"]{ background:rgba(119,170,255,.25); border-color:rgba(119,170,255,.6); }
+
+  @media(max-width:900px){
+    .ot-top,.ot-bottom{ flex-wrap:wrap; gap:12px; }
+    .ot-search{ margin-left:0; width:100%; }
+    .ot-input{ width:100%; }
+    .ot-bottom{ justify-content:flex-start; }
+    .ot-acts{ width:100%; }
+  }
+
+  .pager{ display:flex; align-items:center; justify-content:center; gap:10px; margin:16px 0 6px; }
+  .pg-btn{
+    display:inline-flex; align-items:center; gap:6px; padding:10px 14px; border-radius:12px;
+    background:#0f1115; color:#fff; text-decoration:none; font-weight:800; border:1px solid rgba(0,0,0,.15);
+    box-shadow:0 6px 16px rgba(0,0,0,.18); transition:transform .15s ease, background .2s ease;
+  }
+  .pg-btn:hover{ background:#1b2130; transform:translateY(-1px); }
+  .pg-btn.is-disabled{ opacity:.45; cursor:not-allowed; background:#262b38; transform:none; }
+  .pg-info{ color:#333; font-weight:800; background:#eef2ff; padding:8px 12px; border-radius:12px; }
+  .empty-orders-state{
+    margin-top: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: var(--paper);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    padding: 5px 13px 5px 5px;
+    margin-bottom: 33px;
+
+  }
+
+</style>
+
+<section class="my_orders">
+  <div class="orders-shell">
+    <div style="color:#fff;opacity:.85;margin-bottom:10px">   </div>
+    <h2 style="color:#fff;font-size:28px;font-weight:800;margin-bottom:20px;text-align:center;"></h2>
+
+    <div class="orders-grid">
+      {% include "user/sidebar.html" with active_tab="orders" %}
+
+      <div class="orders-bg">
+        <!-- Toolbar -->
+        <div class="orders-toolbar">
+          <div class="ot-row ot-top">
+            <h4 class="ot-bc">My Orders</h4>
+            <form action="{% url 'orders' %}" method="get" class="ot-search">
+              <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Search Order..." class="ot-input">
+              <input type="hidden" name="range" value="{{ request.GET.range }}">
+              <input type="hidden" name="status" value="{{ request.GET.status }}">
+              <input type="hidden" name="sort" value="{{ request.GET.sort }}">
+            </form>
+          </div>
+
+          <div class="ot-row ot-bottom">
+            <div class="ot-chips">
+              <a href="?{% if request.GET.q %}q={{request.GET.q}}&{% endif %}{% if request.GET.status %}status={{request.GET.status}}&{% endif %}range=" class="chip {% if not request.GET.range %}is-on{% endif %}">All Time</a>
+              <a href="?{% if request.GET.q %}q={{request.GET.q}}&{% endif %}{% if request.GET.status %}status={{request.GET.status}}&{% endif %}range=12m" class="chip {% if request.GET.range == '12m' %}is-on{% endif %}">12 Months</a>
+              <a href="?{% if request.GET.q %}q={{request.GET.q}}&{% endif %}{% if request.GET.status %}status={{request.GET.status}}&{% endif %}range=30d" class="chip {% if request.GET.range == '30d' %}is-on{% endif %}">30 Days</a>
+              <a href="?{% if request.GET.q %}q={{request.GET.q}}&{% endif %}{% if request.GET.status %}status={{request.GET.status}}&{% endif %}range=7d" class="chip {% if request.GET.range == '7d' %}is-on{% endif %}">7 Days</a>
+              <a href="?{% if request.GET.q %}q={{request.GET.q}}&{% endif %}{% if request.GET.status %}status={{request.GET.status}}&{% endif %}range=24h" class="chip {% if request.GET.range == '24h' %}is-on{% endif %}">24 Hour</a>
+            </div>
+
+            <div class="ot-acts">
+              <!-- Select Dates dropdown -->
+              <div class="ot-dd" id="dd-dates">
+                <button type="button" class="ot-btn ot-trigger">
+                  <span class="ot-ic">▦</span><span>Select Dates</span>
+                </button>
+
+                <div class="ot-panel">
+                  <h6>Date range</h6>
+                  <form id="dates-form" method="get" action="{% url 'orders' %}">
+                    <input type="hidden" name="q" value="{{ request.GET.q }}">
+                    <input type="hidden" name="range" value="{{ request.GET.range }}">
+                    <input type="hidden" name="status" value="{{ request.GET.status }}">
+                    <input type="hidden" name="sort" value="{{ request.GET.sort }}">
+
+                    <div class="ot-row-in">
+                      <div class="ot-field">
+                        <input type="date" id="from-input" name="from" value="{{ request.GET.from }}">
+                      </div>
+                      <div class="ot-field">
+                        <input type="date" id="to-input" name="to" value="{{ request.GET.to }}">
+                      </div>
+                    </div>
+
+                    <div class="ot-actions-rows">
+                      <a class="ot-small" id="dates-clear"
+                        href="{% url 'orders' %}?{% if request.GET.q %}q={{request.GET.q}}&{% endif %}{% if request.GET.range %}range={{request.GET.range}}&{% endif %}{% if request.GET.status %}status={{request.GET.status}}&{% endif %}{% if request.GET.sort %}sort={{request.GET.sort}}{% endif %}">
+                        Clear
+                      </a>
+                      <button class="ot-small" type="submit">Apply</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <!-- Order status dropdown -->
+              <div class="ot-dd" id="dd-status">
+                <button type="button" class="ot-btn ot-trigger">
+                  <span class="ot-ic">🏷</span><span id="status-label">{{ request.GET.status|default:"Order status" }}</span>
+                </button>
+
+                <div class="ot-panel">
+                  <h6>Status</h6>
+                  <div class="lb" role="listbox" aria-labelledby="status-label">
+                    <button class="lb-opt" data-value="">All status</button>
+                    <button class="lb-opt" data-value="PLACED">Placed</button>
+                    <button class="lb-opt" data-value="CONFIRMED">Confirmed</button>
+                    <button class="lb-opt" data-value="SHIPPED">Shipped</button>
+                    <button class="lb-opt" data-value="DELIVERED">Delivered</button>
+                    <button class="lb-opt" data-value="CANCELLED">Cancelled</button>
+                    <button class="lb-opt" data-value="RETURNED">Returned</button>
+                    <button class="lb-opt" data-value="FAILED">Failed</button>
+
+                    <form id="status-form" method="get" action="{% url 'orders' %}">
+                      <input type="hidden" name="q" value="{{ request.GET.q }}">
+                      <input type="hidden" name="range" value="{{ request.GET.range }}">
+                      <input type="hidden" name="from" value="{{ request.GET.from }}">
+                      <input type="hidden" name="to" value="{{ request.GET.to }}">
+                      <input type="hidden" name="sort" value="{{ request.GET.sort }}">
+                      <input type="hidden" name="status" id="status-input" value="{{ request.GET.status }}">
+                    </form>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sort dropdown -->
+              <div class="ot-dd" id="dd-sort">
+                <button type="button" class="ot-btn ot-trigger">
+                  <span class="ot-ic">⚙</span><span>Filter</span>
+                </button>
+
+                <div class="ot-panel">
+                  <h6>Sort by</h6>
+                  <div class="lb" role="listbox" aria-label="Sort by">
+                    <button class="lb-opt" data-value="-total_amount">Amount high → low</button>
+                    <button class="lb-opt" data-value="total_amount">Amount low → high</button>
+                    <button class="lb-opt" data-value="-created_at">Newest</button>
+                    <button class="lb-opt" data-value="created_at">Oldest</button>
+
+                    <form id="sort-form" method="get" action="{% url 'orders' %}">
+                      <input type="hidden" name="q" value="{{ request.GET.q }}">
+                      <input type="hidden" name="range" value="{{ request.GET.range }}">
+                      <input type="hidden" name="from" value="{{ request.GET.from }}">
+                      <input type="hidden" name="to" value="{{ request.GET.to }}">
+                      <input type="hidden" name="status" value="{{ request.GET.status }}">
+                      <input type="hidden" name="sort" id="sort-input" value="{{ request.GET.sort|default:'-created_at' }}">
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        {% for od in orders %}
+          <section style="margin-bottom:20px;">
+            <article class="oc" style="grid-template-columns:1fr auto; padding:10px 14px;">
+              <div>
+                <div class="oc-ttl"><h3>Order #{{ od.order_id }}</h3></div>
+                <div class="status">
+                  Status : <b class="{{ od.status_class }}">{{ od.status }}</b> • {{ od.right_note }}
+                  
+                  <!-- ✅ IMPROVED: Check if delivery date has passed -->
+                  {% if od.status not in 'DELIVERED,CANCELLED,RETURNED,FAILED' %}
+                    {% if od.is_delivery_delayed %}
+                      <span style="color: #ff5722; font-weight: 600; margin-left: 8px;">
+                        • ⚠️ Delayed - We apologize for the inconvenience
+                      </span>
+                    {% elif od.delivery_date %}
+                      <span style="color: #00c853; font-weight: 600; margin-left: 8px;">
+                        • 📦 Expected: {{ od.delivery_date }}
+                      </span>
+                    {% endif %}
+                  {% endif %}
+                </div>
+              </div>
+              <div class="right-note">Order Total: ₹{{ od.total_amount }}</div>
+            </article>
+
+            {% for it in od.items %}
+              <article class="oc">
+                <div class="left">
+                  <div class="oc-img">
+                    <img src="{% if it.image %}{{ it.image }}{% else %}{% static 'images/product1.jpg' %}{% endif %}" alt="{{ it.name }}">
+                    {% if it.offer %}<span class="oc-badge">{{ it.offer }}</span>{% endif %}
+                  </div>
+                </div>
+
+                <div>
+                  <div class="oc-ttl"><h3>{{ it.name }}</h3></div>
+                  <div class="oc-rule"></div>
+                  <div class="oc-rows">
+                    <div>Unit: <b>₹{{ it.unit_sell|floatformat:0 }}</b></div>
+                    <div>Total: <b>₹{{ it.line_sell|floatformat:0 }}</b></div>
+                    <div>Quantity: <b>{{ it.qty }}</b></div>
+                    {% if it.variant_color %}<div>Color: <b>{{ it.variant_color }}</b></div>{% endif %}
+                  </div>
+                </div>
+
+                <div class="oc-actions">
+                  <div class="status">Status : <b class="{{ it.status_class }}">{{ it.status }}</b></div>
+                  <div>
+                    {% if od.can_retry %}
+                      <a class="pill retry" href="{% url 'retry_payment' od.pk %}">
+                        🔄 Retry Payment
+                      </a>
+                      <div class="failed-notice">
+                        ⚠️ Payment failed. Click retry to complete order.
+                      </div>
+                    {% elif od.is_failed %}
+                      <div class="failed-notice expired">
+                        🕒 Order expired. Please place a new order.
+                      </div>
+                    {% else %}
+                      <a class="pill" href="{% url 'order_item_detail' od.order_id it.id %}">View Details</a>
+                      <a class="pill" href="{% url 'user_download_invoice' od.order_id %}">Invoice</a>
+                    {% endif %}
+                  </div>
+                </div>
+              </article>
+            {% endfor %}
+          </section>
+        {% empty %}
+          <div class="empty-orders-state">
+            <div class="animation-wrapper">
+              <iframe src="https://lottie.host/embed/aca26cb0-d10a-40e1-97c7-90b5f538cb5a/TpE9jhmXrs.lottie" 
+                      frameborder="0" 
+                      allowfullscreen
+                      class="lottie-animation"></iframe>
+            </div>
+            <h3 class="empty-title">No Orders Yet</h3>
+            <p class="empty-text">Start shopping to see your orders here</p>
+            <a class="pill" href="{% url 'shop' %}" style="margin-top:16px">Shop now</a>
+          </div>
+        {% endfor %}
+        
+        {% if page_obj and paginator.num_pages > 1 %}
+          <nav class="pager">
+            {% with q=request.GET.q range=request.GET.range from=request.GET.from to=request.GET.to status=request.GET.status sort=request.GET.sort %}
+              {% if page_obj.has_previous %}
+                <a class="pg-btn" href="?page=1{% if q %}&q={{q}}{% endif %}{% if range %}&range={{range}}{% endif %}{% if from %}&from={{from}}{% endif %}{% if to %}&to={{to}}{% endif %}{% if status %}&status={{status}}{% endif %}{% if sort %}&sort={{sort}}{% endif %}">« First</a>
+                <a class="pg-btn" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{q}}{% endif %}{% if range %}&range={{range}}{% endif %}{% if from %}&from={{from}}{% endif %}{% if to %}&to={{to}}{% endif %}{% if status %}&status={{status}}{% endif %}{% if sort %}&sort={{sort}}{% endif %}">‹ Prev</a>
+              {% else %}
+                <span class="pg-btn is-disabled">« First</span>
+                <span class="pg-btn is-disabled">‹ Prev</span>
+              {% endif %}
+
+              <span class="pg-info">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+
+              {% if page_obj.has_next %}
+                <a class="pg-btn" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{q}}{% endif %}{% if range %}&range={{range}}{% endif %}{% if from %}&from={{from}}{% endif %}{% if to %}&to={{to}}{% endif %}{% if status %}&status={{status}}{% endif %}{% if sort %}&sort={{sort}}{% endif %}">Next ›</a>
+                <a class="pg-btn" href="?page={{ paginator.num_pages }}{% if q %}&q={{q}}{% endif %}{% if range %}&range={{range}}{% endif %}{% if from %}&from={{from}}{% endif %}{% if to %}&to={{to}}{% endif %}{% if status %}&status={{status}}{% endif %}{% if sort %}&sort={{sort}}{% endif %}">Last »</a>
+              {% else %}
+                <span class="pg-btn is-disabled">Next ›</span>
+                <span class="pg-btn is-disabled">Last »</span>
+              {% endif %}
+            {% endwith %}
+          </nav>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // dropdown toggling and outside click close
+  document.addEventListener('click', function(e){
+    const trigger = e.target.closest('.ot-trigger');
+    const dropdown = e.target.closest('.ot-dd');
+
+    if(!dropdown && !trigger){
+      document.querySelectorAll('.ot-dd.is-open').forEach(n=>n.classList.remove('is-open'));
+      return;
+    }
+    if(trigger){
+      const wrap = trigger.closest('.ot-dd');
+      const open = wrap.classList.contains('is-open');
+      document.querySelectorAll('.ot-dd.is-open').forEach(n=>n.classList.remove('is-open'));
+      if(!open) wrap.classList.add('is-open');
+    }
+    if(e.target.closest('.ot-panel')){ e.stopPropagation(); }
+  });
+</script>
+<script>
+(function(){
+  const menu = document.querySelector('#dd-status');
+  const label = document.querySelector('#status-label');
+  const input = document.querySelector('#status-input');
+  const form  = document.querySelector('#status-form');
+
+  menu.addEventListener('click', function(e){
+    const opt = e.target.closest('.lb-opt');
+    if(!opt) return;
+    menu.querySelectorAll('.lb-opt').forEach(b=>b.removeAttribute('aria-selected'));
+    opt.setAttribute('aria-selected','true');
+    label.textContent = opt.dataset.value ? opt.textContent : 'Order status';
+    input.value = opt.dataset.value || '';
+    form.submit();
+  });
+})();
+</script>
+<script>
+(function(){
+  const wrap = document.querySelector('#dd-sort');
+  if(!wrap) return;
+  const input = document.querySelector('#sort-input');
+  const form  = document.querySelector('#sort-form');
+
+  wrap.querySelectorAll('.lb-opt').forEach(b=>{
+    if(b.dataset.value === (input.value || '-created_at')) b.setAttribute('aria-selected','true');
+  });
+
+  wrap.addEventListener('click', (e)=>{
+    const opt = e.target.closest('.lb-opt');
+    if(!opt) return;
+    wrap.querySelectorAll('.lb-opt').forEach(b=>b.removeAttribute('aria-selected'));
+    opt.setAttribute('aria-selected','true');
+    input.value = opt.dataset.value;
+    form.submit();
+  });
+})();
+
+(function(){
+  const form = document.querySelector('#dates-form');
+  if(!form) return;
+  const from = form.querySelector('#from-input');
+  const to   = form.querySelector('#to-input');
+  from.addEventListener('change', ()=>{ if(to.value && to.value < from.value) to.value = from.value; to.min = from.value; });
+  to.addEventListener('change',   ()=>{ if(from.value && to.value < from.value) from.value = to.value; from.max = to.value; });
+})();
+</script>
+
+{% endblock %}

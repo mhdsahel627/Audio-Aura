@@ -1,0 +1,627 @@
+{% extends 'user/base.html' %}
+{% load static %}
+
+{% block title %}Payment - Audio Aura{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/owl.carousel.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/animate.css' %}">
+
+<style>
+  :root{ --paper:#fff; --ink:#111; --muted:#6b6f75; --line:#e6e6ea; --shadow:0 12px 28px rgba(0,0,0,.14); --radius:18px; --brand:#000; --good:#19C09F; }
+  *{box-sizing:border-box}
+  body{color:var(--ink); font-family:Inter,system-ui,Arial,sans-serif}
+
+  .page{max-width:1240px; margin:28px auto; padding:0 16px}
+  .grid{display:grid; grid-template-columns: 1fr 520px; gap:28px}
+  @media (max-width:1024px){ .grid{grid-template-columns:1fr} }
+
+  .pay-card{ background:var(--paper); border:1px solid var(--line); border-radius:24px; padding:18px; box-shadow:var(--shadow); }
+  .pay-title{font-weight:800; margin:0 0 12px}
+  .pay-divider{border:0; border-top:1px solid var(--line); margin:8px 0 14px}
+  .help{color:#6a6f75; font-size:13px; margin-bottom:12px}
+  fieldset{border:0; margin:0; padding:0}
+
+  .method{display:flex; align-items:center; gap:12px; padding:12px 8px; border-radius:12px; cursor:pointer; transition: background 0.2s;}
+  .method:hover:not(.disabled){background:#f7f7f9}
+  .method input{accent-color:#111}
+  .method.disabled{opacity:.45; pointer-events:none; cursor:not-allowed;}
+
+  .summary{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:16px; box-shadow:var(--shadow); }
+  .line-item{display:grid; grid-template-columns: 64px 1fr auto; gap:12px; align-items:flex-start; padding:10px 0; border-bottom:1px solid #f0f1f3}
+  .line-item:last-of-type{border-bottom:0}
+  .item-thumb{width:64px; height:64px; border-radius:12px; overflow:hidden; background:#f2f2f4}
+  .item-thumb img{width:100%; height:100%; object-fit:cover}
+  .item-name{font-weight:700; font-size:14px}
+  .item-meta{font-size:12px; color:#6a6f75; margin-top:4px}
+
+  .rows{margin-top:14px}
+  .roww{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eceff3;
+    padding: 12px 0;
+  }
+  .roww:last-child{border-bottom:0}
+  .value-strong{
+    font-weight:800;
+    color:#111;
+    margin-left:auto;
+    white-space:nowrap;
+  }
+
+  .label{color:#6a6f75}
+  .ok{color:#19C09F; font-weight:700}
+  .neg{color:#333; font-weight:700}
+  .total{display:flex; justify-content:space-between; align-items:center; font-weight:900; padding:16px 0 0}
+
+  .wallet-balance {
+    font-size: 0.85em;
+    color: #6a6f75;
+    margin-left: 6px;
+  }
+  .insufficient-badge, .cod-limit-badge {
+    background: #ff6b6b;
+    color: white;
+    font-size: 0.7em;
+    padding: 3px 8px;
+    border-radius: 12px;
+    margin-left: 8px;
+    font-weight: 600;
+  }
+
+  /* Animated Order Button */
+:root {
+  --primary: #ef4444;
+  --primary-light: #f87171;
+  --dark: #1C212E;
+  --grey-dark: #3F4656;
+  --grey: #6C7486;
+  --grey-light: #CDD9ED;
+  --white: #FFF;
+  --green: #16BF78;
+  --sand: #fbbf24;
+  --sand-light: #fbbf24;
+}
+
+.order {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border: 0;
+  background: var(--dark);
+  position: relative;
+  height: 63px;
+  width: 240px;
+  padding: 0;
+  outline: none;
+  cursor: pointer;
+  border-radius: 32px; /* ✅ Original was 32px, not 30px */
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  mask-image: radial-gradient(white, black); /* ✅ Added standard property */
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+  transition: transform 0.3s ease;
+  margin: 29px 0px 0px 130px;
+}
+.order:disabled {
+  
+  cursor: not-allowed;
+}
+.order span {
+  --o: 1;
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  top: 19px;
+  line-height: 24px;
+  color: var(--white);
+  font-size: 16px;
+  font-weight: 500;
+  opacity: var(--o);
+  transition: opacity 0.3s ease;
+}
+.order span.default {
+  transition-delay: 0.3s;
+}
+.order span.success {
+  --offset: 16px;
+  --o: 0;
+}
+.order span.success svg {
+  width: 12px;
+  height: 10px;
+  display: inline-block;
+  vertical-align: top;
+  fill: none;
+  margin: 7px 0 0 4px;
+  stroke: var(--green);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 16px;
+  stroke-dashoffset: var(--offset);
+  transition: stroke-dashoffset 0.3s ease;
+}
+.order:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* ✅ BRIGHT ROAD LINES (Original Version) */
+.order .lines {
+  opacity: 0;
+  position: absolute;
+  height: 3px;
+  background: var(--white); /* ✅ Uses CSS variable for brightness */
+  border-radius: 2px;
+  width: 6px;
+  top: 30px;
+  left: 100%;
+  box-shadow: 
+    15px 0 0 var(--white), 
+    30px 0 0 var(--white), 
+    45px 0 0 var(--white), 
+    60px 0 0 var(--white), 
+    75px 0 0 var(--white), 
+    90px 0 0 var(--white), 
+    105px 0 0 var(--white), 
+    120px 0 0 var(--white), 
+    135px 0 0 var(--white), 
+    150px 0 0 var(--white), 
+    165px 0 0 var(--white), 
+    180px 0 0 var(--white), 
+    195px 0 0 var(--white), 
+    210px 0 0 var(--white), 
+    225px 0 0 var(--white), 
+    240px 0 0 var(--white), 
+    255px 0 0 var(--white), 
+    270px 0 0 var(--white), 
+    285px 0 0 var(--white), 
+    300px 0 0 var(--white), 
+    315px 0 0 var(--white), 
+    330px 0 0 var(--white);
+}
+
+.order .back,
+.order .box {
+  --start: var(--white);
+  --stop: var(--grey-light);
+  border-radius: 2px;
+  background: linear-gradient(var(--start), var(--stop));
+  position: absolute;
+}
+
+.order .truck {
+  width: 60px;
+  height: 41px;
+  left: 100%;
+  z-index: 1;
+  top: 11px;
+  position: absolute;
+  transform: translateX(24px);
+}
+.order .truck:before,
+.order .truck:after {
+  --r: -90deg;
+  content: "";
+  height: 2px;
+  width: 20px;
+  right: 58px;
+  position: absolute;
+  display: block;
+  background: var(--white);
+  border-radius: 1px;
+  transform-origin: 100% 50%;
+  transform: rotate(var(--r));
+}
+.order .truck:before {
+  top: 4px;
+}
+.order .truck:after {
+  --r: 90deg;
+  bottom: 4px;
+}
+.order .truck .back {
+  left: 0;
+  top: 0;
+  width: 60px;
+  height: 41px;
+  z-index: 1;
+}
+.order .truck .front {
+  overflow: hidden;
+  position: absolute;
+  border-radius: 2px 9px 9px 2px;
+  width: 26px;
+  height: 41px;
+  left: 60px;
+}
+.order .truck .front:before,
+.order .truck .front:after {
+  content: "";
+  position: absolute;
+  display: block;
+}
+.order .truck .front:before {
+  height: 13px;
+  width: 2px;
+  left: 0;
+  top: 14px;
+  background: linear-gradient(var(--grey), var(--grey-dark));
+}
+.order .truck .front:after {
+  border-radius: 2px 9px 9px 2px;
+  background: var(--primary);
+  width: 24px;
+  height: 41px;
+  right: 0;
+}
+.order .truck .front .window {
+  overflow: hidden;
+  border-radius: 2px 8px 8px 2px;
+  background: var(--primary-light);
+  transform: perspective(4px) rotateY(3deg);
+  width: 22px;
+  height: 41px;
+  position: absolute;
+  left: 2px;
+  top: 0;
+  z-index: 1;
+  transform-origin: 0 50%;
+}
+.order .truck .front .window:before,
+.order .truck .front .window:after {
+  content: "";
+  position: absolute;
+  right: 0;
+}
+.order .truck .front .window:before {
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  background: var(--dark);
+}
+.order .truck .front .window:after {
+  width: 14px;
+  top: 7px;
+  height: 4px;
+  position: absolute;
+  background: rgba(255, 255, 255, 0.14);
+  transform: skewY(14deg);
+  box-shadow: 0 7px 0 rgba(255, 255, 255, 0.14);
+}
+.order .truck .light {
+  width: 3px;
+  height: 8px;
+  left: 83px;
+  transform-origin: 100% 50%;
+  position: absolute;
+  border-radius: 2px;
+  transform: scaleX(0.8);
+  background: #f0dc5f;
+}
+.order .truck .light:before {
+  content: "";
+  height: 4px;
+  width: 7px;
+  opacity: 0;
+  transform: perspective(2px) rotateY(-15deg) scaleX(0.94);
+  position: absolute;
+  transform-origin: 0 50%;
+  left: 3px;
+  top: 50%;
+  margin-top: -2px;
+  background: linear-gradient(
+    90deg,
+    #f0dc5f,
+    rgba(240, 220, 95, 0.7),
+    rgba(240, 220, 95, 0)
+  );
+}
+.order .truck .light.top {
+  top: 4px;
+}
+.order .truck .light.bottom {
+  bottom: 4px;
+}
+.order .box {
+  --start: var(--sand-light);
+  --stop: var(--sand);
+  width: 21px;
+  height: 21px;
+  right: 100%;
+  top: 21px;
+}
+.order .box:before,
+.order .box:after {
+  content: "";
+  top: 10px;
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+.order .box:before {
+  height: 3px;
+  margin-top: -1px;
+  background: rgba(0, 0, 0, 0.1);
+}
+.order .box:after {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.15);
+}
+.order.animate .default {
+  --o: 0;
+  transition-delay: 0s;
+}
+.order.animate .success {
+  --offset: 0;
+  --o: 1;
+  transition-delay: 7s;
+}
+.order.animate .success svg {
+  transition-delay: 7.3s;
+}
+.order.animate .truck {
+  animation: truck 10s ease forwards;
+}
+.order.animate .truck:before {
+  animation: door1 2.4s ease forwards 0.3s;
+}
+.order.animate .truck:after {
+  animation: door2 2.4s ease forwards 0.6s;
+}
+.order.animate .truck .light:before,
+.order.animate .truck .light:after {
+  animation: light 10s ease forwards;
+}
+.order.animate .box {
+  animation: box 10s ease forwards;
+}
+.order.animate .lines {
+  animation: lines 10s ease forwards;
+}
+
+/* ============================================
+   🎬 ANIMATIONS
+   ============================================ */
+@keyframes truck {
+  10%, 30% {
+    transform: translateX(-164px);
+  }
+  40% {
+    transform: translateX(-104px);
+  }
+  60% {
+    transform: translateX(-224px);
+  }
+  75%, 100% {
+    transform: translateX(24px);
+  }
+}
+
+@keyframes lines {
+  0%, 30% {
+    opacity: 0;
+    transform: scaleY(0.7) translateX(0);
+  }
+  35%, 65% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0;
+  }
+  100% {
+    transform: scaleY(0.7) translateX(-400px);
+  }
+}
+
+@keyframes light {
+  0%, 30% {
+    opacity: 0;
+    transform: perspective(2px) rotateY(-15deg) scaleX(0.88);
+  }
+  40%, 100% {
+    opacity: 1;
+    transform: perspective(2px) rotateY(-15deg) scaleX(0.94);
+  }
+}
+
+@keyframes door1 {
+  30%, 50% {
+    transform: rotate(32deg);
+  }
+}
+
+@keyframes door2 {
+  30%, 50% {
+    transform: rotate(-32deg);
+  }
+}
+
+@keyframes box {
+  8%, 10% {
+    transform: translateX(40px);
+    opacity: 1;
+  }
+  25% {
+    transform: translateX(112px);
+    opacity: 1;
+  }
+  26% {
+    transform: translateX(112px);
+    opacity: 0;
+  }
+  27%, 100% {
+    transform: translateX(0px);
+    opacity: 0;
+  }
+}
+</style>
+
+<section class="page">
+  <div class="grid">
+    <div class="pay-card">
+      <h3 class="pay-title">Payment Methods</h3>
+      <hr class="pay-divider">
+      <p class="help">Choose your Payment Method.</p>
+      
+      <fieldset role="radiogroup" aria-label="Payment methods">
+        <label class="method {% if not cod_available %}disabled{% endif %}">
+          <input type="radio" name="payment_method" value="cod" {% if cod_available %}checked{% else %}disabled{% endif %}>
+          <span>Cash on Delivery {% if not cod_available %}<span class="cod-limit-badge">Not available above ₹{{ cod_max }}</span>{% endif %}</span>
+        </label>
+        
+        <label class="method">
+          <input type="radio" name="payment_method" value="razorpay" {% if not cod_available %}checked{% endif %}>
+          <span>Razorpay (UPI, Card, Net Banking)</span>
+        </label>
+        
+        <label class="method {% if not can_use_wallet %}disabled{% endif %}">
+          <input type="radio" name="payment_method" value="wallet" {% if not can_use_wallet %}disabled{% endif %}>
+          <span>Wallet <span class="wallet-balance">(Balance: ₹{{ wallet_balance|floatformat:0 }})</span>{% if not can_use_wallet %}<span class="insufficient-badge">Insufficient Balance</span>{% endif %}</span>
+        </label>
+      </fieldset>
+    </div>
+    
+    <aside class="summary">
+      {% for item in cart_items %}
+      <div class="line-item">
+        <div class="item-thumb"><img src="{{ item.image_url }}" alt="{{ item.name }}"></div>
+        <div>
+          <div class="item-name">{{ item.name }}</div>
+          <div class="item-meta">Quantity: {{ item.qty }}</div>
+        </div>
+        <div>₹{{ item.total }}</div>
+      </div>
+      {% endfor %}
+      
+      <div class="rows">
+        <div class="roww"><span class="label">Subtotal:</span><span class="value-strong">₹{{ subtotal }}</span></div>
+        <div class="roww"><span class="label">Delivery charge:</span><span class="ok">{{ delivery_text|default:"Free" }}</span></div>
+        {% if coupon_amount and coupon_amount|floatformat != "0" %}
+        <div class="roww"><span class="label">Coupon</span><span class="neg">- ₹{{ coupon_amount }}</span></div>
+        {% endif %}
+      </div>
+      
+      <div class="total"><span>Total:</span><span>₹{{ grand_total }}</span></div>
+      
+      <form id="payForm" method="post" action="{% url 'payment' %}">
+        {% csrf_token %}
+        <button type="button" id="payBtn" class="order">
+          <span class="default">Complete Order</span>
+          <span class="success">Order Placed<svg viewBox="0 0 12 10"><polyline points="1.5 6 4.5 9 10.5 1"></polyline></svg></span>
+          <div class="box"></div>
+          <div class="truck"><div class="back"></div><div class="front"><div class="window"></div></div><div class="light top"></div><div class="light bottom"></div></div>
+          <div class="lines"></div>
+        </button>
+      </form>
+    </aside>
+  </div>
+</section>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var btn = document.getElementById('payBtn');
+  var form = document.getElementById('payForm');
+  var processing = false;
+
+  if (!btn || !form) return;
+
+  btn.addEventListener('click', function() {
+    if (processing || btn.classList.contains('animate')) return;
+    processing = true;
+
+    var pmRadio = document.querySelector('input[name="payment_method"]:checked');
+    var pm = pmRadio ? pmRadio.value : 'cod';
+
+    var hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.name = 'payment_method';
+    hiddenInput.value = pm;
+    form.appendChild(hiddenInput);
+
+    if (pm === 'cod' || pm === 'wallet') {
+      btn.classList.add('animate');
+      btn.disabled = true;
+      setTimeout(function() { form.submit(); }, 10250);
+    } else {
+      form.submit();
+    }
+  });
+});
+</script>
+
+{% if razorpay_enabled %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var rzpOptions = {
+    key: '{{ razorpay_key }}',
+    amount: {{ razorpay_amount }},
+    currency: 'INR',
+    name: 'Audio Aura',
+    description: 'Order Payment',
+    order_id: '{{ razorpay_order_id }}',
+    prefill: {
+      name: '{{ request.user.get_full_name|default:request.user.username }}',
+      email: '{{ request.user.email }}',
+      contact: ''
+    },
+    theme: {
+      color: '#000000'
+    },
+    modal: {
+      ondismiss: function() {
+        // User closed the payment modal
+        window.location.href = '{% url "payment_failed" %}';
+      }
+    },
+    handler: function(resp) {
+      var verifyUrl = '{% url "razorpay_payment_handler" %}';
+      var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+      fetch(verifyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+          razorpay_payment_id: resp.razorpay_payment_id,
+          razorpay_order_id: resp.razorpay_order_id,
+          razorpay_signature: resp.razorpay_signature
+        })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          window.location.href = '{% url "payment_success" %}';
+        } else {
+          window.location.href = '{% url "payment_failed" %}';
+        }
+      })
+      .catch(function(error) {
+        console.error('Payment verification error:', error);
+        window.location.href = '{% url "payment_failed" %}';
+      });
+    }
+  };
+
+  var rzp = new Razorpay(rzpOptions);
+
+  rzp.on('payment.failed', function(response) {
+    console.error('Payment failed:', response.error);
+    // Redirect to payment failed page
+    window.location.href = '{% url "payment_failed" %}';
+  });
+
+  setTimeout(function() { rzp.open(); }, 500);
+});
+</script>
+{% endif %}
+
+{% endblock %}

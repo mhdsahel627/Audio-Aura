@@ -1,0 +1,169 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Poppins", sans-serif;
+}
+
+body {
+  background: linear-gradient(90deg, #450623, #130325);
+  color: white;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.container {
+  width: 90%;
+  max-width: 1200px;
+  border-radius: 10px;
+  overflow: hidden;
+  /* removed border + transparent background */
+}
+
+.google-btn {
+  background: #fff;
+  color: #000;
+  border: 1px solid #ddd;
+  padding: 14px;
+  border-radius: 8px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+}
+
+/* Hover effect */
+.google-btn:hover {
+  background: #3f3c3c;
+  border-color: #ccc;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 12px rgba(0,0,0,0.2);
+}
+
+/* Google icon fix */
+.google-btn img {
+  width: 20px;
+  height: 20px;
+}
+
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0;
+  color: #bbb;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid hsl(0, 0%, 27%);
+}
+
+.divider:not(:empty)::before { margin-right: .75em; }
+.divider:not(:empty)::after { margin-left: .75em; }
+
+.form-control {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #777;
+  border-radius: 0;
+  color: #fff;
+  font-size: 15px;
+  padding-left: 0;
+  padding-right: 0;
+  box-shadow: none !important;
+  transition: border-color 0.3s ease;
+}
+
+.form-control::placeholder {
+  color: #bbb;
+  font-size: 14px;
+}
+
+.form-control:focus {
+  border-bottom: 1px solid #6a5acd;
+  background: transparent;
+  color: #fff;
+  box-shadow: none;
+}
+
+.btn-dark {
+  background: black;
+  border: none;
+  padding: 12px;
+  border-radius: 5px;
+  font-weight: 500;
+}
+
+.text-muted {
+  color: #aaa !important;
+}
+
+a {
+  text-decoration: none;
+}
+    /* Dynamic Island Notifications */
+#dynamic-island {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.island-toast {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(0,0,0,0.85);
+      color: #fff;
+      padding: 12px 25px;
+      border-radius: 50px;
+      font-weight: 500;
+      font-size: 14px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+      opacity: 0;
+  transform: scale(0.5);
+  animation: islandIn 0.6s forwards;
+}
+
+.island-toast.success { background: rgba(0,0,0,0.85); }
+.island-toast.error { background: rgba(255,0,0,0.85); }
+.island-toast.info { background: rgba(100,100,100,0.85); }
+
+.island-toast .icon {
+  font-size: 16px;
+  transform: scale(0.7);
+  animation: iconPop 0.6s forwards;
+}
+
+@keyframes islandIn {
+
+  0% { opacity: 0; transform: scale(0.5) translateY(-20px); }
+  60% { opacity: 1; transform: scale(1.1) translateY(0); }
+  100% { transform: scale(1) translateY(0); }
+}
+
+@keyframes islandOut {
+  0% { opacity: 1; transform: scale(1) translateY(0); }
+  100% { opacity: 0; transform: scale(0.5) translateY(-20px); }
+}
+
+@keyframes iconPop {
+  0% { transform: scale(0.5); }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}

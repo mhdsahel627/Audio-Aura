@@ -1,0 +1,327 @@
+{% extends "user/base.html" %}
+{% load static %}
+{% block title %}Delivery Address{% endblock %}
+{% block content %}
+<style>
+  .shell{max-width:1240px;margin:0 auto;padding:0 16px}
+  .grid{display:grid;grid-template-columns:360px 1fr;gap:28px;align-items:start;margin: 0px -86px 0px -98px;}
+  @media(max-width:1100px){.grid{grid-template-columns:1fr}}
+
+  /* frame */
+  .frame{
+    background:#fff;border:2px solid #E5E7EB;border-radius:24px;
+    box-shadow:0 12px 36px rgba(0,0,0,.20);padding:18px 18px 26px;
+  }
+  .title{font-weight:900;text-align:center;font-size:26px;margin:6px 0 16px}
+
+  /* grid for cards + add tiles */
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:900px){.cards{grid-template-columns:1fr}}
+
+  /* address card */
+  .card{
+    position:relative;background:#fff;border:1px solid #ecf0f4;border-radius:16px;
+    box-shadow:0 10px 24px rgba(0,0,0,.10);padding:16px;min-height:170px
+  }
+  .name{font-weight:900;margin:0 0 4px}
+  .line{font-size:14px;color:#2a2f36}
+  .row{display:flex;gap:8px;align-items:center;margin-top:10px}
+  .tag{font-size:12px;background:#f1f5f9;border:1px solid #e6edf5;padding:2px 8px;border-radius:999px;color:#6b7280}
+  .btn{height:30px;padding:0 14px;border-radius:8px;border:1px solid #0f172a;background:#0f172a;color:#fff;font-weight:800;font-size:12px;cursor:pointer}
+  .ghost{background:#fff;color:#0f172a;border-color:#0f172a}
+  .edit{position:absolute;right:12px;top:12px;border:1px solid #e6eaf0;border-radius:8px;height:32px;width:32px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+
+  /* add tile */
+  .tile{
+    background:#fff;border:2px dashed #E5E7EB;border-radius:18px;
+    box-shadow:0 8px 22px rgba(0,0,0,.10);
+    min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px
+  }
+  .plus{width:46px;height:46px;border-radius:999px;border:1px solid #111;display:flex;align-items:center;justify-content:center;font-size:22px}
+  .hint{color:#2a2f36}
+  .addbtn{height:36px;padding:0 16px;border-radius:10px;border:1px solid #111;background:#111;color:#fff;font-weight:900;cursor:pointer}
+
+  /* drawer form */
+  .drawer{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:50}
+  .drawer.is-open{display:flex}
+  .card-form{
+    width:640px;max-width:95%;background:#fff;border:2px solid #E5E7EB;border-radius:18px;
+    box-shadow:0 16px 40px rgba(0,0,0,.25);padding:18px 16px
+  }
+  .card-form h3{margin:0 0 10px;font-size:20px;font-weight:900}
+  .form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:700px){.form{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .label{font-size:13px;color:#6b7280}
+  .input,.select,.textarea{height:42px;border:1px solid #E1E7EE;border-radius:10px;background:#fff;padding:0 12px}
+  .textarea{height:90px;padding:10px 12px;resize:vertical}
+  .row-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+  
+  /* Loading spinner for postcode field */
+  .field-wrapper {
+    position: relative;
+  }
+  .loading-spinner {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #0f172a;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: none;
+  }
+  .loading-spinner.active {
+    display: block;
+  }
+  @keyframes spin {
+    0% { transform: translateY(-50%) rotate(0deg); }
+    100% { transform: translateY(-50%) rotate(360deg); }
+  }
+  .error-message {
+    font-size: 11px;
+    color: #dc2626;
+    margin-top: 2px;
+    display: none;
+  }
+  .error-message.active {
+    display: block;
+  }
+</style>
+
+<section style="padding:30px 0 54px;background:radial-gradient(1200px 700px at 15% -10%, rgba(255,255,255,.06), transparent),linear-gradient(180deg,#16031f,#2a0830)">
+  <div class="shell">
+    <div style="color:#fff;opacity:.85;margin-bottom:10px"></div>
+
+    <div class="grid">
+      {% include "user/sidebar.html" with active_tab="address_manage" %}
+
+      <div class="frame">
+        <div class="title">Delivery Address</div>
+
+        <div class="cards">
+          {# 1) Existing addresses #}
+          {% for a in addresses %}
+          <div class="card">
+            <button class="edit"
+                    type="button"
+                    title="Edit"
+                    onclick="openEdit(this)"
+                    data-id="{{ a.id }}"
+                    data-name="{{ a.full_name|escape }}"
+                    data-phone="{{ a.phone|escape }}"
+                    data-line1="{{ a.address_line1|escape }}"
+                    data-line2="{{ a.address_line2|default_if_none:''|escape }}"
+                    data-city="{{ a.city|escape }}"
+                    data-state="{{ a.state|escape }}"
+                    data-postcode="{{ a.postcode|escape }}"
+                    data-country="{{ a.country|escape }}"
+                    data-default="{{ a.is_default|yesno:'1,0' }}">✎</button>
+
+            <div class="name">{{ a.full_name }}</div>
+            <div class="line">{{ a.address_line1 }}{% if a.address_line2 %}, {{ a.address_line2 }}{% endif %}</div>
+            <div class="line">{{ a.city }} · {{ a.postcode }}</div>
+            <div class="line">{{ a.state }}, {{ a.country }}</div>
+
+            <div class="row">
+              {% if a.is_default %}<span class="tag">Default</span>{% endif %}
+              <form method="post" action="{% url 'address_delete' a.id %}" onsubmit="return confirm('Delete this address?')">
+                {% csrf_token %}
+                <button class="btn ghost" type="submit">Delete</button>
+              </form>
+              {% if not a.is_default %}
+              <form method="post" action="{% url 'address_make_default' a.id %}">
+                {% csrf_token %}
+                <button class="btn" type="submit">Make Default</button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+          {% empty %}
+          {# if none, just show tiles below #}
+          {% endfor %}
+
+          {# 2) Add tile always visible #}
+          <div class="tile">
+            <div class="plus">+</div>
+            <div class="hint">Add new Address</div>
+            <button class="addbtn" type="button" onclick="openDrawerCreate()">Add</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Drawer Form #}
+  <div id="addrDrawer" class="drawer" aria-hidden="true">
+    <div class="card-form">
+      <h3 id="drawerTitle">Add New Address</h3>
+      <form id="addrForm" method="post" action="{% url 'address_create' %}">
+        {% csrf_token %}
+        <input type="hidden" name="mode" id="mode" value="create">
+        <input type="hidden" name="addr_id" id="addr_id" value="">
+        <div class="form">
+          <div class="field"><label class="label">Full Name</label><input class="input" name="full_name" required></div>
+          <div class="field"><label class="label">Phone</label><input class="input" name="phone" required></div>
+
+          <div class="field"><label class="label">Address line 1</label><input class="input" name="address_line1" required></div>
+          <div class="field"><label class="label">Address line 2</label><input class="input" name="address_line2"></div>
+
+          <div class="field">
+            <label class="label">Postcode</label>
+            <div class="field-wrapper">
+              <input class="input" id="postcode" name="postcode" required maxlength="6" pattern="[0-9]{6}">
+              <span class="loading-spinner" id="postcodeSpinner"></span>
+            </div>
+            <span class="error-message" id="postcodeError">Invalid pincode</span>
+          </div>
+
+          <div class="field"><label class="label">City</label><input class="input" id="city" name="city" required></div>
+          <div class="field"><label class="label">State</label><input class="input" id="state" name="state" required></div>
+
+          <div class="field">
+            <label class="label">Country</label>
+            <select class="select" id="country" name="country" required>
+              <option value="">Select country</option>
+              <option value="India">India</option>
+              <option value="United States">United States</option>
+              <option value="United Kingdom">United Kingdom</option>
+            </select>
+          </div>
+
+          <div class="field" style="grid-column:1/-1">
+            <label class="label">Additional notes</label>
+            <textarea class="textarea" name="notes" placeholder="Landmark, directions, etc."></textarea>
+          </div>
+
+          <div class="field" style="grid-column:1/-1">
+            <label style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" name="is_default" id="is_default"> Set as default address
+            </label>
+          </div>
+        </div>
+
+        <div class="row-actions">
+          <button type="button" class="btn ghost" onclick="closeDrawer()">Cancel</button>
+          <button type="submit" class="btn" id="submitBtn">Save Address</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script>
+  const drawer = document.getElementById('addrDrawer');
+  const form = document.getElementById('addrForm');
+  const postcodeInput = document.getElementById('postcode');
+  const cityInput = document.getElementById('city');
+  const stateInput = document.getElementById('state');
+  const countryInput = document.getElementById('country');
+  const spinner = document.getElementById('postcodeSpinner');
+  const errorMsg = document.getElementById('postcodeError');
+
+  let debounceTimer;
+
+  // Pincode autofill functionality
+  postcodeInput.addEventListener('input', function(e) {
+    const pincode = e.target.value.trim();
+    
+    // Clear previous timer
+    clearTimeout(debounceTimer);
+    
+    // Hide error message
+    errorMsg.classList.remove('active');
+    
+    // Check if pincode is 6 digits
+    if (pincode.length === 6 && /^\d{6}$/.test(pincode)) {
+      // Show loading spinner
+      spinner.classList.add('active');
+      
+      // Debounce API call by 500ms
+      debounceTimer = setTimeout(() => {
+        fetchPincodeData(pincode);
+      }, 500);
+    } else {
+      spinner.classList.remove('active');
+    }
+  });
+
+  async function fetchPincodeData(pincode) {
+    try {
+      // Using India Post API for Indian pincodes
+      const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+      const data = await response.json();
+      
+      spinner.classList.remove('active');
+      
+      if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
+        const postOffice = data[0].PostOffice[0];
+        
+        // Autofill city and state
+        cityInput.value = postOffice.District || postOffice.Block || '';
+        stateInput.value = postOffice.State || '';
+        countryInput.value = 'India';
+        
+        // Add subtle animation to show fields were updated
+        cityInput.style.backgroundColor = '#f0fdf4';
+        stateInput.style.backgroundColor = '#f0fdf4';
+        countryInput.style.backgroundColor = '#f0fdf4';
+        
+        setTimeout(() => {
+          cityInput.style.backgroundColor = '';
+          stateInput.style.backgroundColor = '';
+          countryInput.style.backgroundColor = '';
+        }, 1000);
+        
+      } else {
+        // Show error message
+        errorMsg.classList.add('active');
+      }
+    } catch (error) {
+      console.error('Error fetching pincode data:', error);
+      spinner.classList.remove('active');
+      errorMsg.textContent = 'Unable to fetch location';
+      errorMsg.classList.add('active');
+    }
+  }
+
+  function openDrawer(){ drawer.classList.add('is-open'); }
+  function closeDrawer(){ drawer.classList.remove('is-open'); }
+
+  function openDrawerCreate(){
+    form.reset();
+    errorMsg.classList.remove('active');
+    spinner.classList.remove('active');
+    document.getElementById('drawerTitle').textContent = 'Add New Address';
+    document.getElementById('mode').value = 'create';
+    document.getElementById('addr_id').value = '';
+    form.action = "{% url 'address_create' %}";
+    document.getElementById('submitBtn').textContent = 'Save Address';
+    openDrawer();
+  }
+
+  function openEdit(btn){
+    form.reset();
+    errorMsg.classList.remove('active');
+    spinner.classList.remove('active');
+    document.getElementById('drawerTitle').textContent = 'Edit Address';
+    document.getElementById('mode').value = 'edit';
+    document.getElementById('addr_id').value = btn.dataset.id;
+    form.action = "{% url 'address_update' 0 %}".replace('/0/', '/' + btn.dataset.id + '/');
+    document.querySelector('[name=full_name]').value = btn.dataset.name || '';
+    document.querySelector('[name=phone]').value = btn.dataset.phone || '';
+    document.querySelector('[name=address_line1]').value = btn.dataset.line1 || '';
+    document.querySelector('[name=address_line2]').value = btn.dataset.line2 || '';
+    postcodeInput.value = btn.dataset.postcode || '';
+    cityInput.value = btn.dataset.city || '';
+    stateInput.value = btn.dataset.state || '';
+    countryInput.value = btn.dataset.country || '';
+    document.getElementById('is_default').checked = btn.dataset.default === '1';
+    document.getElementById('submitBtn').textContent = 'Update Address';
+    openDrawer();
+  }
+</script>
+{% endblock %}

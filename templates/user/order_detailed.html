@@ -1,0 +1,816 @@
+{% extends "user/base.html" %}
+{% load static %}
+{% block title %}Order Details{% endblock %}
+
+{% block content %}
+<style>
+  .page{padding:30px 0 54px;background:radial-gradient(1200px 700px at 15% -10%, rgba(255,255,255,.06), transparent),linear-gradient(180deg,#16031f,#2a0830)}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 16px;color:#fff}
+  .grid{display:grid;grid-template-columns:360px 1fr;gap:30px;align-items:start;margin: 0px -86px 0px -98px;}
+  @media(max-width:1100px){.grid{grid-template-columns:1fr}}
+
+  /* Static order box like reference */
+  .order-shell{
+    background:#fff; color:#111; border-radius:18px; border:1px solid #edf0f5;
+    box-shadow:0 10px 30px rgba(0,0,0,.18); padding:22px 22px 90px;
+  }
+  .order-title{ font-size:23px; font-weight:600; margin:0 0 26px; }
+  .order-row{ display:grid; grid-template-columns: 0fr 0.6fr 0.4fr 1fr;gap:40px; align-items:start; }
+  @media(max-width:1000px){ .order-row{grid-template-columns:1fr} }
+
+  /* Left: product tile + status */
+  .prod{ display:flex; flex-direction:column; gap:12px; }
+  .prod-card{ width:200px; border-radius:10px; overflow:hidden; border:1px solid #eee; background:#fafafa; }
+  .prod-card img{ display:block; width:100%; height:auto; }
+  .prod-cap{
+    background:#ffc107; color:#111; font-weight:800; text-align:center; padding:8px 10px; font-size:12px;
+    border-top:1px solid rgba(0,0,0,.06);
+  }
+  .status-line{ font-size:14px; font-weight:500;}
+  .status-pill{ color:#24a148; font-weight:700; }
+  .smalll {
+    display: flex;
+    justify-content:flex-start;
+  }
+  
+  /* Delivery date banner */
+  .delivery-banner {
+    background: linear-gradient(135deg, #00c853 0%, #00e676 100%);
+    color: white;
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin: 30px 0;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 200, 83, 0.3);
+  }
+  .delivery-banner.delivered {
+    background: linear-gradient(135deg, #66bb6a 0%, #81c784 100%);
+  }
+  .delivery-banner.cancelled {
+    background: linear-gradient(135deg, #ef5350 0%, #e57373 100%);
+  }
+  .delivery-banner.returned {
+    background: linear-gradient(135deg, #ff9800 0%, #ffb74d 100%);
+  }
+  .delivery-banner-label {
+    font-size: 11px;
+    opacity: 0.9;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .delivery-banner-date {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 6px 0;
+  }
+  .delivery-banner-location {
+    font-size: 12px;
+    opacity: 0.9;
+    margin: 4px 0 0 0;
+  }
+  
+  /* Middle: details */
+  .mini-col h5{ font-size:12px; margin:0 0 20px; font-weight:800; color:#111; text-decoration:underline; }
+  .mini-col .smalll{ font-size:12px; color:#656d76; line-height:1.5; }
+
+  /* Right: summary box */
+  .summary{
+    background:#fff; border:1px solid #eee; border-radius:8px; border-radius: 10px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.03);
+    padding:14px 16px; margin-top: -14px;
+  }
+  .summary h5{ font-size:12px; margin:0 0 8px; font-weight:800; text-decoration:underline;text-decoration-color: #827878}
+  .kv{ display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#30363d; padding:6px 0; }
+  .sep{ height:1px; background:#e7e7e7; margin:6px 0; }
+  .kv strong{ font-size:12px; }
+  .kv.delivery-info { color: #00c853; font-weight: 600; border-top: 1px dashed #ddd; padding-top: 8px; margin-top: 8px; }
+
+  /* Actions */
+  .actions{ display:flex; gap:18px; justify-content:flex-end;}
+  .btn-x{ height:38px; padding:0 18px; border-radius:6px; border:1px solid #111; cursor:pointer; font-weight: 800; }
+  .btn-cancel{ background:#e23b3b; border-color:#e23b3b; color:#fff; font-weight: 500; }
+  .btn-track{ background:#111; color:#fff;font-weight: 500; text-decoration: none;padding-top: 6px; }
+  
+  /* ✅ NEW: Return Policy Card */
+  .return-policy-card {
+    background: linear-gradient(135deg, #fff3cd 0%, #fff8e1 100%);
+    border: 2px solid #ffc107;
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin: 24px 0 20px;
+    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.25);
+  }
+  
+  .return-timer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #d32f2f;
+    margin-bottom: 10px;
+  }
+  
+  .return-timer i {
+    animation: pulse 2s infinite;
+    font-size: 1.3rem;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+  }
+  
+  .countdown-badge {
+    background: #d32f2f;
+    color: white;
+    padding: 6px 16px;
+    border-radius: 25px;
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+  
+  .return-deadline {
+    font-size: 0.95rem;
+    color: #555;
+    margin: 0;
+  }
+  
+  .return-deadline strong {
+    color: #d32f2f;
+    font-weight: 700;
+  }
+  
+  /* ✅ Return/Expired Alerts */
+  .alert-box {
+    padding: 16px 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+  }
+  
+  .alert-box i {
+    font-size: 1.3rem;
+  }
+  
+  .alert-box.info {
+    background: #e3f2fd;
+    border: 2px solid #2196f3;
+    color: #0d47a1;
+  }
+  
+  .alert-box.secondary {
+    background: #f5f5f5;
+    border: 2px solid #9e9e9e;
+    color: #424242;
+  }
+  
+  .alert-box.success {
+    background: #e8f5e9;
+    border: 2px solid #4caf50;
+    color: #1b5e20;
+  }
+  
+  .alert-box strong {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+  
+  /* ✅ Modal styles */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  
+  .modal-overlay.active {
+    display: flex;
+  }
+  
+  .modal-box {
+    background: #fff;
+    border-radius: 16px;
+    padding: 0;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Modal Header Section */
+  .modal-top {
+    padding: 24px 30px;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .modal-top h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #111;
+    margin: 0;
+  }
+  
+  /* Modal Content Section */
+  .modal-content-area {
+    padding: 30px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  
+  .cancel-reason-section, .return-reason-section {
+    margin-bottom: 30px;
+  }
+  
+  .cancel-reason-section h4, .return-reason-section h4 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #111;
+    margin: 0 0 16px 0;
+  }
+  
+  .reason-options {
+    display: grid;
+    gap: 12px;
+  }
+  
+  .reason-option {
+    position: relative;
+  }
+  
+  .reason-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+  }
+  
+  .reason-option label {
+    display: block;
+    padding: 14px 18px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333;
+    transition: all 0.2s;
+  }
+  
+  .reason-option input[type="radio"]:checked + label {
+    border-color: #ff9800;
+    background: #fff3e0;
+    color: #e65100;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+  }
+  
+  .reason-option label:hover {
+    border-color: #bbb;
+  }
+  
+  .form-group-modal {
+    margin-bottom: 0;
+  }
+  
+  .form-group-modal label {
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    color: #111;
+    margin-bottom: 12px;
+  }
+  
+  .form-group-modal textarea, .form-group-modal select {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: 'Poppins', sans-serif;
+    transition: border-color 0.2s;
+  }
+  
+  .form-group-modal textarea {
+    resize: vertical;
+    min-height: 100px;
+  }
+  
+  .form-group-modal textarea:focus, .form-group-modal select:focus {
+    outline: none;
+    border-color: #ff9800;
+  }
+  
+  .form-group-modal textarea::placeholder {
+    color: #999;
+  }
+  
+  .alert-warning-modal {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  
+  .alert-warning-modal strong {
+    display: block;
+    color: #856404;
+    margin-bottom: 8px;
+  }
+  
+  .alert-warning-modal ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #856404;
+  }
+  
+  /* Modal Footer */
+  .modal-footer {
+    padding: 20px 30px;
+    border-top: 1px solid #eee;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    background: #fafafa;
+  }
+  
+  .btn-modal {
+    padding: 12px 28px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+  
+  .btn-modal-close {
+    background: #fff;
+    color: #111;
+    border: 2px solid #ddd;
+  }
+  
+  .btn-modal-close:hover {
+    background: #f5f5f5;
+    border-color: #bbb;
+  }
+  
+  .btn-modal-submit {
+    background: #ff9800;
+    color: #fff;
+  }
+  
+  .btn-modal-submit:hover {
+    background: #f57c00;
+  }
+  
+  .btn-modal-submit:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .btn-modal-submit.cancel-submit {
+    background: #ef5350;
+  }
+  
+  .btn-modal-submit.cancel-submit:hover {
+    background: #e53935;
+  }
+  
+  /* Apply Poppins to the page area only */
+  .page, .page * {
+    font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  @media(max-width: 768px) {
+    .modal-box {
+      max-width: 95%;
+    }
+    
+    .modal-content-area {
+      padding: 20px;
+    }
+    
+    .modal-footer {
+      padding: 16px 20px;
+    }
+  }
+</style>
+
+<section class="page">
+  <div class="wrap">
+    <div class="grid">
+      {% include "user/sidebar.html" with active_tab="orders" %}
+
+      <div class="order-shell">
+        <h6 class="order-title">{{ item.product_name }}</h6>
+
+        <!-- Delivery Date Banner -->
+        {% if item.status == 'DELIVERED' %}
+          <div class="delivery-banner delivered">
+            <p class="delivery-banner-label">✓ Delivered</p>
+            <h3 class="delivery-banner-date">
+              {{ item.delivered_at|date:"d F Y"|default:"Completed" }}
+            </h3>
+          </div>
+        {% elif item.status == 'CANCELLED' %}
+          <div class="delivery-banner cancelled">
+            <p class="delivery-banner-label">✗ Cancelled</p>
+            <h3 class="delivery-banner-date">
+              {{ item.cancelled_at|date:"d F Y"|default:"Order Cancelled" }}
+            </h3>
+          </div>
+        {% elif item.status == 'RETURNED' %}
+          <div class="delivery-banner returned">
+            <p class="delivery-banner-label">↩ Returned</p>
+            <h3 class="delivery-banner-date">
+              {{ item.returned_at|date:"d F Y"|default:"Return Completed" }}
+            </h3>
+          </div>
+        {% else %}
+          <div class="delivery-banner">
+            <p class="delivery-banner-label">📦 Expected Delivery</p>
+            <h3 class="delivery-banner-date">
+              {{ delivery_date|default:"To be confirmed" }}
+            </h3>
+            {% if order.ship_city and order.ship_state and order.ship_postcode %}
+            <p class="delivery-banner-location">
+              To {{ order.ship_city }}, {{ order.ship_state }} - {{ order.ship_postcode }}
+            </p>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        <!-- ✅ NEW: Return Policy Section for DELIVERED items -->
+        {% if item.status == 'DELIVERED' %}
+          {% if can_return %}
+            <!-- Show return countdown -->
+            <div class="return-policy-card">
+              <div class="return-timer">
+                <i class="fas fa-clock"></i>
+                <span class="countdown-badge">{{ days_remaining }} day{{ days_remaining|pluralize }}</span>
+                left to return
+              </div>
+              <p class="return-deadline">
+                Return by: <strong>{{ return_deadline_formatted }}</strong>
+              </p>
+            </div>
+          {% elif pending_return %}
+            <!-- Return request pending -->
+            <div class="alert-box info">
+              <i class="fas fa-hourglass-half"></i>
+              <div>
+                <strong>Return Request Pending</strong>
+                <p style="margin: 0;">Your return request is being reviewed by our team.</p>
+              </div>
+            </div>
+          {% elif is_return_expired %}
+            <!-- Return period expired -->
+            <div class="alert-box secondary">
+              <i class="fas fa-times-circle"></i>
+              <div>
+                <strong>Return Period Expired</strong>
+                <p style="margin: 0;">{{ return_message }}</p>
+              </div>
+            </div>
+          {% endif %}
+        {% endif %}
+
+        <div class="order-row">
+          <!-- Left: product -->
+          <div class="prod">
+            <div class="prod-card">
+              {% if rep_image %}
+                <img src="{{ rep_image }}" alt="{{ rep_title }}">
+              {% else %}
+                <img src="{% static 'images/product1.jpg' %}" alt="{{ rep_title }}">
+              {% endif %}
+              <div class="prod-cap">
+                {{ rep_badge|default:"(no label found)" }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Middle: address + payment -->
+          <div class="mini-col">
+            <h5>Shipping Address</h5>
+            <div class="smalll">  
+              {% for line in ship_lines %}
+                {{ line }}<br>
+              {% endfor %}
+            </div>
+
+            <div style="height:90px"></div>
+            <div class="status-line">
+              Status :
+              <span class="{{ status_class|default:'status-pill s-blue' }}">{{ status_label }}</span>
+            </div>
+          </div>
+
+          <div class="mini-col">
+            <h5>Payment Method</h5>
+            <div class="smalll">{{ payment_method }}</div>
+            <div style="height:14px"></div>
+          </div>
+
+          <!-- Right: summary -->
+          <div class="summary">
+            <h5>Order Summary</h5>
+            <div class="kv"><span>Items Total</span><span>: ₹{{ items_total }}</span></div>
+            <div class="kv"><span>Shipping Charge</span><span style="color: green;">: Free</span></div>
+            {% if discount and discount|floatformat != "0" %}
+              <div class="kv"><span>Discount</span><span>: − ₹{{ discount }}</span></div>
+            {% endif %}
+            <div class="kv"><span>Total</span><span>: ₹{{ total }}</span></div>
+            
+            {% if item.status not in 'DELIVERED,CANCELLED,RETURNED' and delivery_date %}
+            <div class="kv delivery-info">
+              <span>Expected by</span>
+              <span>: {{ delivery_date }}</span>
+            </div>
+            {% endif %}
+            
+            <div class="sep"></div>
+            <div class="kv"><strong>Grand Total</strong><strong>: ₹{{ total }}</strong></div>
+          </div>
+        </div>
+
+        <!-- Show cancellation reason if cancelled -->
+        {% if item.status == 'CANCELLED' and item.cancellation_reason %}
+        <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 16px; border-radius: 8px; margin-top: 20px;">
+          <h5 style="font-size: 14px; font-weight: 700; color: #856404; margin: 0 0 10px;">Cancellation Details</h5>
+          <div style="font-size: 13px; color: #856404;">
+            <strong>Reason:</strong> {{ item.get_cancellation_reason_display }}<br>
+            {% if item.cancellation_note %}
+              <strong>Note:</strong> {{ item.cancellation_note }}
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- ✅ Actions -->
+        <div class="actions">
+          {% if item.status == "DELIVERED" %}
+            <!-- ✅ Show return button only if eligible -->
+            {% if can_return %}
+              <button class="btn-x btn-cancel" type="button" id="returnModalBtn" style="background: #ff9800; border-color: #ff9800;">
+                <i class="fas fa-undo"></i> Request Return
+              </button>
+            {% elif pending_return %}
+              <button class="btn-x" disabled style="background: #ccc; border-color: #ccc; cursor: not-allowed;">
+                Return Pending
+              </button>
+            {% endif %}
+            <a href="{% url 'track_item' order.order_number item.id %}" class="btn-x btn-track">Track Item</a>
+            
+          {% elif item.status not in 'CANCELLED,RETURNED' %}
+            <button class="btn-x btn-cancel" type="button" id="cancelModalBtn">Cancel Item</button>
+            <a href="{% url 'track_item' order.order_number item.id %}" class="btn-x btn-track">Track Item</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ✅ Cancellation Modal -->
+{% if item.status not in 'DELIVERED,CANCELLED,RETURNED' %}
+<div class="modal-overlay" id="cancelModal">
+  <div class="modal-box">
+    <div class="modal-top">
+      <h3>Reason for cancellation</h3>
+    </div>
+    
+    <div class="modal-content-area">
+      <form method="post" action="{% url 'request_cancel_item' order.order_number item.id %}" id="cancelForm">
+        {% csrf_token %}
+        
+        <div class="cancel-reason-section">
+          <h4>Why are you cancelling this item?</h4>
+          <div class="reason-options">
+            <div class="reason-option">
+              <input type="radio" name="reason" value="ORDER_BY_MISTAKE" id="reason1" required>
+              <label for="reason1">Ordered by mistake</label>
+            </div>
+            
+            <div class="reason-option">
+              <input type="radio" name="reason" value="FOUND_CHEAPER" id="reason2">
+              <label for="reason2">Found cheaper elsewhere</label>
+            </div>
+            
+            <div class="reason-option">
+              <input type="radio" name="reason" value="DELIVERY_TOO_LATE" id="reason3">
+              <label for="reason3">Delivery taking too long</label>
+            </div>
+            
+            <div class="reason-option">
+              <input type="radio" name="reason" value="CHANGED_MIND" id="reason4">
+              <label for="reason4">Changed my mind</label>
+            </div>
+            
+            <div class="reason-option">
+              <input type="radio" name="reason" value="ORDERED_WRONG_ITEM" id="reason5">
+              <label for="reason5">Ordered wrong item/variant</label>
+            </div>
+            
+            <div class="reason-option">
+              <input type="radio" name="reason" value="DUPLICATE_ORDER" id="reason6">
+              <label for="reason6">Duplicate order</label>
+            </div>
+            
+            <div class="reason-option">
+              <input type="radio" name="reason" value="OTHER" id="reason7">
+              <label for="reason7">Other reason</label>
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-group-modal">
+          <label for="cancel-note">Additional details (optional)</label>
+          <textarea id="cancel-note" name="note" maxlength="500" 
+                    placeholder="Explain why you are cancelling this item"></textarea>
+        </div>
+      </form>
+    </div>
+    
+    <div class="modal-footer">
+      <button type="button" class="btn-modal btn-modal-close" id="closeCancelModalBtn">Close</button>
+      <button type="submit" form="cancelForm" class="btn-modal btn-modal-submit cancel-submit">Submit Cancellation</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ✅ NEW: Return Modal -->
+{% if item.status == 'DELIVERED' and can_return %}
+<div class="modal-overlay" id="returnModal">
+  <div class="modal-box">
+    <div class="modal-top">
+      <h3><i class="fas fa-undo"></i> Request Return</h3>
+    </div>
+    
+    <div class="modal-content-area">
+      <form method="post" action="{% url 'request_return_item' order.order_number item.id %}" id="returnForm">
+        {% csrf_token %}
+        
+        <!-- Policy Notice -->
+        <div class="alert-warning-modal">
+          <strong><i class="fas fa-exclamation-triangle"></i> Return Policy:</strong>
+          <ul>
+            <li>Items must be returned within <strong>{{ return_window_days }} days</strong> of delivery</li>
+            <li>Item must be unused and in original packaging</li>
+            <li>Refund will be processed after verification</li>
+          </ul>
+        </div>
+        
+        <div class="return-reason-section">
+          <h4>Reason for Return *</h4>
+          <div class="form-group-modal">
+            <select name="reason" id="returnReason" required>
+              <option value="">-- Select a reason --</option>
+              <option value="Defective product">Defective or damaged product</option>
+              <option value="Wrong item received">Wrong item received</option>
+              <option value="Not as described">Product not as described</option>
+              <option value="Quality issues">Quality issues</option>
+              <option value="Size/fit issues">Size or fit issues</option>
+              <option value="Changed my mind">Changed my mind</option>
+              <option value="Better price elsewhere">Found better price elsewhere</option>
+              <option value="Other">Other reason</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-group-modal">
+          <label for="returnNote">Additional Details (Optional)</label>
+          <textarea name="note" id="returnNote" maxlength="500"
+                    placeholder="Provide more details about the issue..."></textarea>
+        </div>
+      </form>
+    </div>
+    
+    <div class="modal-footer">
+      <button type="button" class="btn-modal btn-modal-close" id="closeReturnModalBtn">Cancel</button>
+      <button type="submit" form="returnForm" class="btn-modal btn-modal-submit">
+        <i class="fas fa-paper-plane"></i> Submit Return Request
+      </button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+  (function() {
+    // Cancel Modal
+    const cancelModal = document.getElementById('cancelModal');
+    const cancelOpenBtn = document.getElementById('cancelModalBtn');
+    const cancelCloseBtn = document.getElementById('closeCancelModalBtn');
+    const cancelForm = document.getElementById('cancelForm');
+    
+    // Return Modal
+    const returnModal = document.getElementById('returnModal');
+    const returnOpenBtn = document.getElementById('returnModalBtn');
+    const returnCloseBtn = document.getElementById('closeReturnModalBtn');
+    const returnForm = document.getElementById('returnForm');
+    
+    // Open cancel modal
+    if (cancelOpenBtn && cancelModal) {
+      cancelOpenBtn.addEventListener('click', function() {
+        cancelModal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      });
+    }
+    
+    // Open return modal
+    if (returnOpenBtn && returnModal) {
+      returnOpenBtn.addEventListener('click', function() {
+        returnModal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      });
+    }
+    
+    // Close cancel modal
+    function closeCancelModal() {
+      if (cancelModal) {
+        cancelModal.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+    }
+    
+    // Close return modal
+    function closeReturnModal() {
+      if (returnModal) {
+        returnModal.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+    }
+    
+    if (cancelCloseBtn) {
+      cancelCloseBtn.addEventListener('click', closeCancelModal);
+    }
+    
+    if (returnCloseBtn) {
+      returnCloseBtn.addEventListener('click', closeReturnModal);
+    }
+    
+    // Close on overlay click
+    if (cancelModal) {
+      cancelModal.addEventListener('click', function(e) {
+        if (e.target === cancelModal) closeCancelModal();
+      });
+    }
+    
+    if (returnModal) {
+      returnModal.addEventListener('click', function(e) {
+        if (e.target === returnModal) closeReturnModal();
+      });
+    }
+    
+    // Close on escape
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        if (cancelModal && cancelModal.classList.contains('active')) closeCancelModal();
+        if (returnModal && returnModal.classList.contains('active')) closeReturnModal();
+      }
+    });
+    
+    // Form validation
+    if (cancelForm) {
+      cancelForm.addEventListener('submit', function(e) {
+        const selected = cancelForm.querySelector('input[name="reason"]:checked');
+        if (!selected) {
+          e.preventDefault();
+          alert('Please select a cancellation reason');
+          return false;
+        }
+      });
+    }
+    
+    if (returnForm) {
+      returnForm.addEventListener('submit', function(e) {
+        const reason = document.getElementById('returnReason').value;
+        if (!reason) {
+          e.preventDefault();
+          alert('Please select a return reason');
+          return false;
+        }
+      });
+    }
+  })();
+</script>
+
+{% endblock %}

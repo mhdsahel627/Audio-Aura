@@ -1,0 +1,1086 @@
+{% extends 'admin/admin-base.html' %}
+{% load static %}
+
+
+{% block title %}Add Product{% endblock %}
+
+
+{% block content %}
+
+
+<style>
+    .modal-backdrop {
+    position: absolute !important;
+    top: -9999999px !important;
+}
+/* ===== PRODUCT ADD PAGE STYLES (Matching Coupon Theme) ===== */
+.pa-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+
+.pa-header {
+    margin-bottom: 2rem;
+}
+
+
+.pa-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 0.5rem;
+}
+
+
+.pa-subtitle {
+    color: rgba(255,255,255,0.6);
+    font-size: 0.95rem;
+}
+
+
+/* Section Cards */
+.pa-section {
+    width: 1140px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+}
+
+
+.pa-section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #a855f7;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+
+/* Form Controls */
+.pa-label {
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+
+.pa-badge {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+
+.pa-badge-purple { background: #7c3aed; color: #fff; }
+.pa-badge-green { background: #10b981; color: #fff; }
+.pa-badge-blue { background: #3b82f6; color: #fff; }
+
+
+.pa-input {
+    background: #000 !important;
+    border: 1px solid rgba(255,255,255,0.2) !important;
+    border-radius: 8px !important;
+    color: #fff !important;
+    padding: 0.75rem 1rem !important;
+    transition: all 0.3s ease !important;
+}
+
+
+.pa-input:focus {
+    border-color: #a855f7 !important;
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2) !important;
+    outline: none !important;
+}
+
+
+.pa-input::placeholder {
+    color: rgba(255,255,255,0.4) !important;
+}
+
+
+.pa-hint {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.5);
+    margin-top: 0.35rem;
+}
+
+
+/* Drop Zone */
+.pa-dropzone {
+    border: 2px dashed rgba(168, 85, 247, 0.5);
+    border-radius: 12px;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    background: rgba(168, 85, 247, 0.05);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+
+.pa-dropzone:hover,
+.pa-dropzone.pa-highlight {
+    border-color: #a855f7;
+    background: rgba(168, 85, 247, 0.15);
+    transform: translateY(-2px);
+}
+
+
+.pa-dropzone-icon {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+}
+
+
+.pa-dropzone-text {
+    color: #fff;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+
+.pa-dropzone-hint {
+    color: rgba(255,255,255,0.5);
+    font-size: 0.85rem;
+}
+
+
+.pa-choose-btn {
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    border: none;
+    color: #fff;
+    padding: 0.5rem 1.25rem;
+    border-radius: 8px;
+    font-weight: 600;
+    margin-top: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+
+.pa-choose-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4);
+}
+
+
+/* Image Preview Grid */
+.pa-preview-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+
+.pa-img-wrapper {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    animation: pa-fade-in 0.3s ease;
+}
+
+
+@keyframes pa-fade-in {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+
+.pa-img-wrapper img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    display: block;
+}
+
+
+.pa-img-cover {
+    border: 3px solid #fbbf24;
+}
+
+
+.pa-img-remove {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    border: none;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+.pa-img-wrapper:hover .pa-img-remove {
+    opacity: 1;
+}
+
+
+/* Variant Card */
+.pa-variant {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+
+.pa-variant-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+
+.pa-variant-title {
+    font-weight: 700;
+    color: #a855f7;
+}
+
+
+.pa-variant-remove {
+    background: transparent;
+    border: 1px solid #ef4444;
+    color: #ef4444;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+
+.pa-variant-remove:hover {
+    background: #ef4444;
+    color: #fff;
+}
+
+
+/* Buttons */
+.pa-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+
+.pa-btn-primary {
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: #fff;
+}
+
+
+.pa-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(168, 85, 247, 0.4);
+}
+
+
+.pa-btn-success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #fff;
+}
+
+
+.pa-btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+}
+
+
+.pa-btn-outline {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+}
+
+
+.pa-btn-outline:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+
+.pa-btn-add {
+    background: transparent;
+    border: 1px dashed #a855f7;
+    color: #a855f7;
+    width: 100%;
+    padding: 0.75rem;
+}
+
+
+.pa-btn-add:hover {
+    background: rgba(168, 85, 247, 0.1);
+}
+
+
+/* Cropper Modal */
+.pa-modal .modal-content {
+    background: #1a1a2e;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+}
+
+
+.pa-modal .modal-header {
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding: 1.25rem 1.5rem;
+}
+
+
+.pa-modal .modal-title {
+    color: #fff;
+    font-weight: 700;
+}
+
+
+.pa-modal .modal-body {
+    padding: 1.5rem;
+}
+
+
+.pa-modal .modal-footer {
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding: 1rem 1.5rem;
+}
+
+
+.pa-modal .btn-close {
+    filter: invert(1);
+}
+
+
+/* Error Alert */
+.pa-alert {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid #ef4444;
+    color: #fca5a5;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+
+/* Validation */
+.pa-input.is-invalid {
+    border-color: #ef4444 !important;
+}
+
+
+.pa-invalid-text {
+    color: #ef4444;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+</style>
+
+
+<div class="pa-container">
+    <!-- Header -->
+    <div class="pa-header">
+        <h1 class="pa-title">Add Product</h1>
+    </div>
+
+
+    <!-- Error Alert -->
+    <div id="pa-error-alert" class="pa-alert d-none"></div>
+
+
+    <form method="POST" enctype="multipart/form-data" id="pa-form">
+        {% csrf_token %}
+
+
+        <!-- Basic Information -->
+        <div class="pa-section">
+            <h3 class="pa-section-title">Basic Information</h3>
+            
+            <div class="mb-3">
+                <label class="pa-label">Product Name</label>
+                <input type="text" name="name" class="form-control pa-input" placeholder="Enter product name" required value="{{ values.name|default:'' }}">
+                <div class="pa-hint">Only letters and numbers</div>
+            </div>
+
+            <!-- Short Description - Full Width -->
+            <div class="mb-3">
+                <label class="pa-label">Short Description</label>
+                <input type="text" name="short_desc" class="form-control pa-input" placeholder="Brief description">
+            </div>
+
+            <!-- Long Description - Full Width -->
+            <div class="mb-3">
+                <label class="pa-label">Long Description</label>
+                <textarea name="long_desc" class="form-control pa-input" rows="4" placeholder="Detailed description"></textarea>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="pa-label">Brand</label>
+                    <div class="input-group">
+                        <select name="brand" id="pa-brand" class="form-control pa-input" required>
+                            <option value="">-- Select Brand --</option>
+                            {% for b in brands %}
+                            <option value="{{ b.id }}">{{ b.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="pa-btn pa-btn-primary" data-bs-toggle="modal" data-bs-target="#pa-brand-modal">+ Add</button>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="pa-label">Category</label>
+                    <select name="category" class="form-control pa-input" required>
+                        <option value="">Select category</option>
+                        {% for c in categories %}
+                        <option value="{{ c.id }}">{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Pricing -->
+        <div class="pa-section">
+        <h3 class="pa-section-title">Pricing</h3>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+            <label class="pa-label">
+                Base Price (₹) <span class="pa-badge pa-badge-purple">Required</span>
+            </label>
+            <input type="number" step="0.01" name="base_price"
+                    class="form-control pa-input" placeholder="0.00" required>
+            <div class="pa-hint">Original selling price</div>
+            </div>
+
+            <div class="col-md-4 mb-3">
+            <label class="pa-label">
+                Discount Price (₹) <span class="pa-badge pa-badge-green">Optional</span>
+            </label>
+            <input type="number" step="0.01" name="discount_price"
+                    class="form-control pa-input" placeholder="0.00">
+            <div class="pa-hint">Leave 0 for no discount</div>
+            </div>
+
+            <!-- NEW: Offer badge (required) -->
+            <div class="col-md-4 mb-3">
+            <label class="pa-label">
+                Offer Badge <span class="pa-badge pa-badge-purple">Required</span>
+            </label>
+            <input type="text" name="offer" class="form-control pa-input"
+                    placeholder="e.g., 25W Signature Sound" required>
+            <div class="pa-hint">
+                Short highlight shown as a badge on product cards (e.g., “12 Hours Playback”).
+            </div>
+            </div>
+        </div>
+        </div>
+
+
+
+
+        <!-- Product Images -->
+        <div class="pa-section">
+            <h3 class="pa-section-title">Product Images</h3>
+            <div class="pa-dropzone" id="pa-product-drop">
+                <div class="pa-dropzone-icon">
+                    <svg width="28" height="28" fill="#fff" viewBox="0 0 24 24">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                    </svg>
+                </div>
+                <p class="pa-dropzone-text">Drag & Drop Images Here</p>
+                <p class="pa-dropzone-hint">or click to browse (1-15 images, max 10MB each)</p>
+                <input type="file" name="product_images" id="pa-product-input" multiple accept="image/*" style="display:none;">
+                <button type="button" class="pa-choose-btn" id="pa-product-btn">Choose Images</button>
+            </div>
+            <div class="pa-preview-grid" id="pa-product-preview"></div>
+        </div>
+
+
+        <!-- Detailed Images -->
+        <div class="pa-section">
+            <h3 class="pa-section-title">Detailed Images <span class="pa-badge pa-badge-green">Optional</span></h3>
+            <input type="file" name="detailed_images" id="pa-detailed-input" multiple accept="image/*" class="form-control pa-input">
+            <div class="pa-hint">Additional product images for gallery</div>
+            <div class="pa-preview-grid" id="pa-detailed-preview"></div>
+        </div>
+
+
+        <!-- Variants -->
+        <div class="pa-section">
+            <h3 class="pa-section-title">Variants & Stock</h3>
+            <div id="pa-variants-root"></div>
+            <button type="button" class="pa-btn pa-btn-add" id="pa-add-variant">➕ Add Variant</button>
+        </div>
+
+
+        <!-- Actions -->
+        <div class="d-flex justify-content-end gap-3 mt-4">
+            <button type="reset" class="pa-btn pa-btn-outline">Cancel</button>
+            <button type="submit" class="pa-btn pa-btn-success">💾 Save Product</button>
+        </div>
+    </form>
+</div>
+
+
+<!-- Brand Modal -->
+<div class="modal fade pa-modal" id="pa-brand-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Brand</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="pa-brand-form">
+                <div class="modal-body">
+                    <input type="text" id="pa-brand-name" class="form-control pa-input" placeholder="Brand name" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="pa-btn pa-btn-primary">Save Brand</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- Cropper Modal -->
+<div class="modal fade pa-modal" id="pa-cropper-modal" data-bs-backdrop="static" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">✂️ Crop Image</h5>
+            </div>
+            <div class="modal-body text-center">
+                <img id="pa-cropper-img" style="max-width:100%; max-height:60vh;">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="pa-btn pa-btn-outline" id="pa-crop-skip">Skip</button>
+                <button type="button" class="btn btn-danger" id="pa-crop-cancel">Cancel</button>
+                <button type="button" class="pa-btn pa-btn-primary" id="pa-crop-save">💾 Save Crop</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // ===== CONFIGURATION =====
+    const MAX_PRODUCT_IMGS = 15;
+    const MAX_VARIANT_IMGS = 15;
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    
+    let variantIdx = 0;
+    const productStore = new DataTransfer();
+    const variantStores = {};
+    
+    // Cropper state (FIXED)
+    let cropper = null;
+    let currentCrop = null;
+    let cropQueue = [];
+
+
+    // ===== HELPERS =====
+    function showError(msg) {
+        const alert = document.getElementById("pa-error-alert");
+        alert.textContent = msg;
+        alert.classList.remove("d-none");
+        setTimeout(() => alert.classList.add("d-none"), 4000);
+    }
+
+
+    function getCsrf() {
+        return document.querySelector('[name="csrfmiddlewaretoken"]').value;
+    }
+
+
+    // ===== PRODUCT IMAGES =====
+    const productDrop = document.getElementById("pa-product-drop");
+    const productInput = document.getElementById("pa-product-input");
+    const productBtn = document.getElementById("pa-product-btn");
+    const productPreview = document.getElementById("pa-product-preview");
+
+
+    productBtn.addEventListener("click", () => productInput.click());
+    productDrop.addEventListener("click", (e) => {
+        if (e.target === productDrop || e.target.closest(".pa-dropzone-icon") || 
+            e.target.classList.contains("pa-dropzone-text") || 
+            e.target.classList.contains("pa-dropzone-hint")) {
+            productInput.click();
+        }
+    });
+
+
+    ["dragenter", "dragover"].forEach(ev => 
+        productDrop.addEventListener(ev, e => {
+            e.preventDefault();
+            productDrop.classList.add("pa-highlight");
+        })
+    );
+
+
+    ["dragleave", "drop"].forEach(ev =>
+        productDrop.addEventListener(ev, e => {
+            e.preventDefault();
+            productDrop.classList.remove("pa-highlight");
+        })
+    );
+
+
+    productDrop.addEventListener("drop", e => handleProductFiles(e.dataTransfer.files));
+    productInput.addEventListener("change", () => {
+        handleProductFiles(productInput.files);
+        productInput.value = ""; // Reset to allow re-selecting same file
+    });
+
+
+    function handleProductFiles(files) {
+        if (!files || files.length === 0) return;
+        [...files].forEach(f => {
+            if (!f.type.startsWith("image/")) return showError("Only images allowed");
+            if (f.size > MAX_FILE_SIZE) return showError("Max 10MB per image");
+            if (productStore.files.length >= MAX_PRODUCT_IMGS) return showError(`Max ${MAX_PRODUCT_IMGS} images`);
+            queueCrop(f, "product", null);
+        });
+    }
+
+
+    // ===== CROPPER QUEUE (FIXED) =====
+    function queueCrop(file, type, variantIndex) {
+        cropQueue.push({ file, type, variantIndex });
+        if (!currentCrop) processNextCrop();
+    }
+
+
+    function processNextCrop() {
+        if (cropQueue.length === 0) {
+            currentCrop = null;
+            return;
+        }
+        
+        currentCrop = cropQueue.shift();
+        const { file } = currentCrop;
+        
+        const reader = new FileReader();
+        reader.onload = e => {
+            const img = document.getElementById("pa-cropper-img");
+            img.src = e.target.result;
+            
+            const modalEl = document.getElementById("pa-cropper-modal");
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+            
+            modalEl.addEventListener('shown.bs.modal', function initCropper() {
+                if (cropper) cropper.destroy();
+                cropper = new Cropper(img, {
+                    aspectRatio: 1,
+                    viewMode: 1,
+                    autoCropArea: 1
+                });
+                modalEl.removeEventListener('shown.bs.modal', initCropper);
+            }, { once: true });
+        };
+        reader.readAsDataURL(file);
+    }
+
+
+function closeCropperModal() {
+    if (cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
+    
+    const modalEl = document.getElementById("pa-cropper-modal");
+    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+    
+    if (modalInstance) {
+        modalInstance.hide();
+    }
+    
+    // Force cleanup after modal hides
+    setTimeout(() => {
+        // Remove any stuck backdrops
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        
+        // Reset body styles
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        
+        // Process next crop
+        processNextCrop();
+    }, 300);
+}
+
+
+
+    // Skip crop
+    document.getElementById("pa-crop-skip").addEventListener("click", () => {
+        if (!currentCrop) return;
+        const { file, type, variantIndex } = currentCrop;
+        
+        if (type === "product") {
+            addProductImage(file);
+        } else {
+            addVariantImage(file, variantIndex);
+        }
+        
+        currentCrop = null;
+        closeCropperModal();
+    });
+
+
+    // Cancel crop
+    document.getElementById("pa-crop-cancel").addEventListener("click", () => {
+        currentCrop = null;
+        closeCropperModal();
+    });
+
+
+    // Save crop
+    document.getElementById("pa-crop-save").addEventListener("click", () => {
+        if (!cropper || !currentCrop) return;
+        const { type, variantIndex } = currentCrop;
+        
+        cropper.getCroppedCanvas({ width: 800, height: 800 }).toBlob(blob => {
+            const newFile = new File([blob], `crop_${Date.now()}.jpg`, { type: "image/jpeg" });
+            
+            if (type === "product") {
+                addProductImage(newFile);
+            } else {
+                addVariantImage(newFile, variantIndex);
+            }
+            
+            currentCrop = null;
+            closeCropperModal();
+        }, "image/jpeg", 0.9);
+    });
+
+
+    function addProductImage(file) {
+        if (productStore.files.length >= MAX_PRODUCT_IMGS) return showError(`Max ${MAX_PRODUCT_IMGS} images`);
+        
+        productStore.items.add(file);
+        productInput.files = productStore.files;
+        
+        const wrapper = document.createElement("div");
+        wrapper.className = "pa-img-wrapper";
+        if (productPreview.children.length === 0) wrapper.classList.add("pa-img-cover");
+        
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(file);
+        
+        const btn = document.createElement("button");
+        btn.className = "pa-img-remove";
+        btn.innerHTML = "×";
+        btn.type = "button";
+        btn.addEventListener("click", () => {
+            const idx = [...productPreview.children].indexOf(wrapper);
+            const dt = new DataTransfer();
+            [...productStore.files].forEach((f, i) => { if (i !== idx) dt.items.add(f); });
+            productStore.items.clear();
+            [...dt.files].forEach(f => productStore.items.add(f));
+            productInput.files = productStore.files;
+            URL.revokeObjectURL(img.src);
+            wrapper.remove();
+        });
+        
+        wrapper.appendChild(img);
+        wrapper.appendChild(btn);
+        productPreview.appendChild(wrapper);
+    }
+
+
+    // ===== VARIANTS =====
+    function createVariant(idx) {
+        const card = document.createElement("div");
+        card.className = "pa-variant";
+        card.dataset.idx = idx;
+        card.innerHTML = `
+            <div class="pa-variant-header">
+                <span class="pa-variant-title">Variant #${idx + 1}</span>
+                <button type="button" class="pa-variant-remove">Remove</button>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="pa-label">Color</label>
+                    <input type="text" name="color[]" class="form-control pa-input" placeholder="e.g., Black">
+                </div>
+                <div class="col-md-6">
+                    <label class="pa-label">Stock Quantity</label>
+                    <input type="number" name="stock[]" class="form-control pa-input" placeholder="0" min="0">
+                </div>
+            </div>
+            <div class="pa-dropzone pa-variant-drop" data-variant="${idx}" style="padding: 1.5rem;">
+                <p class="pa-dropzone-text" style="font-size: 0.9rem;">Drop variant images or click</p>
+                <input type="file" name="variant_images_${idx}" multiple accept="image/*" style="display:none;">
+            </div>
+            <div class="pa-preview-grid pa-variant-preview" data-preview="${idx}"></div>
+        `;
+        
+        document.getElementById("pa-variants-root").appendChild(card);
+        variantStores[idx] = new DataTransfer();
+        
+        const drop = card.querySelector(".pa-variant-drop");
+        const input = card.querySelector("input[type='file']");
+        const preview = card.querySelector(".pa-variant-preview");
+        
+        drop.addEventListener("click", () => input.click());
+        ["dragenter", "dragover"].forEach(ev => 
+            drop.addEventListener(ev, e => {
+                e.preventDefault();
+                drop.classList.add("pa-highlight");
+            })
+        );
+        ["dragleave", "drop"].forEach(ev =>
+            drop.addEventListener(ev, e => {
+                e.preventDefault();
+                drop.classList.remove("pa-highlight");
+            })
+        );
+        
+        drop.addEventListener("drop", e => handleVariantFiles(idx, e.dataTransfer.files));
+        input.addEventListener("change", () => {
+            handleVariantFiles(idx, input.files);
+            input.value = "";
+        });
+        
+        card.querySelector(".pa-variant-remove").addEventListener("click", () => {
+            delete variantStores[idx];
+            card.remove();
+        });
+    }
+
+
+    function handleVariantFiles(idx, files) {
+        if (!files || files.length === 0) return;
+        [...files].forEach(f => {
+            if (!f.type.startsWith("image/")) return showError("Only images");
+            if (f.size > MAX_FILE_SIZE) return showError("Max 10MB");
+            if (variantStores[idx].files.length >= MAX_VARIANT_IMGS) return showError(`Max ${MAX_VARIANT_IMGS} variant images`);
+            queueCrop(f, "variant", idx);
+        });
+    }
+
+
+    function addVariantImage(file, idx) {
+        const store = variantStores[idx];
+        if (!store || store.files.length >= MAX_VARIANT_IMGS) return;
+        
+        store.items.add(file);
+        const card = document.querySelector(`[data-idx="${idx}"]`);
+        const input = card.querySelector("input[type='file']");
+        const preview = card.querySelector(".pa-variant-preview");
+        
+        input.files = store.files;
+        
+        const wrapper = document.createElement("div");
+        wrapper.className = "pa-img-wrapper";
+        
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(file);
+        
+        const btn = document.createElement("button");
+        btn.className = "pa-img-remove";
+        btn.innerHTML = "×";
+        btn.type = "button";
+        btn.addEventListener("click", () => {
+            const imgIdx = [...preview.children].indexOf(wrapper);
+            const dt = new DataTransfer();
+            [...store.files].forEach((f, i) => { if (i !== imgIdx) dt.items.add(f); });
+            store.items.clear();
+            [...dt.files].forEach(f => store.items.add(f));
+            input.files = store.files;
+            variantStores[idx] = store;
+            URL.revokeObjectURL(img.src);
+            wrapper.remove();
+        });
+        
+        wrapper.appendChild(img);
+        wrapper.appendChild(btn);
+        preview.appendChild(wrapper);
+    }
+
+
+    // Init first variant
+    createVariant(variantIdx++);
+    document.getElementById("pa-add-variant").addEventListener("click", () => createVariant(variantIdx++));
+
+
+    // ===== DETAILED IMAGES =====
+    const detailedInput = document.getElementById("pa-detailed-input");
+    const detailedPreview = document.getElementById("pa-detailed-preview");
+
+
+    detailedInput.addEventListener("change", () => {
+        detailedPreview.innerHTML = "";
+        const dt = new DataTransfer();
+        
+        [...detailedInput.files].forEach((file, idx) => {
+            if (!file.type.startsWith("image/")) return;
+            if (file.size > MAX_FILE_SIZE) return;
+            dt.items.add(file);
+            
+            const wrapper = document.createElement("div");
+            wrapper.className = "pa-img-wrapper";
+            
+            const img = document.createElement("img");
+            img.src = URL.createObjectURL(file);
+            
+            const btn = document.createElement("button");
+            btn.className = "pa-img-remove";
+            btn.innerHTML = "×";
+            btn.type = "button";
+            btn.style.opacity = "1";
+            btn.addEventListener("click", () => {
+                URL.revokeObjectURL(img.src);
+                wrapper.remove();
+            });
+            
+            wrapper.appendChild(img);
+            wrapper.appendChild(btn);
+            detailedPreview.appendChild(wrapper);
+        });
+        
+        detailedInput.files = dt.files;
+    });
+
+
+    // ===== BRAND AJAX =====
+    document.getElementById("pa-brand-form").addEventListener("submit", function(e) {
+        e.preventDefault();
+        const name = document.getElementById("pa-brand-name").value.trim();
+        if (!name) return showError("Brand name required");
+        
+        fetch("{% url 'add_brand_ajax' %}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": getCsrf() },
+            body: JSON.stringify({ name })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const select = document.getElementById("pa-brand");
+                select.appendChild(new Option(data.name, data.id, true, true));
+                
+                const brandModal = document.getElementById("pa-brand-modal");
+                const modalInstance = bootstrap.Modal.getInstance(brandModal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+                
+                // Force cleanup
+                setTimeout(() => {
+                    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                }, 300);
+                
+                this.reset();
+            } else {
+                showError(data.message || "Failed");
+            }
+        })
+        .catch(() => showError("Network error"));
+    });
+
+
+    // ===== FORM VALIDATION =====
+    document.getElementById("pa-form").addEventListener("submit", function(e) {
+        // Reindex variant inputs
+        document.querySelectorAll(".pa-variant").forEach((card, idx) => {
+            const input = card.querySelector("input[type='file']");
+            if (input) input.name = `variant_images_${idx}`;
+        });
+        
+        if (productStore.files.length < 1) {
+            e.preventDefault();
+            showError("At least 1 product image required");
+            return false;
+        }
+    });
+
+
+    // ===== FORM RESET =====
+    document.querySelector('button[type="reset"]').addEventListener("click", () => {
+        productStore.items.clear();
+        productInput.files = productStore.files;
+        productPreview.innerHTML = "";
+        detailedPreview.innerHTML = "";
+        Object.keys(variantStores).forEach(k => {
+            variantStores[k].items.clear();
+            delete variantStores[k];
+        });
+        document.getElementById("pa-variants-root").innerHTML = "";
+        variantIdx = 0;
+        createVariant(variantIdx++);
+    });
+});
+</script>
+
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% if messages %}
+{% for m in messages %}
+{% if m.tags == 'success' %}
+<script>
+Swal.fire({
+    icon: 'success',
+    title: 'Product Added! 🎉',
+    text: '{{ m|escapejs }}',
+    confirmButtonText: 'View Products',
+    confirmButtonColor: '#7c3aed'
+}).then(() => window.location.href = "{{ redirect_url }}");
+</script>
+{% endif %}
+{% endfor %}
+{% endif %}
+
+<style>
+    body::before {
+    z-index: 0 !important;
+}
+
+.modal-backdrop.show {
+    z-index: 1050 !important;
+}
+
+.modal.show {
+    z-index: 1060 !important;
+}
+
+.offcanvas {
+    z-index: 1080 !important;
+}
+
+</style>
+{% endblock %}

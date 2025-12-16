@@ -1,0 +1,153 @@
+{% extends "user/base.html" %}
+{% load static %}
+{% block title %}Add Address{% endblock %}
+{% block content %}
+<style>
+  .shell{max-width:1240px;margin:0 auto;padding:0 16px}
+  .grid{display:grid;grid-template-columns:360px 1fr;gap:28px;align-items:start}
+  @media(max-width:1100px){.grid{grid-template-columns:1fr}}
+
+  /* page frame */
+  .frame{
+    background:#fff;border:2px solid #E5E7EB;border-radius:24px;
+    box-shadow:0 12px 36px rgba(0,0,0,.20);padding:18px 18px 26px;
+  }
+  .title{font-weight:900;text-align:center;font-size:26px;margin:6px 0 16px}
+
+  /* add tiles */
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media(max-width:900px){.tiles{grid-template-columns:1fr}}
+  .tile{
+    background:#fff;border:2px dashed #E5E7EB;border-radius:18px;
+    box-shadow:0 8px 22px rgba(0,0,0,.10);
+    min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  }
+  .plus{width:46px;height:46px;border-radius:999px;border:1px solid #111;display:flex;align-items:center;justify-content:center;font-size:22px}
+  .hint{color:#2a2f36}
+  .btn{height:36px;padding:0 16px;border-radius:10px;border:1px solid #111;background:#111;color:#fff;font-weight:900}
+
+  /* slide-in form drawer */
+  .drawer{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:50}
+  .drawer.is-open{display:flex}
+  .card{
+    width:640px;max-width:95%;background:#fff;border:2px solid #E5E7EB;border-radius:18px;
+    box-shadow:0 16px 40px rgba(0,0,0,.25);padding:18px 16px;
+  }
+  .card h3{margin:0 0 10px;font-size:20px;font-weight:900}
+  .form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:700px){.form{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .label{font-size:13px;color:#6b7280}
+  .input,.select,.textarea{
+    height:42px;border:1px solid #E1E7EE;border-radius:10px;background:#fff;padding:0 12px
+  }
+  .textarea{height:90px;padding:10px 12px;resize:vertical}
+  .row{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+  .ghost{background:#fff;color:#111}
+  .ok{background:#111;color:#fff}
+</style>
+
+<section style="padding:30px 0 54px;background:radial-gradient(1200px 700px at 15% -10%, rgba(255,255,255,.06), transparent),linear-gradient(180deg,#16031f,#2a0830)">
+  <div class="shell">
+    <div style="color:#fff;opacity:.85;margin-bottom:10px">Profile › Delivery Address</div>
+
+    <div class="grid">
+      {% include "user/sidebar.html" with active_tab="addresses" %}
+
+      <div class="frame">
+        <div class="title">Delivery Address</div>
+
+        <div class="tiles">
+          <!-- Tile 1 -->
+          <div class="tile">
+            <div class="plus">+</div>
+            <div class="hint">Add new Address</div>
+            <button class="btn" onclick="openDrawer()">Add</button>
+          </div>
+
+          <!-- Tile 2 (duplicate to match design) -->
+          <div class="tile">
+            <div class="plus">+</div>
+            <div class="hint">Add new Address</div>
+            <button class="btn" onclick="openDrawer()">Add</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drawer form -->
+  <div id="addrDrawer" class="drawer" aria-hidden="true">
+    <div class="card">
+      <h3>Add New Address</h3>
+
+      <form method="post" action="{% url 'address_create' %}">
+        {% csrf_token %}
+        <div class="form">
+          <div class="field">
+            <label class="label">Full Name</label>
+            <input class="input" name="full_name" required>
+          </div>
+          <div class="field">
+            <label class="label">Phone</label>
+            <input class="input" name="phone" required>
+          </div>
+
+          <div class="field">
+            <label class="label">Address line 1</label>
+            <input class="input" name="address_line1" required>
+          </div>
+          <div class="field">
+            <label class="label">Address line 2</label>
+            <input class="input" name="address_line2">
+          </div>
+
+          <div class="field">
+            <label class="label">City</label>
+            <input class="input" name="city" required>
+          </div>
+          <div class="field">
+            <label class="label">State</label>
+            <input class="input" name="state" required>
+          </div>
+
+          <div class="field">
+            <label class="label">Postcode</label>
+            <input class="input" name="postcode" required>
+          </div>
+          <div class="field">
+            <label class="label">Country</label>
+            <select class="select" name="country" required>
+              <option value="">Select country</option>
+              <option>India</option>
+              <option>United States</option>
+              <option>United Kingdom</option>
+            </select>
+          </div>
+
+          <div class="field" style="grid-column:1/-1">
+            <label class="label">Additional notes</label>
+            <textarea class="textarea" name="notes" placeholder="Landmark, directions, etc."></textarea>
+          </div>
+
+          <div class="field" style="grid-column:1/-1">
+            <label style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" name="is_default"> Set as default address
+            </label>
+          </div>
+        </div>
+
+        <div class="row">
+          <button type="button" class="btn ghost" onclick="closeDrawer()">Cancel</button>
+          <button type="submit" class="btn ok">Save Address</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script>
+  function openDrawer(){ document.getElementById('addrDrawer').classList.add('is-open'); }
+  function closeDrawer(){ document.getElementById('addrDrawer').classList.remove('is-open'); }
+</script>
+{% endblock %}

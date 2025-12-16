@@ -1,0 +1,141 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Aura - Login</title>
+
+  <!-- Bootstrap & Fonts -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Poppins", sans-serif; }
+    body { background: linear-gradient(90deg, #450623, #130325); color: white; min-height: 100vh; display: flex; justify-content: center; align-items: center; }
+
+    /* Container */
+    .container { width: 90%; max-width: 1200px; border-radius: 10px; overflow: hidden; }
+    .divider { display: flex; align-items: center; text-align: center; margin: 20px 0; color: #bbb; }
+    .divider::before, .divider::after { content: ""; flex: 1; border-bottom: 1px solid #444; }
+    .divider:not(:empty)::before { margin-right: .75em; }
+    .divider:not(:empty)::after { margin-left: .75em; }
+
+    /* Form Inputs */
+    .form-control { background: transparent; border: none; border-bottom: 1px solid #777; border-radius: 0; color: #fff; font-size: 15px; padding-left: 0; padding-right: 0; box-shadow: none !important; transition: border-color 0.3s ease; }
+    .form-control::placeholder { color: #bbb; font-size: 14px; }
+    .form-control:focus { border-bottom: 1px solid #6a5acd; background: transparent; color: #fff; box-shadow: none; }
+
+    /* Buttons */
+    .btn-dark { background: black; border: none; padding: 12px; border-radius: 5px; font-weight: 500; }
+    .google-btn { background: #fff; color: #000; border: 1px solid #ddd; padding: 14px; border-radius: 8px; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 16px; transition: all 0.3s ease; box-shadow: 0 3px 6px rgba(0,0,0,0.1); }
+    .google-btn:hover { background: #3f3c3c; border-color: #ccc; transform: translateY(-2px); box-shadow: 0 5px 12px rgba(0,0,0,0.2); }
+    .google-btn img { width: 20px; height: 20px; }
+
+    a { text-decoration: none; }
+    .text-muted { color: #aaa !important; }
+
+    /* Password toggle */
+    #togglePassword { cursor: pointer; }
+
+    /* Dynamic Island Notifications */
+    #dynamic-island {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 2000; display: flex; flex-direction: column; align-items: center; gap: 10px;
+    }
+
+    .island-toast {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: rgba(0,0,0,0.85); color: #fff;
+      padding: 12px 25px; border-radius: 50px;
+      font-weight: 500; font-size: 14px; box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+      opacity: 1;  /* appear instantly */
+      transform: scale(1); /* no pop-in */
+      transition: opacity 1.5s ease, transform 1.5s ease;
+    }
+
+    .island-toast.success { background: rgba(0,0,0,0.85); }
+    .island-toast.error { background: rgba(255,0,0,0.85); }
+    .island-toast.info { background: rgba(100,100,100,0.85); }
+
+    .island-toast .icon { font-size: 16px; transform: scale(0.7); }
+    
+  </style>
+</head>
+<body>
+
+<!-- Dynamic Island Notification Container -->
+<div id="dynamic-island">
+  {% if messages %}
+    {% for message in messages %}
+      <div class="island-toast {{ message.tags|default:'info' }}">
+        <span class="icon">
+          {% if message.tags == 'success' %}✔️{% elif message.tags == 'error' %}❌{% else %}ℹ️{% endif %}
+        </span>
+        <span class="msg-text">{{ message }}</span>
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+
+<!-- Login Form -->
+<div class="container p-0 my-5 rounded shadow-lg overflow-hidden">
+  <div class="row g-0">
+    <div class="col-md-6 d-none d-md-block">
+      <img src="{% static 'images/kv.jpg' %}" alt="Audio Aura Banner" class="img-fluid h-100 w-100" style="object-fit: cover;">
+    </div>
+    <div class="col-md-6 p-5 d-flex flex-column justify-content-center">
+      <div class="text-center mb-4">
+        <img src="{% static 'images/logo.png' %}" alt="Audio Aura Logo" style="width: 120px;">
+      </div>
+      
+
+      <form method="POST">
+        {% csrf_token %}
+        <input type="text" name="username" class="form-control mb-1 {% if errors.username_error or errors.login_error %}is-invalid{% endif %}" placeholder="Username" value="{{ request_post.username|default:'' }}">
+        {% if errors.username_error %}<div class="text-danger small mb-2">{{ errors.username_error }}</div>{% endif %}
+
+        <div class="input-group mb-1">
+          <input type="password" name="password" id="passwordInput" class="form-control {% if errors.password_error or errors.login_error %}is-invalid{% endif %}" placeholder="Password">
+          <button type="button" class="btn btn-outline-secondary" id="togglePassword">👁️</button>
+        </div>
+        {% if errors.password_error %}<div class="text-danger small mb-2">{{ errors.password_error }}</div>{% endif %}
+        {% if errors.login_error %}<div class="text-danger small mb-2">{{ errors.login_error }}</div>{% endif %}
+
+        <div class="d-grid mt-3">
+          <button type="submit" class="btn btn-outline-primary">Sign In</button>
+        </div>
+      </form>
+
+      <p class="text-center text-muted mt-4 mb-0" style="font-size: 12px;">AUDIO AURA Terms & Conditions</p>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  // Password toggle
+  const togglePassword = document.getElementById('togglePassword');
+  const passwordInput = document.getElementById('passwordInput');
+  togglePassword.addEventListener('click', function () {
+    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+    passwordInput.setAttribute('type', type);
+    this.textContent = type === 'password' ? '👁️' : '🙈';
+  });
+
+  // Auto-hide notifications after 10 seconds
+  document.addEventListener('DOMContentLoaded', function() {
+    const toasts = document.querySelectorAll('.island-toast');
+    toasts.forEach(t => {
+      setTimeout(() => {
+        t.style.opacity = 0;
+        t.style.transform = 'scale(0.5) translateY(-20px)';
+        setTimeout(() => t.remove(), 1500);
+      }, 10000); // 10s stay
+    });
+  });
+</script>
+</body>
+</html>

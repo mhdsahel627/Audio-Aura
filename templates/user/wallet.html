@@ -1,0 +1,230 @@
+{% extends "user/base.html" %}
+{% load static %}
+{% block title %}My Wallet{% endblock %}
+{% block content %}
+<style>
+  .shell{max-width:1240px;margin:0 auto;padding:0 16px}
+  .grid{display:grid;grid-template-columns:360px 1fr;gap:28px;align-items:start;margin: 50px -86px 0px -98px;}
+  @media(max-width:1100px){.grid{grid-template-columns:1fr}}
+
+  /* Wallet panels (fit your grid) */
+  .panel-blank{background:transparent;border:0;padding:0;min-height:0}
+  .wallet-hero{background:#0b0b0c;color:#fff;border-radius:26px;padding:28px 28px 18px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px}
+  .w-label{font-size:32px;opacity:.85;letter-spacing:.3px}
+  .w-amount{font-size:64px;font-weight:400;margin:12px 0 0;font-family: sans-serif;}
+  .w-art{max-width:420px;width:48%;min-width:260px}
+  .wallet-cta{margin:16px 0 22px}
+  .wallet-cta .btn{width:100%;height:44px;border-radius:10px;border:0;background:#111;color:#fff;font-weight:800 ;border: 1px solid #4c4c4c;}
+
+  .tx-card{background:#fff;border:1px solid #edf0f2;border-radius:22px;box-shadow:0 14px 32px rgba(16,24,40,.08)}
+  .tx-head{padding:22px 24px 8px;font-weight:900;font-size:22px}
+  .tx-table{width:100%;border-collapse:separate;border-spacing:0 12px;padding:0 14px 16px}
+  .tx-table thead th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#ffffff;text-align:left;padding:0 16px}
+  .tx-row{background:#fafafa}
+  .tx-row td{padding:14px 16px;}
+  .tx-id{font-family:ui-monospace,Menlo,monospace;border-bottom: 1px solid #e5e7eb;}
+  .tx-amt{font-weight:800;text-align:right;border-bottom: 1px solid #e5e7eb;}
+  .credit{color:#10b981}
+  .debit{color:#ef4444}
+  .badge{padding:8px 12px;border-radius:999px;font-size:12px;font-weight:800;display:inline-block}
+  .badge.credit{background:#97debe;color:#047857 ;padding: 5px 5px 5px 5px;}
+  .badge.debit{background:#feeceb;color:#b91c1c}
+  .muted{color:#6b7280;border-bottom: 1px solid #e5e7eb;}
+  .pagination{display:flex;gap:10px;justify-content:flex-end;padding:0 16px 18px}
+  .page-btn{border:1px solid #e5e7eb;border-radius:10px;padding:6px 12px;background:#fff}
+
+  /* Mobile: keep your grid behavior */
+  @media(max-width:900px){
+    .wallet-hero{flex-direction:column;align-items:flex-start}
+    .w-art{width:100%;max-width:100%}
+    .tx-table thead{display:none}
+    .tx-table, .tx-table tbody, .tx-table tr, .tx-table td{display:block;width:100%}
+    .tx-row{margin-bottom:12px}
+    .tx-row td{display:flex;justify-content:space-between}
+    .tx-row td::before{content:attr(data-label);font-weight:700;color:#6b7280}
+  }
+  .thead{
+    background: #000000;
+    color: white;
+    height: 40px;
+  }
+
+  .tbody{
+    background: green;
+  }
+</style>
+
+<section style="padding:30px 0 54px;background:radial-gradient(1200px 700px at 15% -10%, rgba(255,255,255,.06), transparent),linear-gradient(180deg,#16031f,#2a0830)">
+  <div class="shell">
+    <div class="grid">
+      {% include "user/sidebar.html" with active_tab="wallet" %}
+
+      <div class="panel-blank">
+        <h4 style="color: white;">Wallet</h4>
+        <!-- Hero -->
+        <div class="wallet-hero">
+          <div>
+            <div class="w-label">Available balance</div>
+            <div class="w-amount">₹{{ wallet.balance|default:0|floatformat:0 }}</div>
+          </div>
+          <img class="w-art" src="https://res.cloudinary.com/dxndvadjt/image/upload/v1765252991/e-wallet_efrgvh.png" alt="Wallet">
+        </div>
+
+        <!-- Add Money bar -->
+      <div class="wallet-cta">
+        <button class="btn" type="button" id="open-topup">ADD Money</button>
+      </div>
+
+        <!-- Transactions -->
+        <div class="tx-card">
+          <div class="tx-head">Transaction History</div>
+          {% if page_obj.object_list %}
+          <table class="tx-table">
+            <thead class="thead">
+              <tr>
+                <th>Transaction ID</th>
+                <th>Date</th>
+                <th style="text-align:right">Amount</th>
+                <th>Description</th>
+                <th style="text-align:right">Type</th>
+              </tr>
+            </thead>
+            <tbody >
+              {% for tx in page_obj.object_list %}
+              <tr class="tx-row">
+                <td class="tx-id" data-label="Transaction ID">TXN-{{ tx.transaction_id|default:tx.reference }}</td>
+                <td class="muted" data-label="Date">{{ tx.created_at|date:"d M Y" }}</td>
+                <td class="tx-amt {% if tx.kind == 'CREDIT' or tx.is_credit %}credit{% else %}debit{% endif %}" data-label="Amount">
+                  {% if tx.kind == "CREDIT" or tx.is_credit %}+{% else %}-{% endif %}₹{{ tx.amount|floatformat:2 }}
+                </td>
+                <td style="border-bottom: 1px solid #e5e7eb;" data-label="Description">{{ tx.description|default:"—" }}</td>
+                <td style="text-align:right;border-bottom: 1px solid #e5e7eb;" data-label="Type">
+                  <span class="badge {% if tx.kind == 'CREDIT' or tx.is_credit %}credit{% else %}debit{% endif %}">
+                    {% if tx.kind == "CREDIT" or tx.is_credit %}CREDITED{% else %}DEBITED{% endif %}
+                  </span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+
+          <div class="pagination">
+            {% if page_obj.has_previous %}
+              <a class="page-btn" href="?page={{ page_obj.previous_page_number }}">Prev</a>
+            {% endif %}
+            <span class="muted" style="align-self:center">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+              <a class="page-btn" href="?page={{ page_obj.next_page_number }}">Next</a>
+            {% endif %}
+          </div>
+          {% else %}
+            <div style="padding:22px 18px;color:#6b7280">No transactions yet.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+<!-- Modal -->
+<div id="topup-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:9999;">
+  <div style="background:#fff;border-radius:16px;padding:22px 22px;max-width:520px;width:92%;">
+    <h3 style="margin:0 0 10px;">Add Money to Wallet</h3>
+    <label style="font-weight:800;">Enter Amount</label>
+    <input id="topup-amount" type="number" min="10" step="1" placeholder="Enter Amount" class="form-control" style="margin:8px 0 10px;">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+      <button class="page-btn quick" data-v="50">₹50</button>
+      <button class="page-btn quick" data-v="500">₹500</button>
+      <button class="page-btn quick" data-v="1000">₹1000</button>
+      <button class="page-btn quick" data-v="2000">₹2000</button>
+      <button class="page-btn quick" data-v="5000">₹5000</button>
+      <button class="page-btn quick" data-v="10000">₹10000</button>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button id="cancel-topup" class="page-btn">Cancel</button>
+      <button id="continue-topup" class="btn" style="background: black;color: white;border-radius: 10px;" >Continue</button>
+    </div>
+  </div>
+</div>
+
+
+</section>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+(function(){
+  const modal = document.getElementById('topup-modal');
+  const openBtn = document.getElementById('open-topup');
+  const cancelBtn = document.getElementById('cancel-topup');
+  const contBtn = document.getElementById('continue-topup');
+  const amountInput = document.getElementById('topup-amount');
+
+  openBtn?.addEventListener('click', ()=> { modal.style.display='flex'; });
+  cancelBtn?.addEventListener('click', ()=> { modal.style.display='none'; });
+
+  document.querySelectorAll('.quick').forEach(b=>{
+    b.addEventListener('click', ()=> { amountInput.value = b.dataset.v; });
+  });
+
+  async function post(url, data){
+    const csrf = getCookie('csrftoken');
+    const res = await fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRFToken': csrf},
+      body: new URLSearchParams(data)
+    });
+    if(!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+  function getCookie(name) {
+    const match = document.cookie.match(new RegExp('(^| )'+name+'=([^;]+)'));
+    if (match) return match[2];
+  }
+
+  contBtn?.addEventListener('click', async ()=>{
+    const amt = parseInt(amountInput.value || '0', 10);
+    if(isNaN(amt) || amt < 10){ alert('Enter at least ₹10'); return; }
+
+    try{
+      // 1) create order on server
+      const order = await post("{% url 'wallet_create_order' %}", {amount: amt});
+
+      // 2) open Razorpay modal
+      const options = {
+        key: order.key,
+        amount: order.amount,
+        currency: "INR",
+        name: order.name,
+        order_id: order.order_id,
+        prefill: order.prefill || {},
+        theme: { color: "#6b7280" },
+        handler: async function (response) {
+          try{
+            // 3) verify on server and credit wallet
+            await post("{% url 'wallet_verify' %}", {
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              amount_paise: order.amount
+            });
+            alert("Money added to wallet!");
+            window.location.reload();
+          }catch(e){
+            alert("Verification failed: " + e.message);
+          }
+        },
+        modal: {
+          ondismiss: function(){ /* closed */ }
+        }
+      };
+      const rzp = new Razorpay(options);
+      rzp.open();
+      modal.style.display='none';
+    }catch(e){
+      alert("Could not initiate payment: " + e.message);
+    }
+  });
+})();
+</script>
+
+{% endblock %}

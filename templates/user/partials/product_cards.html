@@ -1,0 +1,66 @@
+{% load static %}
+{% for p in latest_products %}
+  <div class="aa-card aa-232 aa-elev">
+    <a class="aa-media" href="{% url 'product_detail' p.id %}">
+      <span class="aa-badge">
+        <span class="aa-badge-emoji">🎉</span>
+        <span class="aa-badge-text">New Launch</span>
+      </span>
+
+      {% if p.images.all %}
+        <img class="aa-img" src="{{ p.images.first.image.url }}" alt="{{ p.name }}">
+      {% elif p.image %}
+        <img class="aa-img" src="{{ p.image.url }}" alt="{{ p.name }}">
+      {% else %}
+        <img class="aa-img" src="{% static 'images/default-product.png' %}" alt="{{ p.name }}">
+      {% endif %}
+
+      <div class="aa-band">
+        <span class="aa-band-text">{{ p.offer }}</span>
+        <span class="aa-chip"><span>⭐{{ p.rating|default:4.7 }}</span></span>
+      </div>
+    </a>
+
+    <div class="aa-info">
+      <h3 class="aa-title">
+        <a href="{% url 'product_detail' p.id %}" class="text-decoration-none text-reset">{{ p.name }}</a>
+      </h3>
+
+      <div class="aa-divider"></div>
+
+      <div class="aa-price-row">
+        <div class="aa-price-group">
+          <div class="aa-price">₹{{ p.discount_price|default:p.base_price }}</div>
+          {% if p.discount_price and p.base_price and p.discount_price < p.base_price %}
+            <div class="aa-sub">
+              <span class="aa-mrp">₹{{ p.base_price }}</span>
+              <span class="aa-off">{{ p.get_discount_percent }}% off</span>
+            </div>
+          {% endif %}
+        </div>
+
+        {% with colors=p.colors|default:None %}
+        <div class="aa-variants aa-swatches">
+          <div class="aa-swatch-wrap" aria-label="colors">
+            {% if colors and colors|length > 0 %}
+              <span class="aa-swatch aa-s1" style="--c: {{ colors.0.hex|default:'#111111' }};"></span>
+            {% else %}
+              <span class="aa-swatch aa-s1" style="--c:#111111"></span>
+            {% endif %}
+            {% if colors and colors|length > 1 %}
+              <span class="aa-swatch aa-s2" style="--c: {{ colors.1.hex|default:'#1E56D9' }};"></span>
+            {% else %}
+              <span class="aa-swatch aa-s2" style="--c:#1E56D9"></span>
+            {% endif %}
+          </div>
+          {% if colors and colors|length > 2 %}
+            <span class="aa-more aa-more-strong">+{{ colors|length|add:"-2" }}</span>
+          {% endif %}
+        </div>
+        {% endwith %}
+      </div>
+    </div>
+  </div>
+{% empty %}
+  <p class="text-white">No products found in this category.</p>
+{% endfor %}

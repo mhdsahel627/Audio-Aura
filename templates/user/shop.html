@@ -1,0 +1,919 @@
+{% extends 'user/base.html' %}
+{% load static %}
+{% include "partials/breadcrumbs.html" with crumbs=crumbs %}
+
+{% block title %}Shop - Audio Aura{% endblock %}
+
+
+
+
+{% block content %}
+
+<!-- Sort and fiter area -->
+<style>
+  :root{
+    --text:#f5f3f7;
+    --muted:#c9b8c7;
+    --pill:#ffffff;
+    --pill-text:#0f0b10;
+    --chip-bg:rgba(255,255,255,.12);
+    --chip-br:rgba(255,255,255,.18);
+    --active-ink:#ffffff;
+    --inactive-ink:rgba(255,255,255,.72);
+  }
+
+  body{ margin:0; font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+  .page{ padding:24px; }
+
+  /* Header */
+  .category-hero{ position:relative; background:var(--bg); color:var(--text); padding:18px 20px 28px; border-radius:12px; }
+  .hero-inner{ position:relative; min-height:84px; }
+  .left{ max-width:48rem; }
+  .breadcrumbs{ display:flex; align-items:center; gap:8px; color:var(--muted); font-size:14px; margin-bottom:8px; }
+  .breadcrumbs a{ color:var(--muted); text-decoration:none; }
+  .breadcrumbs a:hover{ color:#fff; }
+  .page-title{ margin:0 0 12px 0; font-size:28px; letter-spacing:.2px; font-weight:800; }
+  .filter-pill{ display:inline-flex; align-items:center; gap:8px; height:36px; padding:0 14px; border:0; border-radius:12px; background:var(--pill); color:var(--pill-text); font-weight:700; cursor:pointer; box-shadow:0 2px 0 rgba(0,0,0,.12); }
+  .filter-pill .caret{ opacity:.7; }
+  .filter-pill .icon{ font-size:16px; line-height:1; }
+
+  /* Centered sort band */
+  .sort-band{ position:absolute; top:8px; left:0; right:0; pointer-events:auto; }
+  .sort-row{ position:absolute; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:16px; }
+  .sort-chip{ height:38px; padding:0 12px; border-radius:6px; border:1px solid var(--chip-br); background:var(--chip-bg); color:#fff; font-size:12.5px; font-weight:700; cursor:default; }
+  .sort-list{ display:flex; align-items:center; gap:24px; }
+  .sort-link{ background:transparent; border:0; padding:6px 0; color:var(--inactive-ink); font-size:13px; font-weight:600; position:relative; cursor:pointer; }
+  .sort-link:hover{ color:#fff; }
+  .sort-link::after{ content:""; position:absolute; left:0; right:0; bottom:-8px; height:2px; background:transparent; border-radius:2px; }
+  .sort-link.is-active{ color:var(--active-ink); }
+  .sort-link.is-active::after{ background:#e10d0d; }
+  .sort-link + .sort-link{ margin-left:5px; }
+  .sort-link + .sort-link::before{ content:""; position:absolute; left:-12px; top:50%; width:1px; height:14px; background:rgba(255,255,255,.16); transform:translateY(-50%); }
+
+  @media (max-width:900px){
+    .sort-row{ left:0; right:0; transform:none; justify-content:center; padding:0 12px; }
+    .sort-list{ gap:18px; overflow:auto; }
+    .page-title{ font-size:24px; }
+  }
+
+  /* FILTERS: overlay + left drawer, auto height, max width 400 */
+  .filters-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.5);
+    backdrop-filter:saturate(120%) blur(2px);
+    z-index:70;
+  }
+  .filters-overlay[hidden]{ display:none; }
+
+
+  
+  .filters-drawer{
+    position:fixed; top:0; left:0;             /* LEFT side like reference */
+    width:min(400px, 100vw);                   /* max 400, responsive below */
+    height:auto;                               
+    max-height:100vh;                          /* never exceed viewport */
+    background:#fff;
+    box-shadow:12px 0 24px rgba(0,0,0,.25);
+    transform:translateX(-110%);               /* hidden to the left */
+    transition:transform .28s ease;
+    z-index:4000;
+    display:flex; flex-direction:column;
+    border-top-right-radius:16px; border-bottom-right-radius:16px;
+    overflow:hidden;                           /* keep internals in-bounds */
+  }
+  .filters-drawer.is-open{ transform:translateX(0); }
+
+  /* Head */
+  .filters-head{ display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid #eef0f3; }
+  .filters-head h2{ margin:0; font-size:20px; font-weight:800; color:#0f172a; }
+  .filters-head .ico{ margin-right:6px; }
+  .close-x{ width:32px; height:32px; border-radius:50%; border:0; background:#eef2f7; cursor:pointer; font-size:16px; }
+
+  /* Body: auto height area that scrolls if needed */
+  .filters-body{
+    display:grid; grid-template-columns:160px 1fr;
+    gap:0; flex:1 1 auto; min-height:0;       /* allow to shrink/grow */
+    overflow:auto;                             /* scroll as necessary */
+  }
+  .filters-tabs{ list-style:none; margin:0; padding:10px 0; background:#f6f8fb; overflow:auto; border-right:1px solid #eef0f3; }
+  .filters-tabs .tab{ width:100%; text-align:left; padding:14px 16px; border:0; background:transparent; font-weight:700; color:#0f172a; border-left:4px solid transparent; cursor:pointer; }
+  .filters-tabs .tab.is-active{ border-left-color:#0ea5e9; background:#fff; }
+
+  .filters-content{ padding:16px 18px; overflow:auto; }
+  .panel{ display:none; }
+  .panel.is-active{ display:block; }
+  .opt{ display:flex; align-items:center; gap:10px; padding:10px 4px; color:#111827; font-weight:600; }
+  .opt input{ width:18px; height:18px; }
+
+  /* Footer pinned; drawer height is auto, footer always visible */
+  .filters-footer{ display:flex; justify-content:space-between; gap:12px; padding:12px 16px; border-top:1px solid #eef0f3; }
+  .btn{ height:44px; padding:0 18px; border-radius:12px; font-weight:700; cursor:pointer; border:1px solid transparent; }
+  .btn-ghost{ background:#e5ebf2; color:#0f172a; }
+  .btn-dark{ background:#0f172a; color:#fff; }
+  .btn-ghost:hover{ background:#dbe2ea; }
+  .btn-dark:hover{ background:#111827; }
+
+
+  .price-wrap{ padding:4px 0 0 }
+.price-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px }
+.ph-label{ font-weight:800; color:#0f172a }
+.ph-values{ font-weight:800; color:#0f172a }
+.range-row{ position:relative; height:34px; margin:12px 4px 2px }
+.range-row input[type="range"]{
+  position:absolute; left:0; right:0; top:8px; width:100%; height:0;
+  appearance:none;
+  -webkit-appearance:none; background:transparent; pointer-events:auto
+}
+.range-row input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:18px; height:18px;
+  border-radius:50%; background:#0f172a; border:2px solid #fff; box-shadow:0 0 0 2px #0f172a;
+  cursor:pointer; position:relative; z-index:3
+}
+.range-row input[type="range"]::-moz-range-thumb{
+  width:18px; height:18px; border-radius:50%; background:#0f172a; border:2px solid #fff; box-shadow:0 0 0 2px #0f172a; cursor:pointer; position:relative; z-index:3
+}
+.range-row input[type="range"]::-webkit-slider-runnable-track{
+  height:4px; background:transparent
+}
+.range-row input[type="range"]::-moz-range-track{ height:4px; background:transparent }
+.range-track{
+  position:absolute; left:0; right:0; top:16px; height:4px; border-radius:999px;
+  background:#e9edf3; z-index:1
+}
+.range-track::before{
+  content:""; position:absolute; height:100%; left:0; right:0; background:#0f172a; border-radius:999px; z-index:2
+}
+.range-scale{ display:flex; justify-content:space-between; font-size:12px; color:#64748b; margin-top:6px }
+
+
+  /* Small screens: take full width for comfort */
+  @media (max-width:480px){
+    .filters-drawer{ width:100vw; }
+    .filters-body{ grid-template-columns:1fr; }
+    .filters-tabs{ display:flex; border-right:0; border-bottom:1px solid #eef0f3; }
+    .filters-tabs .tab{ border-left:0; border-bottom:3px solid transparent; }
+    .filters-tabs .tab.is-active{ border-bottom-color:#0ea5e9; }
+  }
+.breadcrumb-list {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  list-style: none;    /* removes bullet dot */
+  padding: 0;
+  margin: 0;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+}
+
+/* add only the › between items */
+.breadcrumb-item:not(:last-child)::after {
+  content: "›";
+  color: #c9b8c7;
+  margin-left: .5rem;
+}
+
+/* optional link color to match your theme */
+.breadcrumb-item a {
+  color: #c9b8c7;
+  text-decoration: none;
+}
+
+.noitem{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+</style>
+  <div class="page">
+    <header class="category-hero">
+      <div class="hero-inner">
+        <div class="left">
+          <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <ul class="breadcrumb-list">
+              {% for name, url in crumbs %}
+                <li class="breadcrumb-item">
+                  {% if url %}<a href="{{ url }}">{{ name }}</a>{% else %}<span>{{ name }}</span>{% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          </nav>
+
+          <h1 class="page-title">{{ page_title }}</h1>
+
+          {% if applied.q or applied.category or applied.brand %}
+            <div class="subtitle text-muted">
+              {% if applied.q %}Matching “{{ applied.q }}”{% endif %}
+              {% if applied.category %}
+                {% if applied.q %} · {% endif %}Filtered by category
+              {% endif %}
+              {% if applied.brand %}
+                {% if applied.q or applied.category %} · {% endif %}Filtered by brand
+              {% endif %}
+            </div>
+          {% endif %}
+
+          <button class="filter-pill" id="filterToggle">
+            <span class="icon">⚙︎</span>
+            Filter By
+            <span class="caret">▾</span>
+          </button>
+        </div>
+
+        <div class="sort-band">
+          <div class="sort-row">
+            <button class="sort-chip" aria-label="Sort menu">Sort By</button>
+            <nav class="sort-list" role="tablist" aria-label="Sort options">
+              <button class="sort-link {% if applied.sort == 'popularity' %}is-active{% endif %}" data-sort="popularity">Popularity</button>
+              <button class="sort-link {% if applied.sort == 'newest' %}is-active{% endif %}" data-sort="newest">Newest First</button>
+              <button class="sort-link {% if applied.sort == 'price_asc' %}is-active{% endif %}" data-sort="price_asc">Price Low - High</button>
+              <button class="sort-link {% if applied.sort == 'price_desc' %}is-active{% endif %}" data-sort="price_desc">Price High - Low</button>
+              <button class="sort-link {% if applied.sort == 'az' %}is-active{% endif %}" data-sort="az">(A-Z)</button>
+              <button class="sort-link {% if applied.sort == 'za' %}is-active{% endif %}" data-sort="za">(Z-A)</button>
+            </nav>
+          </div>
+        </div>
+      </div>
+    </header>
+  </div>
+
+  <!-- Left Filters: overlay + drawer -->
+  <div class="filters-overlay" id="filtersOverlay" hidden></div>
+  <aside class="filters-drawer" id="filtersDrawer" aria-hidden="true" aria-labelledby="filtersTitle" role="dialog">
+    <div class="filters-head">
+      <h2 id="filtersTitle"><span class="ico">☰</span> Filters By</h2>
+      <button class="close-x" id="filtersClose" aria-label="Close">✕</button>
+    </div>
+
+    <div class="filters-body">
+      <ul class="filters-tabs" role="tablist">
+        <li><button class="tab is-active" data-tab="category">Category</button></li>
+        <li><button class="tab" data-tab="color">Color</button></li>
+        <li><button class="tab" data-tab="price">Price</button></li>
+        <li><button class="tab" data-tab="best">Brand</button></li>
+        <li><button class="tab" data-tab="availability">Availability</button></li>
+      </ul>
+
+      <div class="filters-content">
+        <section class="panel is-active" data-panel="category" id="panel-category">
+          {% for c in categories %}
+            <label class="opt">
+              <input type="checkbox" name="category" value="{{ c.id }}"
+                {% if c.id|stringformat:'s' in applied.category %}checked{% endif %}>
+              {{ c.name }}
+            </label>
+          {% empty %}
+            <p>No categories.</p>
+          {% endfor %}
+        </section>
+
+        <section class="panel" data-panel="color">
+          <label class="opt">
+            <input type="checkbox" name="color" value="black"
+              {% if 'black' in applied.color %}checked{% endif %}> Black
+          </label>
+          <label class="opt">
+            <input type="checkbox" name="color" value="blue"
+              {% if 'blue' in applied.color %}checked{% endif %}> Blue
+          </label>
+          <label class="opt">
+            <input type="checkbox" name="color" value="red"
+              {% if 'red' in applied.color %}checked{% endif %}> Red
+          </label>
+        </section>
+
+        <section class="panel" data-panel="price" id="panel-price">
+          <div class="price-wrap">
+            <div class="price-head">
+              <span class="ph-label">Price</span>
+              <span class="ph-values">
+                ₹<span id="minOut">0</span> – ₹<span id="maxOut">0</span>
+              </span>
+            </div>
+
+            <!-- Hidden fields keep values for Apply button -->
+            <input type="hidden" id="priceMin" value="{{ applied.min|default:'' }}">
+            <input type="hidden" id="priceMax" value="{{ applied.max|default:'' }}">
+
+            <!-- Dual-handle slider -->
+            <div class="range-row">
+              <input type="range" id="minRange" min="0" max="100000" step="100"
+                    value="{{ applied.min|default:0 }}">
+              <input type="range" id="maxRange" min="0" max="100000" step="100"
+                    value="{{ applied.max|default:100000 }}">
+              <div class="range-track" id="rangeTrack"></div>
+            </div>
+
+            <div class="range-scale">
+              <span>₹0</span>
+              <span>₹1L</span>
+            </div>
+          </div>
+
+          <label class="opt" style="margin-top:10px">
+            <input type="checkbox" id="inStock" {% if applied.available == '1' %}checked{% endif %}>
+            In stock only
+          </label>
+        </section>
+
+        <section class="panel" data-panel="best" id="panel-brand">
+          {% for b in brands %}
+            <label class="opt">
+              <input type="checkbox" name="brand" value="{{ b.id }}"
+                {% if b.id|stringformat:'s' in applied.brand %}checked{% endif %}>
+              {{ b.name }}
+            </label>
+          {% empty %}
+            <p>No brands.</p>
+          {% endfor %}
+        </section>       
+      </div>
+    </div>
+
+    <div class="filters-footer">
+      <button class="btn btn-ghost" id="filtersClear">Clear All</button>
+      <button class="btn btn-dark" id="filtersApply">Apply Filter</button>
+    </div>
+  </aside>
+
+<script>
+(function(){
+  const overlay = document.getElementById('filtersOverlay');
+  const drawer  = document.getElementById('filtersDrawer');
+  const toggle  = document.getElementById('filterToggle');
+  const close   = document.getElementById('filtersClose');
+  const clear   = document.getElementById('filtersClear');
+  const apply   = document.getElementById('filtersApply');
+
+  const tabs   = Array.from(document.querySelectorAll('.filters-tabs .tab'));
+  const panels = Array.from(document.querySelectorAll('.filters-content .panel'));
+
+  function openDrawer(){
+    overlay.hidden = false;
+    overlay.classList.add('is-open');
+    drawer.classList.add('is-open');
+    drawer.setAttribute('aria-hidden','false');
+    document.body.style.overflow='hidden';
+  }
+  function closeDrawer(){
+    overlay.classList.remove('is-open');
+    drawer.classList.remove('is-open');
+    drawer.setAttribute('aria-hidden','true');
+    document.body.style.overflow='';
+    setTimeout(()=> overlay.hidden = true, 280);
+  }
+
+  function activateTab(id){
+    tabs.forEach(t => t.classList.toggle('is-active', t.dataset.tab === id));
+    panels.forEach(p => p.classList.toggle('is-active', p.dataset.panel === id));
+  }
+
+  tabs.forEach(t => t.addEventListener('click', () => activateTab(t.dataset.tab)));
+  const firstActive = tabs.find(t => t.classList.contains('is-active')) || tabs[0];
+  if (firstActive) activateTab(firstActive.dataset.tab);
+
+  toggle?.addEventListener('click', openDrawer);
+  close?.addEventListener('click', closeDrawer);
+  overlay?.addEventListener('click', closeDrawer);
+  window.addEventListener('keydown', e => { if(e.key === 'Escape') closeDrawer(); });
+
+  // -------- Price slider wiring (runs on load) --------
+  const minRange  = document.getElementById('minRange');
+  const maxRange  = document.getElementById('maxRange');
+  const minOut    = document.getElementById('minOut');
+  const maxOut    = document.getElementById('maxOut');
+  const track     = document.getElementById('rangeTrack');
+  const hiddenMin = document.getElementById('priceMin');
+  const hiddenMax = document.getElementById('priceMax');
+
+  const SLIDER_MIN = parseInt(minRange?.getAttribute('min') || 0, 10);
+  const SLIDER_MAX = parseInt(maxRange?.getAttribute('max') || 100000, 10);
+  const STEP       = parseInt(maxRange?.getAttribute('step') || 100, 10);
+  const GAP        = STEP * 5; // minimum separation
+
+  function clamp(v, lo, hi){ return Math.min(hi, Math.max(lo, v)); }
+  function fmtINR(n){ try { return new Intl.NumberFormat('en-IN').format(n); } catch(_) { return n; } }
+
+  function renderTrack(){
+    if (!track || !minRange || !maxRange) return;
+    const min = parseInt(minRange.value, 10);
+    const max = parseInt(maxRange.value, 10);
+    const left  = ((min - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100;
+    const right = ((max - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100;
+    track.style.clipPath = `polygon(${left}% 0, ${right}% 0, ${right}% 100%, ${left}% 100%)`;
+  }
+
+  function syncOutputs(){
+    if (!minRange || !maxRange) return;
+    const min = parseInt(minRange.value, 10);
+    const max = parseInt(maxRange.value, 10);
+    if (minOut) minOut.textContent = fmtINR(min);
+    if (maxOut) maxOut.textContent = fmtINR(max);
+    if (hiddenMin) hiddenMin.value = min;
+    if (hiddenMax) hiddenMax.value = max;
+    renderTrack();
+  }
+
+  function ensureOrder(fromInput){
+    if (!minRange || !maxRange) return;
+    let a = parseInt(minRange.value, 10);
+    let b = parseInt(maxRange.value, 10);
+    if (b - a < GAP){
+      if (fromInput === 'min'){
+        minRange.value = clamp(b - GAP, SLIDER_MIN, SLIDER_MAX);
+      } else {
+        maxRange.value = clamp(a + GAP, SLIDER_MIN, SLIDER_MAX);
+      }
+    }
+    syncOutputs();
+  }
+
+  if (minRange && maxRange){
+    const appliedMin = parseInt(hiddenMin?.value || SLIDER_MIN, 10);
+    const appliedMax = parseInt(hiddenMax?.value || SLIDER_MAX, 10);
+    minRange.value = clamp(appliedMin, SLIDER_MIN, SLIDER_MAX - GAP);
+    maxRange.value = clamp(appliedMax, SLIDER_MIN + GAP, SLIDER_MAX);
+    ensureOrder('init');
+
+    minRange.addEventListener('input', ()=> ensureOrder('min'));
+    maxRange.addEventListener('input', ()=> ensureOrder('max'));
+  }
+
+  // -------- Clear --------
+  clear?.addEventListener('click', ()=>{
+    drawer.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+    const inStock = document.getElementById('inStock');
+    if (hiddenMin) hiddenMin.value = '';
+    if (hiddenMax) hiddenMax.value = '';
+    if (inStock) inStock.checked = false;
+
+    if (minRange && maxRange){
+      minRange.value = SLIDER_MIN;
+      maxRange.value = SLIDER_MAX;
+      ensureOrder('init');
+    }
+  });
+
+  // -------- Apply --------
+  apply?.addEventListener('click', ()=>{
+    const url = new URL(location.href);
+
+    // reset multi-select params to rebuild
+    url.searchParams.delete('category');
+    url.searchParams.delete('brand');
+
+    // categories
+    drawer.querySelectorAll('input[name="category"]:checked')
+      .forEach(cb => url.searchParams.append('category', cb.value));
+
+    // brands
+    drawer.querySelectorAll('input[name="brand"]:checked')
+      .forEach(cb => url.searchParams.append('brand', cb.value));
+
+    // price from hidden fields (kept in sync by slider)
+    const minVal = hiddenMin?.value;
+    const maxVal = hiddenMax?.value;
+    if (minVal) url.searchParams.set('min', minVal); else url.searchParams.delete('min');
+    if (maxVal) url.searchParams.set('max', maxVal); else url.searchParams.delete('max');
+
+    // availability
+    const inStock = document.getElementById('inStock')?.checked;
+    if (inStock) url.searchParams.set('available', '1'); else url.searchParams.delete('available');
+
+    // reset page when applying filters
+    url.searchParams.set('page', 1);
+
+    location.href = url.toString();
+  });
+})();
+</script>
+
+
+<script>
+(function(){
+  const list = document.querySelector('.sort-list');
+  if(!list) return;
+  list.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.sort-link');
+    if(!btn) return;
+    const sort = btn.dataset.sort;
+    const url = new URL(location.href);
+    url.searchParams.set('sort', sort);
+    url.searchParams.set('page', 1);
+    location.href = url.toString();
+  });
+})();
+</script>
+
+
+
+
+<!-- Sort and filert are ended -->
+
+<!-- Products area -->
+ <style>
+  /* ✅ Container Grid */
+  .shop-card-section {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* Oru row-il 3 products */
+  gap: 16px;
+  padding: 16px;
+}
+
+  .shop-card {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    max-width: 500px;
+    height: 200px;
+    background: #FAFAFA;
+    border-radius: 10px;
+    border: solid 1px #ecf0f4;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+    font-family: "Inter", sans-serif;
+    margin: auto;
+  }
+
+/* Image area */
+.shop-card-left{
+  width: 166px;               /* closer to ref visual weight */
+  height: 200px;
+  position: relative;
+  display: grid;
+  place-items: center; 
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.08);
+}
+  .shop-card-left img {
+    border: 1px solid #f5eded;
+    border-radius:  8px 8px 0 0;
+    width: 160px;
+    height: 160px;
+    object-fit: cover;
+    display:block;
+  margin-bottom: 32px;                 /* prevent default gaps */
+
+  transform:translateZ(0);  /* avoid sub-pixel hairline */
+  }
+  .shop-label {
+    position: absolute;
+     bottom:8px; 
+     margin: 0; 
+    width: 160px;
+    background: #ffc107;
+    text-align: center;
+    font-weight: bold;
+    font-size: 13px;
+    padding: 5px 0;
+    border-radius: 0 0 6px 6px;
+  }
+
+  
+
+  /* Right Section (Desktop) */
+  .shop-card-right {
+    flex: 1;
+    height: 199.4px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .rating {
+    font-size: 13px;
+    color: #777;
+    margin-bottom: 4px;
+  }
+
+  .title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 6px 0;
+  }
+
+  .price-box {
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .sale-price { font-size: 17px; font-weight: 700; }
+  .old-price { text-decoration: line-through; color: #999; font-size: 14px; }
+  .offer { color: green; font-size: 14px; font-weight: 500; }
+
+  hr {
+    border: none;
+    border-top: 1px solid #655e5e;
+    margin: 6px 0 10px;
+  }
+
+  .features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .features span {
+    background: #EFF4F7;
+    font-size: 13px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    color: #333;
+  }
+
+  .add-to-cart {
+    background: #000;
+    color: #fff;
+    padding: 10px 0;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    text-align: center;
+  }
+
+  .add-to-cart:hover { background: #222; }
+
+  /* ✅ Mobile Responsive */
+  @media (max-width: 768px) {
+    .shop-card {
+      flex-direction: column;
+      width: 190.4px;
+      height: 379.6px;
+    }
+
+    .shop-card-left {
+      width: 100%;
+      height: auto;
+    }
+
+    .shop-card-left img {
+      width: 182.4px;
+      height: 182.4px;
+    }
+
+    .shop-label {
+      width: 100%;
+      font-size: 12px;
+      padding: 3px 0;
+    }
+
+    .shop-card-right {
+      width: 100%;
+      height: auto;
+      padding: 8px;
+      align-items: flex-start;
+    }
+
+    .title { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; font-size: 16px; font-weight: 700; line-height: 22.08px; color: rgb(26, 32, 36);}
+    .price-box { font-size: 15px; gap: 6px; }
+    .sale-price { font-size: 15px; }
+    .old-price { font-size: 13px; }
+    .offer { font-size: 13px; }
+    .features span { font-size: 12px; padding: 2px 8px;
+     }
+    .add-to-cart { font-size: 14px; padding: 8px 0; }
+  }
+  .link-img, .link-title { text-decoration:none; color:inherit; }
+.link-img:hover img { filter:brightness(1.02); }
+
+.price-box { pointer-events:none; }
+.price-box > * { pointer-events:none; } /* ensure inner spans don’t re-enable */
+
+.extra-discount-badge {
+    position: absolute;
+    top: 16px;
+    left: 4px;
+    background: #111;
+    color: #fff;
+    border-radius: 0px 4px 5px 0px;
+    display: flex;
+    align-items: center;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 3px 3px;
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.13);
+    letter-spacing: 1px;
+}
+
+.percent-icon {
+    background: #22c55e;
+    color: #fff;
+    border-radius: 4px;
+    margin-right: 2px;
+    font-size: 8px;
+    font-weight: bold;
+    padding: 0px 1px;
+    display: inline-block;
+}
+</style>
+
+
+<section class="shop-card-section">
+  
+  {% for product in products %}
+  <div class="shop-card" data-product-id="{{ product.id }}">
+    <!-- Left: clickable image -->
+    <a class="shop-card-left link-img" href="{% url 'product_detail' product.id %}" aria-label="{{ product.name }}">
+      {% if product.extra_off > 0 %}
+        <div class="extra-discount-badge">
+          <span class="percent-icon">%</span>
+          EXTRA ₹{{ product.extra_off }} OFF
+        </div>
+      {% endif %}
+
+      <img src="{% if product.images.first %}{{ product.images.first.image.url }}{% else %}{% static 'images/logo.png' %}{% endif %}" alt="{{ product.name }}">
+      {% if product.offer %}
+      <div class="shop-label">{{ product.offer }}</div>
+      {% endif %}
+    </a>
+
+    <!-- Right -->
+    <div class="shop-card-right">
+      <div class="rating">⭐ Be first to review</div>
+
+      <!-- Clickable title -->
+      <h3 class="title">
+        <a class="link-title" href="{% url 'product_detail' product.id %}">{{ product.name }}</a>
+      </h3>
+
+      <!-- Non-clickable price area -->
+      <div class="price-box" aria-label="Price">
+          <span class="sale-price">₹{{ product.final_price|floatformat:0 }}</span>
+          <span class="old-price">₹{{ product.base_price }}</span>
+          {% if product.discount_percent > 0 %}
+            <span class="offer">{{ product.discount_percent }}% off</span>
+          {% endif %}
+        
+      </div>
+
+
+      <hr>
+
+      <div class="features">
+        <span>TWS for 2x Sound</span>
+        <span>Signature Sound</span>
+      </div>
+
+      <!-- Add to Cart -->
+    <form class="add-to-cart-form" method="post" action="{% url 'cart_add' %}" data-name="{{ product.name }}">
+      {% csrf_token %}
+      <input type="hidden" name="product_id" value="{{ product.id }}">
+      <input type="hidden" name="quantity" value="1">
+      <button type="submit" class="add-to-cart">Add To Cart</button>
+    </form>
+
+    </div>
+  </div>
+  {% empty %}
+  <div class="noitem">
+    <h3 style="color: white;">NO Products Available</h3>
+    <img src="https://res.cloudinary.com/dxndvadjt/image/upload/v1765254540/sorry-item-not-found-illustration-svg-download-png-2809510_jmkssa.webp" alt="">
+    
+    
+  </div>
+  
+  {% endfor %}
+</section>
+
+
+{% if products.paginator.num_pages > 1 %}
+<div class="customers-table-footer">
+    <span style="color: #000;">Showing {{ products.start_index }}-{{ products.end_index }} of {{ products.paginator.count }}</span>
+    <div class="cust-pagination">
+        {% if products.has_previous %}
+            <a href="?page={{ products.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><button>&lt;</button></a>
+        {% else %}
+            <button disabled>&lt;</button>
+        {% endif %}
+
+
+        {% for num in products.paginator.page_range %}
+            {% if products.number == num %}
+                <button class="active">{{ num }}</button>
+            {% else %}
+                <a href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><button>{{ num }}</button></a>
+            {% endif %}
+        {% endfor %}
+
+
+        {% if products.has_next %}
+            <a href="?page={{ products.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><button>&gt;</button></a>
+        {% else %}
+            <button disabled>&gt;</button>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+
+<style>
+  /* Footer / Pagination */
+.customers-table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f7fafc;
+  padding: 12px 16px;
+  border-top: 1px solid #ececf1;
+  font-size: 15px;
+}
+
+.cust-pagination {
+  display: flex;
+  gap: 7px;
+}
+
+.cust-pagination button {
+  padding: 4px 15px;
+  border-radius: 8px;
+  border: none;
+  background: #fff;
+  color: #111;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all .2s ease;
+}
+
+/* Hover */
+.cust-pagination button:hover {
+  background: #3b82f6;
+  color: #ffffff;
+  border-color: #3b82f6;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px -6px rgba(0,0,0,.3);
+}
+
+/* Active page */
+.cust-pagination button.active {
+  background: #1e3a8a;
+  color: #ffffff;
+  border-color: #1e3a8a;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px -6px rgba(0,0,0,.3);
+}
+
+/* Scrollbar styling for tables / responsive divs */
+.customers-table-responsive::-webkit-scrollbar {
+  height: 7px;
+  background: #f8f8f8;
+}
+
+.customers-table-responsive::-webkit-scrollbar-thumb {
+  background: #ececf1;
+  border-radius: 5px;
+}
+
+</style>
+
+
+
+<!-- End Product Card -->
+<!-- Warranty Section -->
+
+
+
+<section class="features_band">
+  <div class="features_item">
+    <img src="https://res.cloudinary.com/dxndvadjt/image/upload/v1765252499/quality_ain1dz.png" alt="High Quality" class="features_icon">
+    <h4 class="features_title">High Quality</h4>
+    <p class="features_text">Crafted from top materials</p>
+  </div>
+
+  <div class="features_item">
+    <img src="https://res.cloudinary.com/dxndvadjt/image/upload/v1765252260/warranty_xm5adc.png" alt="Warranty Protection" class="features_icon">
+    <h4 class="features_title">Warranty Protection</h4>
+    <p class="features_text">Over 2 years</p>
+  </div>
+
+  <div class="features_item">
+    <img src="https://res.cloudinary.com/dxndvadjt/image/upload/v1765252307/box_mmfrvh.png" alt="Free Shipping" class="features_icon">
+    <h4 class="features_title">Free Shipping</h4>
+    <p class="features_text">Order over ₹500 </p>
+  </div>
+
+  <div class="features_item">
+    <img src="https://res.cloudinary.com/dxndvadjt/image/upload/v1765252338/customer_iotyyf.png" alt="24/7 Support" class="features_icon">
+    <h4 class="features_title">24 / 7 Support</h4>
+    <p class="features_text">Dedicated support</p>
+  </div>
+</section>
+<!-- Warranty Section End -->
+
+
+
+{% endblock %}

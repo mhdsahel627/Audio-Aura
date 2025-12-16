@@ -1,0 +1,596 @@
+<!-- templates/admin/coupon_edit.html -->
+{% extends 'admin/admin-base.html' %}
+{% load static %}
+
+{% block title %}Edit Coupon{% endblock %}
+
+{% block content %}
+
+<style>
+  .form-section {
+    background: #000;
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+  }
+  
+  .section-header {
+    border-bottom: 2px solid #333;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .section-header h4 {
+    color: #8855ff;
+    font-weight: 700;
+    margin: 0;
+  }
+  
+  .form-control, .form-select {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    color: #fff;
+  }
+  
+  .form-control:focus, .form-select:focus {
+    background: #2a2a2a;
+    border-color: #8855ff;
+    color: #fff;
+    box-shadow: 0 0 0 0.25rem rgba(136, 85, 255, 0.25);
+  }
+  
+  .form-control::placeholder {
+    color: #666;
+  }
+  
+  .form-label {
+    color: #ccc;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  
+  .form-text {
+    color: #999;
+    font-size: 0.875rem;
+  }
+  
+  /* ✅ Checkbox Styling for Dark Theme */
+  .form-check-input {
+    background-color: #1e1e1e;
+    border: 1px solid #555;
+    cursor: pointer;
+  }
+  
+  .form-check-input:checked {
+    background-color: #8855ff;
+    border-color: #8855ff;
+  }
+  
+  .form-check-input:focus {
+    border-color: #8855ff;
+    box-shadow: 0 0 0 0.25rem rgba(136, 85, 255, 0.25);
+  }
+  
+  .form-check-label {
+    color: #ccc;
+    cursor: pointer;
+  }
+  
+  /* ✅ Enhanced Badge Styling */
+  .badge {
+    font-size: 0.7rem;
+    padding: 0.35em 0.65em;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  
+  .btn-submit {
+    background: #8855ff;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-submit:hover {
+    background: #7744ee;
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(136, 85, 255, 0.4);
+  }
+  
+  .btn-light {
+    background: #2a2a2a;
+    color: #fff;
+    border: 1px solid #444;
+  }
+  
+  .btn-light:hover {
+    background: #333;
+    color: #fff;
+    border-color: #555;
+  }
+  
+  .alert {
+    border-radius: 8px;
+  }
+  
+  /* ✅ Badge Preview Styles */
+  .badge-preview {
+    display: inline-block;
+    padding: 0.35rem 0.85rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-top: 0.5rem;
+    letter-spacing: 0.5px;
+  }
+  
+  .badge-popular {
+    background: #00897b;
+    color: #fff;
+  }
+  
+  .badge-value {
+    background: #2196f3;
+    color: #fff;
+  }
+  
+  .badge-limited {
+    background: #ff5722;
+    color: #fff;
+  }
+  
+  .badge-savings {
+    background: #ffc107;
+    color: #000;
+  }
+  
+  /* ✅ Info Box Variants */
+  .coupon-type-info {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .info-box {
+    background: #2a2a2a;
+    border-left: 4px solid #8855ff;
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 4px;
+  }
+  
+  .info-box h6 {
+    color: #8855ff;
+    margin: 0 0 0.5rem 0;
+  }
+  
+  .info-box p {
+    color: #ccc;
+    margin: 0.25rem 0;
+    font-size: 0.9rem;
+  }
+  
+  /* ✅ Error Message Styling */
+  .text-danger {
+    color: #ff5252 !important;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+  }
+  
+  /* ✅ Date Input Styling */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+  }
+
+  /* ✅ Coupon Code Badge */
+  .coupon-code-badge {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    display: inline-block;
+    margin-bottom: 1rem;
+  }
+
+  /* ✅ Usage Statistics Cards */
+  .stat-card {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    padding: 1rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+  }
+
+  .stat-card:hover {
+    border-color: #8855ff;
+    transform: translateY(-2px);
+  }
+
+  .stat-label {
+    color: #999;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-value {
+    color: #fff;
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+</style>
+
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold" style="color: #fff;">EDIT COUPON</h2>
+    <div class="coupon-code-badge">{{ coupon.code }}</div>
+  </div>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Info Box -->
+  <div class="info-box">
+    <h6>💡 Coupon Types</h6>
+    <p><strong>Quantity-Based:</strong> Set "Minimum Items Required" (e.g., Buy 5 or more) - Appears on product pages with auto-add feature</p>
+    <p><strong>Price-Based:</strong> Set "Minimum Purchase Amount" (e.g., Min ₹1000) - General cart discount</p>
+  </div>
+
+  <form class="form-section" method="POST">
+    {% csrf_token %}
+
+    <!-- Basic Information -->
+    <div class="section-header">
+      <h4>Basic Information</h4>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <label for="{{ form.code.id_for_label }}" class="form-label">{{ form.code.label }}</label>
+        {{ form.code }}
+        <div class="form-text">{{ form.code.help_text }}</div>
+        {% if form.code.errors %}
+          <div class="text-danger mt-1">{{ form.code.errors }}</div>
+        {% endif %}
+      </div>
+      
+      <div class="col-md-6">
+        <label for="{{ form.title.id_for_label }}" class="form-label">{{ form.title.label }}</label>
+        {{ form.title }}
+        <div class="form-text">{{ form.title.help_text }}</div>
+        {% if form.title.errors %}
+          <div class="text-danger mt-1">{{ form.title.errors }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+      {{ form.description }}
+      <div class="form-text">{{ form.description.help_text }}</div>
+    </div>
+
+    <!-- Discount Settings -->
+    <div class="section-header mt-5">
+      <h4>Discount Settings</h4>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <label for="{{ form.discount.id_for_label }}" class="form-label">{{ form.discount.label }}</label>
+        {{ form.discount }}
+        <div class="form-text">{{ form.discount.help_text }}</div>
+        {% if form.discount.errors %}
+          <div class="text-danger mt-1">{{ form.discount.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-md-4">
+        <label for="{{ form.coupon_type.id_for_label }}" class="form-label">{{ form.coupon_type.label }}</label>
+        {{ form.coupon_type }}
+        <div class="form-text">{{ form.coupon_type.help_text }}</div>
+      </div>
+
+      <div class="col-md-4">
+        <label for="{{ form.max_redeemable.id_for_label }}" class="form-label">{{ form.max_redeemable.label }}</label>
+        {{ form.max_redeemable }}
+        <div class="form-text">{{ form.max_redeemable.help_text }}</div>
+      </div>
+    </div>
+
+    <!-- Coupon Conditions -->
+    <div class="section-header mt-5">
+      <h4>Coupon Conditions</h4>
+    </div>
+
+    <div class="row mb-4">
+      <!-- Minimum Items Required -->
+      <div class="col-md-6">
+        <label for="{{ form.min_items.id_for_label }}" class="form-label">
+          {{ form.min_items.label }}
+          <span class="badge bg-success ms-2">For Product Page</span>
+        </label>
+        {{ form.min_items }}
+        <div class="form-text">{{ form.min_items.help_text }}</div>
+        <div class="coupon-type-info" id="itemBasedInfo" style="display:none;">
+          <strong style="color: #00c853;">✓ Quantity-Based Offer</strong>
+          <p style="color: #ccc; margin: 0.5rem 0 0 0;">This coupon will appear on product pages with "Buy X or more" and auto-add items to cart.</p>
+        </div>
+      </div>
+      
+      <!-- Minimum Purchase Amount -->
+      <div class="col-md-6">
+        <label for="{{ form.min_purchase.id_for_label }}" class="form-label">
+          {{ form.min_purchase.label }}
+          <span class="badge bg-primary ms-2">For Cart/Checkout</span>
+        </label>
+        {{ form.min_purchase }}
+        <div class="form-text">{{ form.min_purchase.help_text }}</div>
+        <div class="coupon-type-info" id="priceBasedInfo" style="display:none;">
+          <strong style="color: #2196f3;">✓ Price-Based Offer</strong>
+          <p style="color: #ccc; margin: 0.5rem 0 0 0;">This coupon requires minimum cart value. Appears in cart/checkout only.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Maximum Purchase Amount -->
+    <div class="row mb-4">
+      <div class="col-md-12">
+        <label for="{{ form.max_purchase.id_for_label }}" class="form-label">
+          {{ form.max_purchase.label }}
+          <span class="badge bg-danger ms-2">Cart Limit</span>
+        </label>
+        {{ form.max_purchase }}
+        <div class="form-text">{{ form.max_purchase.help_text }}</div>
+        <div class="coupon-type-info" id="maxPurchaseInfo" style="display:none;">
+          <strong style="color: #ff5252;">⚠ Cart Value Limit Set</strong>
+          <p style="color: #ccc; margin: 0.5rem 0 0 0;">Coupon will be automatically removed if cart total exceeds this amount. Prevents misuse on high-value orders.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ NEW: Advanced Conditions -->
+    <div class="section-header mt-5">
+      <h4>Advanced Conditions</h4>
+    </div>
+
+    <div class="row mb-4">
+      <!-- First-Time Only -->
+      <div class="col-md-4">
+        <div class="form-check" style="margin-top: 0.5rem;">
+          {{ form.first_time_only }}
+          <label class="form-check-label" for="{{ form.first_time_only.id_for_label }}">
+            {{ form.first_time_only.label }}
+            <span class="badge bg-warning text-dark ms-2">First Order</span>
+          </label>
+        </div>
+        <div class="form-text">{{ form.first_time_only.help_text }}</div>
+        <div class="coupon-type-info" id="firstTimeInfo" style="display:none;">
+          <strong style="color: #ffc107;">⭐ First-Time Buyer Exclusive</strong>
+          <p style="color: #ccc; margin: 0.5rem 0 0 0;">Users who have previous orders CANNOT use this coupon.</p>
+        </div>
+      </div>
+      
+      <!-- Exclude Discounted Products -->
+      <div class="col-md-4">
+        <div class="form-check" style="margin-top: 0.5rem;">
+          {{ form.exclude_discounted }}
+          <label class="form-check-label" for="{{ form.exclude_discounted.id_for_label }}">
+            {{ form.exclude_discounted.label }}
+            <span class="badge bg-info ms-2">Full Price Only</span>
+          </label>
+        </div>
+        <div class="form-text">{{ form.exclude_discounted.help_text }}</div>
+        <div class="coupon-type-info" id="excludeDiscountedInfo" style="display:none;">
+          <strong style="color: #00bcd4;">🚫 No Stacking Discounts</strong>
+          <p style="color: #ccc; margin: 0.5rem 0 0 0;">Coupon will be removed if cart contains already discounted products.</p>
+        </div>
+      </div>
+
+      <!-- Per-User Limit -->
+      <div class="col-md-4">
+        <label for="{{ form.per_user_limit.id_for_label }}" class="form-label">
+          {{ form.per_user_limit.label }}
+          <span class="badge bg-secondary ms-2">Per User</span>
+        </label>
+        {{ form.per_user_limit }}
+        <div class="form-text">{{ form.per_user_limit.help_text }}</div>
+      </div>
+    </div>
+
+    <!-- Display & Validity -->
+    <div class="section-header mt-5">
+      <h4>Display & Validity</h4>
+    </div>
+
+    <div class="row mb-4">
+      <!-- ✅ START DATE -->
+      <div class="col-md-3">
+        <label for="{{ form.start_date.id_for_label }}" class="form-label">{{ form.start_date.label }}</label>
+        {{ form.start_date }}
+        <div class="form-text">{{ form.start_date.help_text }}</div>
+      </div>
+      
+      <!-- EXPIRY DATE -->
+      <div class="col-md-3">
+        <label for="{{ form.expiry_date.id_for_label }}" class="form-label">{{ form.expiry_date.label }}</label>
+        {{ form.expiry_date }}
+        <div class="form-text">{{ form.expiry_date.help_text }}</div>
+      </div>
+
+      <!-- BADGE -->
+      <div class="col-md-3">
+        <label for="{{ form.badge.id_for_label }}" class="form-label">{{ form.badge.label }}</label>
+        {{ form.badge }}
+        <div class="form-text">{{ form.badge.help_text }}</div>
+        <div id="badgePreview"></div>
+      </div>
+      
+      <!-- DISPLAY ORDER -->
+      <div class="col-md-3">
+        <label for="{{ form.display_order.id_for_label }}" class="form-label">{{ form.display_order.label }}</label>
+        {{ form.display_order }}
+        <div class="form-text">{{ form.display_order.help_text }}</div>
+      </div>
+    </div>
+
+    <div class="row mb-4">
+      <!-- TOTAL LIMIT -->
+      <div class="col-md-6">
+        <label for="{{ form.limit.id_for_label }}" class="form-label">{{ form.limit.label }}</label>
+        {{ form.limit }}
+        <div class="form-text">{{ form.limit.help_text }}</div>
+      </div>
+      
+      <!-- IS ACTIVE -->
+      <div class="col-md-6">
+        <div class="form-check" style="margin-top: 2.5rem;">
+          {{ form.is_active }}
+          <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+            {{ form.is_active.label }}
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ Usage Statistics (Read-only info) -->
+    <div class="section-header mt-5">
+      <h4>Usage Statistics</h4>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-3">
+        <div class="stat-card">
+          <div class="stat-label">Times Used</div>
+          <div class="stat-value">{{ coupon.used_count|default:0 }}</div>
+        </div>
+      </div>
+      
+      <div class="col-md-3">
+        <div class="stat-card">
+          <div class="stat-label">Total Limit</div>
+          <div class="stat-value">{{ coupon.limit|default:"∞" }}</div>
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="stat-card">
+          <div class="stat-label">Per-User Limit</div>
+          <div class="stat-value">{{ coupon.per_user_limit|default:1 }}</div>
+        </div>
+      </div>
+      
+      <div class="col-md-3">
+        <div class="stat-card">
+          <div class="stat-label">Status</div>
+          <div class="stat-value">
+            {% if coupon.is_active %}
+              <span style="color: #00c853;">● Active</span>
+            {% else %}
+              <span style="color: #ff5252;">● Inactive</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="d-flex flex-wrap gap-3 justify-content-end mt-5">
+      <a href="{% url 'coupon' %}" class="btn btn-light">Cancel</a>
+      <button type="submit" class="btn btn-submit">
+        <i class="bi bi-check-circle me-2"></i>Update Coupon
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+// ✅ Auto-uppercase coupon code
+document.getElementById('{{ form.code.id_for_label }}').addEventListener('input', function(e) {
+  this.value = this.value.toUpperCase();
+});
+
+// ✅ Badge preview with proper styling
+const badgeSelect = document.getElementById('{{ form.badge.id_for_label }}');
+const badgePreview = document.getElementById('badgePreview');
+
+function updateBadgePreview() {
+  const value = badgeSelect.value;
+  if (value) {
+    let badgeClass = 'badge-value'; // default
+    
+    if (value.includes('Popular')) {
+      badgeClass = 'badge-popular';
+    } else if (value.includes('Limited')) {
+      badgeClass = 'badge-limited';
+    } else if (value.includes('Savings')) {
+      badgeClass = 'badge-savings';
+    }
+    
+    badgePreview.innerHTML = `<span class="badge-preview ${badgeClass}">${value.toUpperCase()}</span>`;
+  } else {
+    badgePreview.innerHTML = '';
+  }
+}
+
+badgeSelect.addEventListener('change', updateBadgePreview);
+
+// ✅ Show coupon type info based on conditions
+const minItemsInput = document.getElementById('{{ form.min_items.id_for_label }}');
+const minPurchaseInput = document.getElementById('{{ form.min_purchase.id_for_label }}');
+const maxPurchaseInput = document.getElementById('{{ form.max_purchase.id_for_label }}');
+const firstTimeCheckbox = document.getElementById('{{ form.first_time_only.id_for_label }}');
+const excludeDiscountedCheckbox = document.getElementById('{{ form.exclude_discounted.id_for_label }}');
+
+const itemBasedInfo = document.getElementById('itemBasedInfo');
+const priceBasedInfo = document.getElementById('priceBasedInfo');
+const maxPurchaseInfo = document.getElementById('maxPurchaseInfo');
+const firstTimeInfo = document.getElementById('firstTimeInfo');
+const excludeDiscountedInfo = document.getElementById('excludeDiscountedInfo');
+
+function updateCouponTypeInfo() {
+  const minItems = parseFloat(minItemsInput.value) || 0;
+  const minPurchase = parseFloat(minPurchaseInput.value) || 0;
+  const maxPurchase = parseFloat(maxPurchaseInput.value) || 0;
+  const firstTime = firstTimeCheckbox.checked;
+  const excludeDiscounted = excludeDiscountedCheckbox.checked;
+  
+  itemBasedInfo.style.display = minItems > 0 ? 'block' : 'none';
+  priceBasedInfo.style.display = minPurchase > 0 ? 'block' : 'none';
+  maxPurchaseInfo.style.display = maxPurchase > 0 ? 'block' : 'none';
+  firstTimeInfo.style.display = firstTime ? 'block' : 'none';
+  excludeDiscountedInfo.style.display = excludeDiscounted ? 'block' : 'none';
+}
+
+minItemsInput.addEventListener('input', updateCouponTypeInfo);
+minPurchaseInput.addEventListener('input', updateCouponTypeInfo);
+maxPurchaseInput.addEventListener('input', updateCouponTypeInfo);
+firstTimeCheckbox.addEventListener('change', updateCouponTypeInfo);
+excludeDiscountedCheckbox.addEventListener('change', updateCouponTypeInfo);
+
+// ✅ Initial checks on page load (to show existing values)
+updateBadgePreview();
+updateCouponTypeInfo();
+</script>
+
+{% endblock %}

@@ -1,0 +1,1184 @@
+{% extends 'admin/admin-base.html' %}
+{% load static humanize %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  :root{
+    --ink:#0f172a;
+    --muted:#64748b;
+    --bg-primary:#0a0e1a;
+  }
+
+  *{
+    font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  body{
+    background:#0a0e1a;
+    position:relative;
+    overflow-x:hidden;
+  }
+
+  body::before{
+    content:'';
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(102,126,234,0.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(118,75,162,0.15) 0%, transparent 50%),
+      radial-gradient(circle at 50% 50%, rgba(240,147,251,0.1) 0%, transparent 50%);
+    animation:backgroundPulse 15s ease-in-out infinite;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  @keyframes backgroundPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.1); }
+  }
+
+  .particle{
+    position:fixed;
+    width:4px;
+    height:4px;
+    background:rgba(102,126,234,0.4);
+    border-radius:50%;
+    pointer-events:none;
+    z-index:1;
+    animation:floatParticle 20s infinite;
+  }
+
+  @keyframes floatParticle {
+    0%, 100% { transform: translate(0, 0) scale(1); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translate(100vw, -100vh) scale(0); }
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(40px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(50px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-15px) rotate(5deg); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.05); }
+  }
+
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(102,126,234,0.4), 0 0 40px rgba(102,126,234,0.2); }
+    50% { box-shadow: 0 0 30px rgba(102,126,234,0.6), 0 0 60px rgba(102,126,234,0.3); }
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes counterUp {
+    from { opacity: 0; transform: translateY(20px) scale(0.5); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .dashboard-wrapper{
+    padding: 40px;
+    max-width: 1600px;
+    margin: 0 auto;
+    position:relative;
+    z-index:2;
+    animation: fadeInUp 0.8s ease-out;
+  }
+
+  .dash-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:24px;
+    margin-bottom:40px;
+    padding:32px 40px;
+    background:rgba(15,23,42,0.6);
+    backdrop-filter:blur(30px) saturate(180%);
+    border-radius:32px;
+    border:1px solid rgba(102,126,234,0.3);
+    box-shadow:0 20px 60px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.1);
+    position:relative;
+    overflow:hidden;
+    animation: slideDown 0.8s ease-out;
+  }
+
+  .dash-header::before{
+    content:'';
+    position:absolute;
+    top:0;
+    left:-100%;
+    width:200%;
+    height:100%;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    animation:shimmer 3s infinite;
+  }
+
+  .dash-title h1{
+    margin:0;
+    font-size:38px;
+    font-weight:900;
+    background:linear-gradient(135deg,#667eea 0%,#764ba2 40%,#f093fb 70%, #fbbf24 100%);
+    background-size:200% auto;
+    -webkit-background-clip:text;
+    background-clip:text;
+    -webkit-text-fill-color:transparent;
+    letter-spacing:-0.03em;
+    animation: shimmer 4s linear infinite;
+    filter:drop-shadow(0 0 20px rgba(102,126,234,0.5));
+  }
+
+  .dash-title p{
+    margin:12px 0 0;
+    font-size:15px;
+    color:#94a3b8;
+    font-weight:600;
+    letter-spacing:0.01em;
+  }
+
+  .dash-filter-form{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    background:rgba(30,41,59,0.8);
+    backdrop-filter:blur(20px);
+    padding:14px 24px;
+    border-radius:20px;
+    border:1px solid rgba(102,126,234,0.3);
+    box-shadow:0 8px 32px rgba(0,0,0,0.3);
+    transition:all 0.4s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .dash-filter-form:hover{
+    box-shadow:0 12px 48px rgba(102,126,234,0.4);
+    transform:translateY(-3px);
+    border-color:rgba(102,126,234,0.5);
+  }
+
+  .dash-filter-form label{
+    font-size:12px;
+    font-weight:800;
+    color:#94a3b8;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+  }
+
+  .dash-filter-form input[type="date"]{
+    border:2px solid rgba(102,126,234,0.3);
+    border-radius:14px;
+    padding:10px 16px;
+    font-size:13px;
+    font-weight:600;
+    outline:none;
+    transition:all 0.3s ease;
+    background:rgba(15,23,42,0.6);
+    color:#e2e8f0;
+  }
+
+  .dash-filter-form input[type="date"]:focus{
+    border-color:#667eea;
+    box-shadow:0 0 0 4px rgba(102,126,234,0.2);
+    background:rgba(15,23,42,0.8);
+  }
+
+  .dash-filter-form button{
+    border:0;
+    border-radius:14px;
+    padding:11px 28px;
+    font-size:13px;
+    font-weight:800;
+    cursor:pointer;
+    color:#ffffff;
+    background:linear-gradient(135deg,#667eea,#764ba2);
+    box-shadow:0 6px 24px rgba(102,126,234,0.5);
+    transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    position:relative;
+    overflow:hidden;
+  }
+
+  .dash-filter-form button::before{
+    content:'';
+    position:absolute;
+    top:0;
+    left:-100%;
+    width:100%;
+    height:100%;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition:left 0.5s;
+  }
+
+  .dash-filter-form button:hover::before{
+    left:100%;
+  }
+
+  .dash-filter-form button:hover{
+    transform:translateY(-3px);
+    box-shadow:0 10px 36px rgba(102,126,234,0.6);
+  }
+
+  .stats-row{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:24px;
+    margin-bottom:40px;
+  }
+
+  .stat-card{
+    background:rgba(15,23,42,0.6);
+    backdrop-filter:blur(30px) saturate(180%);
+    border-radius:28px;
+    padding:28px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.1);
+    border:1px solid rgba(102,126,234,0.3);
+    display:flex;
+    align-items:center;
+    gap:20px;
+    position:relative;
+    overflow:hidden;
+    transition:all 0.5s cubic-bezier(0.4,0,0.2,1);
+    animation: scaleIn 0.6s ease-out backwards;
+  }
+
+  .stat-card:nth-child(1){animation-delay:0.1s;}
+  .stat-card:nth-child(2){animation-delay:0.2s;}
+  .stat-card:nth-child(3){animation-delay:0.3s;}
+  .stat-card:nth-child(4){animation-delay:0.4s;}
+
+  .stat-card::before{
+    content:'';
+    position:absolute;
+    top:-100%;
+    left:-100%;
+    width:300%;
+    height:300%;
+    background:radial-gradient(circle,rgba(102,126,234,0.2),transparent 60%);
+    opacity:0;
+    transition:all 0.8s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .stat-card::after{
+    content:'';
+    position:absolute;
+    inset:0;
+    border-radius:28px;
+    padding:1px;
+    background:linear-gradient(135deg,rgba(102,126,234,0.5),rgba(118,75,162,0.5));
+    -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite:xor;
+    mask-composite:exclude;
+    opacity:0;
+    transition:opacity 0.5s;
+  }
+
+  .stat-card:hover{
+    transform:translateY(-12px) scale(1.03);
+    box-shadow:0 30px 80px rgba(0,0,0,0.5),0 0 60px rgba(102,126,234,0.4),inset 0 1px 0 rgba(255,255,255,0.2);
+    border-color:rgba(102,126,234,0.6);
+  }
+
+  .stat-card:hover::before{
+    opacity:1;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+  }
+
+  .stat-card:hover::after{
+    opacity:1;
+    animation:glow 2s ease-in-out infinite;
+  }
+
+  .stat-icon{
+    position:relative;
+    z-index:1;
+    width:68px;
+    height:68px;
+    border-radius:22px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:32px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.2);
+    transition:all 0.5s cubic-bezier(0.4,0,0.2,1);
+    animation:float 4s ease-in-out infinite;
+  }
+
+  .stat-card:nth-child(2) .stat-icon{animation-delay:0.5s;}
+  .stat-card:nth-child(3) .stat-icon{animation-delay:1s;}
+  .stat-card:nth-child(4) .stat-icon{animation-delay:1.5s;}
+
+  .stat-card:hover .stat-icon{
+    transform:scale(1.15) rotate(8deg);
+    box-shadow:0 15px 40px rgba(0,0,0,0.4),0 0 30px rgba(102,126,234,0.4);
+  }
+
+  .stat-meta{
+    position:relative;
+    z-index:1;
+    flex:1;
+  }
+
+  .stat-label{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    color:#94a3b8;
+    font-weight:800;
+    margin-bottom:8px;
+  }
+
+  .stat-value{
+    font-size:32px;
+    font-weight:900;
+    color:#f8fafc;
+    letter-spacing:-0.03em;
+    text-shadow:0 2px 10px rgba(102,126,234,0.3);
+    animation:counterUp 0.8s ease-out backwards;
+  }
+
+  .stat-card:nth-child(1) .stat-value{animation-delay:0.2s;}
+  .stat-card:nth-child(2) .stat-value{animation-delay:0.3s;}
+  .stat-card:nth-child(3) .stat-value{animation-delay:0.4s;}
+  .stat-card:nth-child(4) .stat-value{animation-delay:0.5s;}
+
+  .stat-pill{
+    margin-top:10px;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:10px;
+    padding:6px 14px;
+    border-radius:999px;
+    background:rgba(16,185,129,0.2);
+    color:#6ee7b7;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    border:1px solid rgba(16,185,129,0.3);
+    animation:pulse 3s ease-in-out infinite;
+  }
+
+  .charts-row{
+    display:grid;
+    grid-template-columns:1.1fr 1.1fr;
+    gap:24px;
+    margin-bottom:40px;
+  }
+
+  .chart-card{
+    background:rgba(15,23,42,0.6);
+    backdrop-filter:blur(30px) saturate(180%);
+    border-radius:28px;
+    padding:32px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.1);
+    border:1px solid rgba(102,126,234,0.3);
+    transition:all 0.5s cubic-bezier(0.4,0,0.2,1);
+    animation: fadeInUp 0.7s ease-out backwards;
+    position:relative;
+    overflow:hidden;
+  }
+
+  .chart-card:nth-child(1){animation-delay:0.5s;}
+  .chart-card:nth-child(2){animation-delay:0.6s;}
+
+  .chart-card::before{
+    content:'';
+    position:absolute;
+    top:0;
+    left:-100%;
+    width:200%;
+    height:2px;
+    background:linear-gradient(90deg, transparent, rgba(102,126,234,0.6), transparent);
+    animation:shimmer 3s infinite;
+  }
+
+  .chart-card:hover{
+    transform:translateY(-6px);
+    box-shadow:0 30px 80px rgba(0,0,0,0.5),0 0 40px rgba(102,126,234,0.3);
+    border-color:rgba(102,126,234,0.5);
+  }
+
+  .chart-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:24px;
+  }
+
+  .chart-title{
+    font-size:20px;
+    font-weight:900;
+    color:#f8fafc;
+    letter-spacing:-0.02em;
+    text-shadow:0 2px 10px rgba(102,126,234,0.3);
+  }
+
+  .chart-sub{
+    font-size:12px;
+    color:#94a3b8;
+    font-weight:600;
+    margin-top:4px;
+  }
+
+  .chart-select{
+    border-radius:14px;
+    padding:10px 18px;
+    border:2px solid rgba(102,126,234,0.3);
+    font-size:13px;
+    font-weight:700;
+    background:rgba(30,41,59,0.8);
+    backdrop-filter:blur(10px);
+    color:#e2e8f0;
+    cursor:pointer;
+    transition:all 0.3s ease;
+  }
+
+  .chart-select:hover{
+    border-color:#667eea;
+    box-shadow:0 6px 20px rgba(102,126,234,0.3);
+    transform:translateY(-2px);
+  }
+
+  .chart-box{height:280px;}
+  .chart-box.tall{height:340px;}
+
+  .kpi-strip{
+    display:flex;
+    gap:14px;
+    margin-top:20px;
+  }
+
+  .kpi-chip{
+    flex:1;
+    border-radius:18px;
+    background:rgba(30,41,59,0.6);
+    backdrop-filter:blur(10px);
+    padding:16px 14px;
+    text-align:center;
+    border:1px solid rgba(102,126,234,0.2);
+    transition:all 0.4s cubic-bezier(0.4,0,0.2,1);
+    position:relative;
+    overflow:hidden;
+  }
+
+  .kpi-chip::before{
+    content:'';
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:2px;
+    background:linear-gradient(90deg,transparent,#667eea,transparent);
+    opacity:0;
+    transition:opacity 0.3s;
+  }
+
+  .kpi-chip:hover{
+    transform:translateY(-6px) scale(1.05);
+    box-shadow:0 12px 32px rgba(102,126,234,0.3);
+    border-color:rgba(102,126,234,0.5);
+  }
+
+  .kpi-chip:hover::before{
+    opacity:1;
+  }
+
+  .kpi-chip small{
+    display:block;
+    font-size:10px;
+    color:#94a3b8;
+    text-transform:uppercase;
+    font-weight:800;
+    letter-spacing:0.1em;
+    margin-bottom:6px;
+  }
+
+  .kpi-chip strong{
+    font-size:18px;
+    font-weight:900;
+    color:#f8fafc;
+    letter-spacing:-0.02em;
+  }
+
+  .top-row{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:24px;
+  }
+
+  .top-card{
+    background:rgba(15,23,42,0.6);
+    backdrop-filter:blur(30px) saturate(180%);
+    border-radius:28px;
+    padding:28px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.1);
+    border:1px solid rgba(102,126,234,0.3);
+    transition:all 0.5s cubic-bezier(0.4,0,0.2,1);
+    animation: scaleIn 0.6s ease-out backwards;
+  }
+
+  .top-card:nth-child(1){animation-delay:0.7s;}
+  .top-card:nth-child(2){animation-delay:0.8s;}
+  .top-card:nth-child(3){animation-delay:0.9s;}
+
+  .top-card:hover{
+    transform:translateY(-6px);
+    box-shadow:0 30px 80px rgba(0,0,0,0.5),0 0 40px rgba(102,126,234,0.3);
+    border-color:rgba(102,126,234,0.5);
+  }
+
+  .top-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:20px;
+    padding-bottom:20px;
+    border-bottom:2px solid rgba(102,126,234,0.2);
+  }
+
+  .top-title{
+    font-size:18px;
+    font-weight:900;
+    color:#f8fafc;
+    letter-spacing:-0.02em;
+  }
+
+  .top-list{
+    list-style:none;
+    margin:0;
+    padding:0;
+    max-height:300px;
+    overflow-y:auto;
+  }
+
+  .top-list::-webkit-scrollbar{
+    width:8px;
+  }
+
+  .top-list::-webkit-scrollbar-track{
+    background:rgba(30,41,59,0.5);
+    border-radius:10px;
+  }
+
+  .top-list::-webkit-scrollbar-thumb{
+    background:linear-gradient(135deg,#667eea,#764ba2);
+    border-radius:10px;
+    box-shadow:0 0 10px rgba(102,126,234,0.5);
+  }
+
+  .top-item{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:14px 10px;
+    border-bottom:1px solid rgba(102,126,234,0.1);
+    transition:all 0.4s cubic-bezier(0.4,0,0.2,1);
+    border-radius:14px;
+    position:relative;
+  }
+
+  .top-item::before{
+    content:'';
+    position:absolute;
+    left:0;
+    top:0;
+    width:3px;
+    height:100%;
+    background:linear-gradient(135deg,#667eea,#764ba2);
+    opacity:0;
+    transition:opacity 0.3s;
+    border-radius:10px;
+  }
+
+  .top-item:hover{
+    background:rgba(102,126,234,0.1);
+    transform:translateX(6px);
+    border-bottom-color:transparent;
+  }
+
+  .top-item:hover::before{
+    opacity:1;
+  }
+
+  .top-rank{
+    width:48px;
+    height:48px;
+    border-radius:14px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:16px;
+    font-weight:900;
+    background:rgba(30,41,59,0.8);
+    color:#94a3b8;
+    transition:all 0.4s cubic-bezier(0.4,0,0.2,1);
+    box-shadow:0 4px 16px rgba(0,0,0,0.2);
+  }
+
+  .top-item:hover .top-rank{
+    transform:scale(1.15) rotate(-8deg);
+  }
+
+  .top-rank.gold{
+    background:linear-gradient(135deg,#fbbf24,#f59e0b);
+    color:#78350f;
+    box-shadow:0 10px 30px rgba(251,191,36,0.5), 0 0 20px rgba(251,191,36,0.3);
+  }
+
+  .top-rank.silver{
+    background:linear-gradient(135deg,#e5e7eb,#d1d5db);
+    color:#1f2937;
+    box-shadow:0 10px 30px rgba(209,213,219,0.5), 0 0 20px rgba(209,213,219,0.3);
+  }
+
+  .top-rank.bronze{
+    background:linear-gradient(135deg,#fb923c,#f97316);
+    color:#7c2d12;
+    box-shadow:0 10px 30px rgba(249,115,22,0.5), 0 0 20px rgba(249,115,22,0.3);
+  }
+
+  .top-info{flex:1;min-width:0;}
+
+  .top-name{
+    font-size:15px;
+    font-weight:800;
+    color:#f8fafc;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    letter-spacing:-0.01em;
+  }
+
+  .top-meta{
+    font-size:11px;
+    color:#94a3b8;
+    font-weight:600;
+    margin-top:3px;
+  }
+
+  .top-value{
+    font-size:15px;
+    font-weight:900;
+    background:linear-gradient(135deg,#10b981,#059669);
+    -webkit-background-clip:text;
+    background-clip:text;
+    -webkit-text-fill-color:transparent;
+    white-space:nowrap;
+    text-shadow:0 0 20px rgba(16,185,129,0.5);
+  }
+
+  @media (max-width:1200px){
+    .stats-row{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .charts-row{grid-template-columns:1fr;}
+    .top-row{grid-template-columns:repeat(2,minmax(0,1fr));}
+  }
+
+  @media (max-width:768px){
+    .dashboard-wrapper{padding:20px;}
+    .dash-header{flex-direction:column;align-items:flex-start;padding:24px;}
+    .dash-title h1{font-size:28px;}
+    .stats-row{grid-template-columns:1fr;gap:16px;}
+    .top-row{grid-template-columns:1fr;}
+    .stat-value{font-size:28px;}
+  }
+  /* Enhanced Chart Styling - Futuristic Glow */
+.apexcharts-canvas {
+  border-radius: 20px !important;
+  overflow: hidden;
+}
+
+.apexcharts-title-text {
+  font-weight: 900 !important;
+  fill: #e0f2fe !important;
+  font-size: 18px !important;
+  text-shadow: 0 0 20px rgba(103, 126, 234, 0.6) !important;
+}
+
+.apexcharts-tooltip {
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid rgba(103, 126, 234, 0.5) !important;
+  border-radius: 16px !important;
+  backdrop-filter: blur(20px) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 40px rgba(103, 126, 234, 0.4) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Sparkling markers */
+.apexcharts-marker {
+  animation: sparkle 2s ease-in-out infinite alternate;
+}
+
+@keyframes sparkle {
+  0% { box-shadow: 0 0 10px rgba(168, 85, 247, 0.8); }
+  100% { box-shadow: 0 0 20px rgba(103, 232, 249, 1), 0 0 30px rgba(103, 232, 249, 0.6); }
+}
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    for(let i = 0; i < 15; i++) {
+      const particle = document.createElement('div');
+      particle.className = 'particle';
+      particle.style.left = Math.random() * 100 + '%';
+      particle.style.top = Math.random() * 100 + '%';
+      particle.style.animationDelay = Math.random() * 20 + 's';
+      particle.style.animationDuration = (15 + Math.random() * 10) + 's';
+      document.body.appendChild(particle);
+    }
+  });
+</script>
+
+<div class="dashboard-wrapper">
+
+  <div class="dash-header">
+    <div class="dash-title">
+      <h1>⚡AUDIO AURA Dashboard</h1>
+      <p>
+        {% if start_date and end_date %}
+          📊 Showing data from {{ start_date }} to {{ end_date }}
+        {% else %}
+          🚀 Real‑time overview of customers, sales and activity
+        {% endif %}
+      </p>
+    </div>
+    <form method="get" class="dash-filter-form">
+      <label>From</label>
+      <input type="date" name="start_date" value="{{ start_date|default_if_none:'' }}">
+      <label>To</label>
+      <input type="date" name="end_date" value="{{ end_date|default_if_none:'' }}">
+      <button type="submit">Apply </button>
+    </form>
+  </div>
+
+  <section class="stats-row">
+    <article class="stat-card">
+      <div class="stat-icon" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8)">👥</div>
+      <div class="stat-meta">
+        <div class="stat-label">Total Customers</div>
+        <div class="stat-value">{{ total_customers }}</div>
+        <span class="stat-pill">✓ Active</span>
+      </div>
+    </article>
+
+    <article class="stat-card">
+      <div class="stat-icon" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9)">🚚</div>
+      <div class="stat-meta">
+        <div class="stat-label">Total Orders</div>
+        <div class="stat-value">{{ total_orders }}</div>
+        <span class="stat-pill" style="background:rgba(59,130,246,0.2);color:#60a5fa;border-color:rgba(59,130,246,0.3);">⚡ On track</span>
+      </div>
+    </article>
+
+    <article class="stat-card">
+      <div class="stat-icon" style="background:linear-gradient(135deg,#10b981,#059669)">💰</div>
+      <div class="stat-meta">
+        <div class="stat-label">Total Sales</div>
+        <div class="stat-value">₹{{ total_sales_amt|floatformat:0|intcomma }}</div>
+        <span class="stat-pill">📈 Growing</span>
+      </div>
+    </article>
+
+    <article class="stat-card">
+      <div class="stat-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">⏳</div>
+      <div class="stat-meta">
+        <div class="stat-label">Total Pending</div>
+        <div class="stat-value">{{ total_pending }}</div>
+        <span class="stat-pill" style="background:rgba(245,158,11,0.2);color:#fbbf24;border-color:rgba(245,158,11,0.3);">⌛ Processing</span>
+      </div>
+    </article>
+  </section>
+
+  <section class="charts-row">
+    <article class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">💹 Sales Progress</div>
+          <div class="chart-sub">Monthly revenue trend</div>
+        </div>
+      </div>
+      <div id="salesProgress" class="chart-box"></div>
+      <div class="kpi-strip">
+        <div class="kpi-chip">
+          <small>🎯 Target</small>
+          <strong>₹{{ kpi_target|intcomma }}</strong>
+        </div>
+        <div class="kpi-chip">
+          <small>💵 Revenue</small>
+          <strong>₹{{ kpi_revenue|intcomma }}</strong>
+        </div>
+        <div class="kpi-chip">
+          <small>📅 Today</small>
+          <strong>₹{{ kpi_today|intcomma }}</strong>
+        </div>
+      </div>
+    </article>
+
+    <article class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">📊 Activity Overview</div>
+          <div class="chart-sub">Orders over time</div>
+        </div>
+          <select class="chart-select" id="activityFilter">
+            <option value="daily"  {% if activity_period == 'daily' %}selected{% endif %}>Today</option>
+            <option value="weekly" {% if activity_period == 'weekly' or not activity_period %}selected{% endif %}>Last 7 days</option>
+            <option value="monthly" {% if activity_period == 'monthly' %}selected{% endif %}>Last 30 days</option>
+            <option value="yearly" {% if activity_period == 'yearly' %}selected{% endif %}>Last 365 days</option>
+          </select>
+      </div>
+      <div id="activityChart" class="chart-box tall"></div>
+    </article>
+  </section>
+
+  <section class="top-row">
+    <article class="top-card">
+      <div class="top-head">
+        <div class="top-title">🏆 Best Selling Products</div>
+<!-- Best Selling Products -->
+<form method="get">
+  {% if start_date %}
+    <input type="hidden" name="start_date" value="{{ start_date }}">
+  {% endif %}
+  {% if end_date %}
+    <input type="hidden" name="end_date" value="{{ end_date }}">
+  {% endif %}
+  {% if category_period %}
+    <input type="hidden" name="category_period" value="{{ category_period }}">
+  {% endif %}
+  {% if brand_period %}
+    <input type="hidden" name="brand_period" value="{{ brand_period }}">
+  {% endif %}
+  {% if activity_period %}
+    <input type="hidden" name="activity_period" value="{{ activity_period }}">
+  {% endif %}
+  
+  <select name="product_period" class="chart-select" onchange="this.form.submit()">
+    <option value="daily" {% if product_period == 'daily' %}selected{% endif %}>Today</option>
+    <option value="weekly" {% if product_period == 'weekly' %}selected{% endif %}>Last 7 days</option>
+    <option value="monthly" {% if product_period == 'monthly' %}selected{% endif %}>Last 30 days</option>
+    <option value="yearly" {% if product_period == 'yearly' %}selected{% endif %}>Last 365 days</option>
+  </select>
+</form>
+
+      </div>
+      <ul class="top-list">
+        {% for p in top_products %}
+        <li class="top-item">
+          <div class="top-rank {% if forloop.counter == 1 %}gold{% elif forloop.counter == 2 %}silver{% elif forloop.counter == 3 %}bronze{% endif %}">{{ forloop.counter }}</div>
+          <div class="top-info">
+            <div class="top-name">{{ p.name }}</div>
+            <div class="top-meta">📦 {{ p.units }} units sold</div>
+          </div>
+          <div class="top-value">₹{{ p.revenue|floatformat:0|intcomma }}</div>
+        </li>
+        {% empty %}
+        <li class="top-item"><div class="top-info"><div class="top-name">No data available</div></div></li>
+        {% endfor %}
+      </ul>
+    </article>
+
+    <article class="top-card">
+      <div class="top-head">
+        <div class="top-title">🎨 Best Selling Categories</div>
+        <!-- Best Selling Categories -->
+<!-- Best Selling Categories -->
+<form method="get">
+  {% if start_date %}
+    <input type="hidden" name="start_date" value="{{ start_date }}">
+  {% endif %}
+  {% if end_date %}
+    <input type="hidden" name="end_date" value="{{ end_date }}">
+  {% endif %}
+  {% if product_period %}
+    <input type="hidden" name="product_period" value="{{ product_period }}">
+  {% endif %}
+  {% if brand_period %}
+    <input type="hidden" name="brand_period" value="{{ brand_period }}">
+  {% endif %}
+  {% if activity_period %}
+    <input type="hidden" name="activity_period" value="{{ activity_period }}">
+  {% endif %}
+  
+  <select name="category_period" class="chart-select" onchange="this.form.submit()">
+    <option value="daily" {% if category_period == 'daily' %}selected{% endif %}>Today</option>
+    <option value="weekly" {% if category_period == 'weekly' %}selected{% endif %}>Last 7 days</option>
+    <option value="monthly" {% if category_period == 'monthly' %}selected{% endif %}>Last 30 days</option>
+    <option value="yearly" {% if category_period == 'yearly' %}selected{% endif %}>Last 365 days</option>
+  </select>
+</form>
+      </div>
+      <ul class="top-list">
+        {% for c in top_categories %}
+        <li class="top-item">
+          <div class="top-rank {% if forloop.counter == 1 %}gold{% elif forloop.counter == 2 %}silver{% elif forloop.counter == 3 %}bronze{% endif %}">{{ forloop.counter }}</div>
+          <div class="top-info">
+            <div class="top-name">{{ c.name }}</div>
+            <div class="top-meta">📦 {{ c.units }} products sold</div>
+          </div>
+          <div class="top-value">₹{{ c.revenue|floatformat:0|intcomma }}</div>
+        </li>
+        {% empty %}
+        <li class="top-item"><div class="top-info"><div class="top-name">No data available</div></div></li>
+        {% endfor %}
+      </ul>
+    </article>
+
+    <article class="top-card">
+      <div class="top-head">
+        <div class="top-title">⭐ Best Selling Brands</div>
+<!-- Best Selling Brands -->
+<form method="get">
+  {% if start_date %}
+    <input type="hidden" name="start_date" value="{{ start_date }}">
+  {% endif %}
+  {% if end_date %}
+    <input type="hidden" name="end_date" value="{{ end_date }}">
+  {% endif %}
+  {% if product_period %}
+    <input type="hidden" name="product_period" value="{{ product_period }}">
+  {% endif %}
+  {% if category_period %}
+    <input type="hidden" name="category_period" value="{{ category_period }}">
+  {% endif %}
+  {% if activity_period %}
+    <input type="hidden" name="activity_period" value="{{ activity_period }}">
+  {% endif %}
+  
+  <select name="brand_period" class="chart-select" onchange="this.form.submit()">
+    <option value="daily" {% if brand_period == 'daily' %}selected{% endif %}>Today</option>
+    <option value="weekly" {% if brand_period == 'weekly' %}selected{% endif %}>Last 7 days</option>
+    <option value="monthly" {% if brand_period == 'monthly' %}selected{% endif %}>Last 30 days</option>
+    <option value="yearly" {% if brand_period == 'yearly' %}selected{% endif %}>Last 365 days</option>
+  </select>
+</form>
+      </div>
+      <ul class="top-list">
+        {% for b in top_brands %}
+        <li class="top-item">
+          <div class="top-rank {% if forloop.counter == 1 %}gold{% elif forloop.counter == 2 %}silver{% elif forloop.counter == 3 %}bronze{% endif %}">{{ forloop.counter }}</div>
+          <div class="top-info">
+            <div class="top-name">{{ b.name }}</div>
+            <div class="top-meta">📦 {{ b.units }} products sold</div>
+          </div>
+          <div class="top-value">₹{{ b.revenue|floatformat:0|intcomma }}</div>
+        </li>
+        {% empty %}
+        <li class="top-item"><div class="top-info"><div class="top-name">No data available</div></div></li>
+        {% endfor %}
+      </ul>
+    </article>
+  </section>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+  // ===== SALES PROGRESS - Futuristic Area Chart =====
+  const SALES_LABELS = JSON.parse('{{ sales_progress_labels|safe|escapejs }}');
+  const SALES_DATA   = JSON.parse('{{ sales_progress_data|safe|escapejs }}');
+
+  const salesOptions = {
+    chart: {
+      type: 'area',
+      height: 300,
+      toolbar: { show: false },
+      fontFamily: 'Inter, sans-serif',
+      foreColor: '#94a3b8',
+      background: 'transparent',
+      animations: {
+        enabled: true,
+        easing: 'easeinout',
+        speed: 1000,
+        animateGradually: { enabled: true },
+        dynamicAnimation: { enabled: true, speed: 800 }
+      }
+    },
+    series: [{ name: 'Revenue', data: SALES_DATA }],
+    grid: {
+      show: true,
+      borderColor: 'rgba(103, 126, 234, 0.15)',
+      strokeDashArray: 6,
+      xaxis: { lines: { show: false } },
+      yaxis: { lines: { show: true } },
+      padding: { top: 0, right: 10, bottom: 0, left: 10 }
+    },
+    xaxis: {
+      categories: SALES_LABELS,
+      labels: { style: { colors: '#94a3b8', fontSize: '12px', fontWeight: 600 } },
+      axisBorder: { show: false },
+      axisTicks: { show: false }
+    },
+    yaxis: {
+      labels: {
+        formatter: val => '₹' + (val).toFixed(0) + 'K',
+        style: { colors: '#94a3b8', fontSize: '13px', fontWeight: 600 }
+      }
+    },
+    stroke: {
+      curve: 'smooth',
+      width: 5,
+      colors: ['#67e8f9'],
+      lineCap: 'round'
+    },
+    markers: {
+      size: 6,
+      colors: ['#0f172a'],
+      strokeColors: ['#67e8f9', '#a855f7'],
+      strokeWidth: [4, 4],
+      hover: { size: 9 }
+    },
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shade: 'dark',
+        type: "vertical",
+        shadeIntensity: 0.8,
+        gradientToColors: ['#a855f7'],
+        inverseColors: false,
+        opacityFrom: 0.85,
+        opacityTo: 0.1,
+        stops: [0, 70, 100]
+      }
+    },
+    colors: ['#67e8f9'],
+    dataLabels: {
+      enabled: true,
+      offsetY: -8,
+      style: { fontSize: '12px', fontWeight: 800, colors: ['#e0f2fe'] },
+      background: {
+        enabled: true,
+        foreColor: '#0f172a',
+        borderRadius: 8,
+        padding: 6,
+        opacity: 0.9,
+        borderWidth: 0,
+        dropShadow: { enabled: true, blur: 6, opacity: 0.6 }
+      }
+    },
+    tooltip: {
+      theme: 'dark',
+      x: { show: true },
+      y: {
+        formatter: val => '₹' + (val * 1000).toLocaleString('en-IN'),
+        title: { formatter: () => 'Revenue:' }
+      },
+      style: { fontSize: '14px', fontWeight: 700 }
+    },
+    responsive: [{
+      breakpoint: 768,
+      options: { chart: { height: 240 } }
+    }]
+  };
+
+  new ApexCharts(document.querySelector('#salesProgress'), salesOptions).render();
+
+  // ===== ACTIVITY OVERVIEW - Clean Bar Chart =====
+  const ACTIVITY_CATEGORIES = JSON.parse('{{ activity_categories|safe|escapejs }}');
+  const ACTIVITY_DATA       = JSON.parse('{{ activity_data|safe|escapejs }}');
+
+  const activityOptions = {
+    chart: {
+      type: 'bar',
+      height: 340,
+      toolbar: { show: false },
+      fontFamily: 'Inter, sans-serif',
+      foreColor: '#94a3b8',
+      background: 'transparent',
+      animations: { enabled: true, speed: 900 }
+    },
+    series: [{ name: 'Orders', data: ACTIVITY_DATA }],
+    plotOptions: {
+      bar: {
+        borderRadius: 8,
+        columnWidth: '55%',
+        endingShape: 'flat'
+      }
+    },
+    grid: {
+      show: true,
+      borderColor: 'rgba(103, 126, 234, 0.15)',
+      strokeDashArray: 6,
+      padding: { left: 10, right: 10 }
+    },
+    xaxis: {
+      categories: ACTIVITY_CATEGORIES,
+      labels: {
+        rotate: -45,
+        style: { colors: '#94a3b8', fontSize: '11px', fontWeight: 600 }
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false }
+    },
+    yaxis: {
+      labels: { style: { colors: '#94a3b8', fontSize: '13px' } }
+    },
+    dataLabels: {
+      enabled: false
+    },
+    colors: ['#3b82f6'],
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shade: 'dark',
+        type: "vertical",
+        shadeIntensity: 0.6,
+        gradientToColors: ['#60a5fa'],
+        opacityFrom: 1,
+        opacityTo: 0.9,
+        stops: [0, 100]
+      }
+    },
+    tooltip: {
+      theme: 'dark',
+      y: { formatter: val => val + ' orders' }
+    },
+    responsive: [{
+      breakpoint: 768,
+      options: { chart: { height: 280 } }
+    }]
+  };
+
+  new ApexCharts(document.querySelector('#activityChart'), activityOptions).render();
+
+  // Period filter
+document.getElementById('activityFilter').addEventListener('change', function (e) {
+  const params = new URLSearchParams(window.location.search);
+  params.set('activity_period', e.target.value);
+  window.location.search = params.toString();
+});
+</script>
+
+{% endblock %}

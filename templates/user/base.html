@@ -1,0 +1,758 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Audio Aura{% endblock %}</title>
+
+  <link href="https://fonts.googleapis.com/css?family=Poppins:200,300,400,500,600,700,800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <link href="https://fonts.googleapis.com/css?family=Lora:400,400i,700,700i&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css?family=Amatic+SC:400,700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="{% static 'css/open-iconic-bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/animate.css' %}">
+  <link rel="icon" type="image/png" href="https://res.cloudinary.com/dxndvadjt/image/upload/v1765251957/main_brand_logo.png_q6eguz.png">
+
+    
+  <link rel="stylesheet" href="{% static 'css/owl.carousel.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/owl.theme.default.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/magnific-popup.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/easyzoom/2.5.0/easyzoom.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/cropperjs@1.6.2/dist/cropper.min.css">
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Custom CSS -->
+   <link rel="stylesheet" href="{% static 'css/stylee.css'  %}">
+   <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body{
+      background: linear-gradient(to bottom, #450623, #130325);
+      font-family: 'Poppins', Arial, Helvetica, sans-serif !important;
+      padding-top: 126px;
+    }
+    /* Make navbar fixed */
+    nav.navbar {
+      position: fixed;
+      margin-top: 20px;
+      top: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      z-index: 2000;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Adjust for mobile screens */
+    @media (max-width: 991px) {
+      body {
+        padding-top: 80px;
+      }
+    }
+/* Utilities */
+.visually-hidden{
+  position:absolute!important;height:1px;width:1px;overflow:hidden;clip:rect(1px,1px,1px,1px);white-space:nowrap;
+}
+
+/* Component variables: scoped to navbar so other pages unaffected */
+.navbar{
+  --input-w: 301px;
+  --input-h: 40px;                         /* exact requested height */
+  --radius: 10px;
+  --frame-w: calc(var(--input-w) + 6px);
+  --frame-h: calc(var(--input-h) + 6px);
+  --frame2-w: calc(var(--input-w) + 10px);
+  --frame2-h: calc(var(--input-h) + 10px);
+}
+
+/* Wrapper centers the layered frames behind input */
+.navbar .glow-search-wrapper{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;isolation:isolate;
+}
+
+/* Positioning reference for layers */
+.navbar .gs-main{position:relative;width:var(--input-w);height:var(--input-h);}
+
+/* Input */
+.navbar .gs-input{
+  background-color:#010201;border:none;width:var(--input-w);height:var(--input-h);
+  border-radius:var(--radius);color:#fff;padding-inline:48px 44px;font-size:15px;position:relative;z-index:3;
+  line-height:var(--input-h);
+}
+.navbar .gs-input::placeholder{color:#c0b9c0;}
+.navbar .gs-input:focus{outline:2px solid #2b2752;outline-offset:0;}
+
+/* Masks */
+.navbar .gs-input-mask{
+  pointer-events:none;width:100px;height:20px;position:absolute;background:linear-gradient(90deg,transparent,black);
+  top:calc(var(--input-h)/2 - 10px);left:64px;z-index:4;
+}
+.navbar .gs-main:focus-within>.gs-input-mask{display:none;}
+
+.navbar .gs-pink-mask{
+  pointer-events:none;width:30px;height:20px;position:absolute;background:#cf30aa;top:8px;left:6px;
+  filter:blur(20px);opacity:.8;transition:opacity .4s ease;z-index:2;
+}
+.navbar .glow-search-wrapper:hover>.gs-pink-mask,
+.navbar .gs-main:hover>.gs-pink-mask{opacity:0;}
+
+/* Icons */
+.navbar .gs-search-icon{position:absolute;left:18px;top:50%;transform:translateY(-50%);z-index:4;}
+.navbar #gs-filter-icon{
+  position:absolute;top:50%;right:6px;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;
+  z-index:4;height:calc(var(--input-h) - 8px);width:34px;isolation:isolate;overflow:hidden;border-radius:8px;
+  background:linear-gradient(180deg,#161329,black,#1d1b4b);border:1px solid transparent;cursor:pointer;
+}
+.navbar #gs-filter-icon:focus-visible{outline:2px solid #6356d8;outline-offset:2px;}
+
+/* Filter border ring */
+.navbar .gs-filterBorder{
+  position:absolute;top:50%;right:5px;transform:translateY(-50%);height:calc(var(--input-h) - 6px);width:36px;border-radius:8px;overflow:hidden;z-index:3;
+}
+.navbar .gs-filterBorder::before{
+  content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(90deg);
+  width:600px;height:600px;background-repeat:no-repeat;background-position:0 0;filter:brightness(1.35);
+  background-image:conic-gradient(rgba(0,0,0,0),#3d3a4f,rgba(0,0,0,0) 50%,rgba(0,0,0,0) 50%,#3d3a4f,rgba(0,0,0,0) 100%);
+  animation:gs-rotate 4s linear infinite;
+}
+
+/* Layered gradient frames (behind input) */
+.navbar .gs-white,.navbar .gs-border,.navbar .gs-darkBorderBg,.navbar .gs-glow{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);overflow:hidden;border-radius:12px;pointer-events:none;z-index:1;
+}
+.navbar .gs-white,.navbar .gs-border,.navbar .gs-darkBorderBg{
+  width:var(--frame-w);height:var(--frame-h);filter:blur(3px);max-width:314px;max-height:70px;
+}
+.navbar .gs-white{filter:blur(2px);max-width:307px;max-height:63px;}
+.navbar .gs-white::before{
+  content:"";position:absolute;inset:0;top:50%;left:50%;transform:translate(-50%,-50%) rotate(83deg);
+  width:600px;height:600px;background-repeat:no-repeat;background-position:0 0;filter:brightness(1.4);
+  background-image:conic-gradient(rgba(0,0,0,0) 0%,#a099d8,rgba(0,0,0,0) 8%,rgba(0,0,0,0) 50%,#dfa2da,rgba(0,0,0,0) 58%);
+  transition:transform 2s ease;
+}
+.navbar .gs-border{filter:blur(.5px);max-width:303px;max-height:59px;}
+.navbar .gs-border::before{
+  content:"";position:absolute;inset:0;top:50%;left:50%;transform:translate(-50%,-50%) rotate(70deg);
+  width:600px;height:600px;filter:brightness(1.3);background-repeat:no-repeat;background-position:0 0;
+  background-image:conic-gradient(#1c191c,#402fb5 5%,#1c191c 14%,#1c191c 50%,#cf30aa 60%,#1c191c 64%);
+  transition:transform 2s ease;
+}
+.navbar .gs-darkBorderBg{max-width:312px;max-height:65px;}
+.navbar .gs-darkBorderBg::before{
+  content:"";position:absolute;inset:0;top:50%;left:50%;transform:translate(-50%,-50%) rotate(82deg);
+  width:600px;height:600px;background-repeat:no-repeat;background-position:0 0;
+  background-image:conic-gradient(rgba(0,0,0,0),#18116a,rgba(0,0,0,0) 10%,rgba(0,0,0,0) 50%,#6e1b60,rgba(0,0,0,0) 60%);
+  transition:transform 2s ease;
+}
+
+/* Larger glow container */
+.navbar .gs-glow{
+  width:var(--frame2-w);height:var(--frame2-h);filter:blur(30px);opacity:.4;max-width:354px;max-height:130px;
+}
+.navbar .gs-glow::before{
+  content:"";position:absolute;inset:0;top:50%;left:50%;transform:translate(-50%,-50%) rotate(60deg);
+  width:999px;height:999px;background-repeat:no-repeat;background-position:0 0;
+  background-image:conic-gradient(#000,#402fb5 5%,#000 38%,#000 50%,#cf30aa 60%,#000 87%);
+  transition:transform 2s ease;
+}
+
+/* Hover/focus interactions */
+.navbar .glow-search-wrapper:hover>.gs-darkBorderBg::before{transform:translate(-50%,-50%) rotate(262deg);}
+.navbar .glow-search-wrapper:hover>.gs-glow::before{transform:translate(-50%,-50%) rotate(240deg);}
+.navbar .glow-search-wrapper:hover>.gs-white::before{transform:translate(-50%,-50%) rotate(263deg);}
+.navbar .glow-search-wrapper:hover>.gs-border::before{transform:translate(-50%,-50%) rotate(250deg);}
+.navbar .glow-search-wrapper:focus-within>.gs-darkBorderBg::before{transform:translate(-50%,-50%) rotate(442deg);transition:transform 4s ease;}
+.navbar .glow-search-wrapper:focus-within>.gs-glow::before{transform:translate(-50%,-50%) rotate(420deg);transition:transform 4s ease;}
+.navbar .glow-search-wrapper:focus-within>.gs-white::before{transform:translate(-50%,-50%) rotate(443deg);transition:transform 4s ease;}
+.navbar .glow-search-wrapper:focus-within>.gs-border::before{transform:translate(-50%,-50%) rotate(430deg);transition:transform 4s ease;}
+
+/* Animations */
+@keyframes gs-rotate{100%{transform:translate(-50%,-50%) rotate(450deg);}}
+    /* Dynamic Island Container */
+  /* Dynamic Island Container */
+  #dynamic-island {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 9999;
+    pointer-events: none;
+  }
+
+  /* Toast Base - iPhone Dynamic Island Style */
+  .island-toast {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 260px;
+    max-width: 420px;
+    padding: 14px 20px;
+    color: #fff;
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 1.4;
+    border-radius: 44px;
+    background: rgba(17, 17, 17, 0.95);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+                0 2px 8px rgba(0, 0, 0, 0.2),
+                inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    opacity: 0;
+    transform: scale(0.3) translateY(-30px);
+    animation: islandSlideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  /* Hover effect */
+  .island-toast:hover {
+    transform: scale(1.02);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Active press effect */
+  .island-toast:active {
+    transform: scale(0.98);
+  }
+
+  /* Color variants with glowing borders */
+  .island-toast.success { 
+    border-left: 3px solid #34c759;
+    box-shadow: 0 8px 32px rgba(52, 199, 89, 0.3),
+                0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  .island-toast.error { 
+    border-left: 3px solid #ff3b30;
+    box-shadow: 0 8px 32px rgba(255, 59, 48, 0.3),
+                0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  .island-toast.info { 
+    border-left: 3px solid #007aff;
+    box-shadow: 0 8px 32px rgba(0, 122, 255, 0.3),
+                0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  .island-toast.warning { 
+    border-left: 3px solid #ff9500;
+    box-shadow: 0 8px 32px rgba(255, 149, 0, 0.3),
+                0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Icon styling */
+  .island-toast .icon { 
+    font-size: 20px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  }
+
+  /* Message text */
+  .island-toast .msg-text {
+    flex: 1;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  /* Closing state */
+  .island-toast.closing {
+    animation: islandSlideOut 0.5s cubic-bezier(0.55, 0.09, 0.68, 0.53) forwards;
+  }
+
+  /* iPhone-style slide in animation */
+  @keyframes islandSlideIn {
+    0% {
+      opacity: 0;
+      transform: scale(0.3) translateY(-30px);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.05) translateY(5px);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  /* iPhone-style slide out animation */
+  @keyframes islandSlideOut {
+    0% {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+    30% {
+      opacity: 0.8;
+      transform: scale(0.95) translateY(-5px);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(0.3) translateY(-40px);
+    }
+  }
+
+  /* Fade out for progress bar */
+  @keyframes fadeProgress {
+    from { width: 100%; }
+    to { width: 0%; }
+  }
+
+  /* Optional: Progress bar */
+  .island-toast::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    width: 50%;
+    background: linear-gradient(90deg, 
+      rgba(255, 255, 255, 0.3), 
+      rgba(255, 255, 255, 0.6), 
+      rgba(255, 255, 255, 0.3));
+    border-radius: 0 0 44px 44px;
+    animation: fadeProgress 4s linear forwards;
+  }
+
+  /* Mobile responsive */
+  @media (max-width: 480px) {
+    #dynamic-island {
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      transform: none;
+    }
+
+    .island-toast {
+      min-width: auto;
+      max-width: 100%;
+      width: calc(100% - 20px);
+      font-size: 13px;
+      padding: 12px 16px;
+    }
+  }
+  .badge-count {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 6px rgba(239,68,68,0.8);
+}
+
+.top-welcome-banner{
+  width: 100%;
+  position: fixed;
+  top: 0px;
+  z-index: 3000;
+
+}
+
+   </style>
+
+</head>
+<body class="d-flex flex-column min-vh-100"  data-auth="{{ request.user.is_authenticated|yesno:'true,false' }}">
+<!-- Dynamic Island Container -->
+<div id="dynamic-island">
+  {% if messages %}
+    {% for message in messages %}
+      <div class="island-toast {{ message.tags|default:'info' }}" data-auto-close="true">
+        <span class="icon">
+          {% if message.tags == 'success' %}✔️
+          {% elif message.tags == 'error' %}❌
+          {% elif message.tags == 'warning' %}⚠️
+          {% else %}ℹ️
+          {% endif %}
+        </span>
+        <span class="msg-text">{{ message }}</span>
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+<script>
+  (function() {
+    'use strict';
+    
+    // Auto-close all toasts after 4 seconds with smooth animation
+    document.addEventListener('DOMContentLoaded', function() {
+      const toasts = document.querySelectorAll('.island-toast[data-auto-close="true"]');
+      
+      toasts.forEach((toast, index) => {
+        // Stagger appearance for multiple toasts
+        toast.style.animationDelay = `${index * 0.15}s`;
+        
+        // Auto close after 4 seconds
+        setTimeout(function() {
+          closeToast(toast);
+        }, 4000 + (index * 150));
+        
+        // Manual close on click
+        toast.addEventListener('click', function() {
+          closeToast(toast);
+        });
+      });
+    });
+    
+    // Smooth close animation
+    function closeToast(toast) {
+      // Prevent double-closing
+      if (toast.classList.contains('closing')) return;
+      
+      // Add closing class to trigger animation
+      toast.classList.add('closing');
+      
+      // Remove from DOM after animation completes
+      setTimeout(function() {
+        toast.style.display = 'none';
+        toast.remove();
+      }, 500); // Match animation duration
+    }
+    
+    // Optional: ESC key to close all toasts
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.island-toast').forEach(closeToast);
+      }
+    });
+  })();
+</script>
+
+  <script>
+  (function(){
+    var isAuth = (document.body.dataset.auth === 'true');
+    window.addEventListener('pageshow', function (e) {
+      if (e.persisted && isAuth && location.pathname.startsWith('/accounts')) {
+        location.replace("{% url 'home' %}");
+      }
+    });
+  })();
+</script>
+
+  <!-- 🔹 Top Offer Bar -->
+<!-- 🔹 Top Offer Bar (Fixed above navbar) -->
+{% if show_welcome_banner %}
+<div class="top-welcome-banner bg-light text-center py-1 small m-0" style="font-size: 14px;">
+  Get 25% off your first purchase! Use code: <strong>WELCOME25</strong>
+</div>
+{% endif %}
+
+
+
+  <!-- 🔹 Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark" style="background:#4b002b; ">
+    <div class="container-fluid">
+
+     <!-- 🔹 Hamburger Button with SVG -->
+<!-- 🔹 Hamburger Menu (Mobile) -->
+    <button class="btn d-lg-none me-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu">
+      <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="white" class="bi bi-list" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/>
+      </svg>
+    </button>
+      
+      <!-- Logo -->
+      <a class="navbar-brand d-flex align-items-center" href="{% url 'home' %}">
+        <img src="https://res.cloudinary.com/dxndvadjt/image/upload/v1765251957/main_brand_logo.png_q6eguz.png" alt="Audio Aura" height="100" class="me-2">
+      </a>
+
+      <!-- Hamburger -->
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <!-- Menu -->
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav mx-4  ms-auto p-1" >
+          <li class="nav-item"><a class="nav-link" href="{% url 'home' %}">Home</a></li>
+
+          <!-- Dropdown -->
+<!-- Categories dropdown (replace your old dropdown block with this) -->
+          <li class="nav-item dropdown categories-dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="categoriesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Categories
+            </a>
+            <div class="bg-success dropdown-menu custom-dropdown p-0" aria-labelledby="categoriesDropdown">
+              <!-- Outer dark border container (keeps the thick border) -->
+              <div class="custom-dropdown-outer">
+                <!-- Inner semi-transparent panel (content lives here) -->
+                <div class="custom-dropdown-inner d-flex align-items-center justify-content-between">
+                  <!-- Category  -->
+                {% for cat in categories %}
+                  <div class="cat-item text-center">
+                    <a href="{% url 'shop' %}?category={{ cat.id }}" class="text-decoration-none">
+                      {% if cat.image %}
+                        <img src="{{ cat.image.url }}" alt="{{ cat.name }}" class="img-fluid cat-img">
+                      {% else %}
+                        <img src="{% static 'images/default-category.png' %}" alt="No image" class="img-fluid cat-img">
+                      {% endif %}
+                      <h6 class="cat-title">{{ cat.name }}</h6>
+                    </a>
+                  </div>
+                {% empty %}
+                  <p class="text-white p-3">No categories yet</p>
+                {% endfor %}
+                </div>
+              </div>
+            </div>
+          </li>
+
+
+
+          <li class="nav-item"><a class="nav-link" href="{% url 'shop' %}">Shop</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'home' %}#new_arrival">New Arrivals</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'about' %}">About</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'contact'  %}">Contact</a></li>
+        </ul>
+
+
+      <div class="glow-search-wrapper d-none d-md-flex align-items-center ms-3" role="search">
+        <!-- layered frames -->
+        <div class="gs-glow" aria-hidden="true"></div>
+        <div class="gs-darkBorderBg" aria-hidden="true"></div>
+        <div class="gs-darkBorderBg" aria-hidden="true"></div>
+        <div class="gs-darkBorderBg" aria-hidden="true"></div>
+        <div class="gs-white" aria-hidden="true"></div>
+        <div class="gs-border" aria-hidden="true"></div>
+
+        <!-- main control -->
+        <div class="gs-main">
+          <label for="navbar-search" class="visually-hidden">Search products</label>
+          <input
+            id="navbar-search"
+            placeholder="Search products..."
+            type="text"
+            name="q"
+            class="gs-input"
+            aria-label="Search products"
+            autocomplete="off"
+            value="{{ applied.q }}"
+            form="glow-search-form"
+          />
+          <div class="gs-input-mask" aria-hidden="true"></div>
+          <div class="gs-pink-mask" aria-hidden="true"></div>
+
+          <div class="gs-filterBorder" aria-hidden="true"></div>
+
+          <button id="gs-filter-icon" type="button" aria-label="Open filters"
+                  data-bs-toggle="offcanvas" data-bs-target="#filtersPanel">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" class="bi bi-filter" class="bi bi-x-square" viewBox="0 0 16 16">
+              <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
+              <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+            </svg>
+          </button>
+          <div class="gs-search-icon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" viewBox="0 0 24 24"
+                stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
+                height="24" fill="none" class="feather feather-search" aria-hidden="true">
+              <circle stroke="url(#search)" r="8" cy="11" cx="11"></circle>
+              <line stroke="url(#searchl)" y2="16.65" y1="22" x2="16.65" x1="22"></line>
+              <defs>
+                <linearGradient gradientTransform="rotate(50)" id="search">
+                  <stop stop-color="#f8e7f8" offset="0%"></stop>
+                  <stop stop-color="#b6a9b7" offset="50%"></stop>
+                </linearGradient>
+                <linearGradient id="searchl">
+                  <stop stop-color="#b6a9b7" offset="0%"></stop>
+                  <stop stop-color="#837484" offset="50%"></stop>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+        </div>
+
+        <!-- actual GET form for /shop?q=... -->
+        <form id="glow-search-form" method="get" action="{% url 'shop' %}" class="d-none"></form>
+        <script>
+  (function () {
+    const input = document.getElementById('navbar-search');
+    const clearBtn = document.getElementById('gs-filter-icon');
+    const container = input.closest('.gs-main');
+    const form = document.getElementById('glow-search-form');
+
+    // toggle X visibility based on value
+    function sync() {
+      if (input.value && input.value.length > 0) {
+        container.classList.add('has-value');
+      } else {
+        container.classList.remove('has-value');
+      }
+    }
+    input.addEventListener('input', sync);
+    document.addEventListener('DOMContentLoaded', sync);
+
+    // clear on X click
+    clearBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      input.value = '';
+      sync();
+      input.focus();
+
+      // Optional: reset results immediately
+      // form.submit();
+    });
+
+    // Optional: ESC to clear
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && input.value) {
+        input.value = '';
+        sync();
+        e.preventDefault();
+      }
+    });
+  })();
+</script>
+
+      </div>
+
+
+
+
+        <!-- 🔹 Profile Dropdown -->
+        <ul class="navbar-nav mb-2 mb-lg-0">
+          {% if user.is_authenticated %}
+            <li class="nav-item">
+              <a class="nav-link d-flex align-items-center cart-btn position-relative" href="{% url 'cart' %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25"
+                    fill="currentColor" class="bi bi-cart3" viewBox="0 0 16 16">
+                  <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .49.598l-1 5a.5.5 0 0 1-.465.401l-9.397.472L4.415 11H13a.5.5 0 0 1 0 1H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l.84 4.479 9.144-.459L13.89 4zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+                </svg>
+                {% if cart_count %}
+                  <span class="badge-count">{{ cart_count }}</span>
+                {% endif %}
+              </a>
+            </li>
+
+            <li class="nav-item">
+              <a class="nav-link d-flex align-items-center wishlist-btn position-relative" href="{% url 'wishlist:list' %}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25"
+                    fill="white" class="bi bi-heart-fill" viewBox="0 0 16 16">
+                  <path fill-rule="evenodd"
+                        d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314"/>
+                </svg>
+                {% if wishlist_count %}
+                  <span class="badge-count">{{ wishlist_count }}</span>
+                {% endif %}
+              </a>
+            </li>
+
+            <li class="nav-item dropdown">
+              <a class="nav-link d-flex align-items-center" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="gap:8px;">
+                {% if user.is_authenticated and user.profile and user.profile.avatar %}
+                  <img src="{{ user.profile.avatar.url }}" alt="Avatar" width="28" height="28"
+                      style="border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,.3)">
+                {% else %}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="white" class="bi bi-person-circle" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
+                    <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
+                  </svg>
+                {% endif %}
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end text-white">
+                <li><a class="dropdown-item" href="{% url 'profile' %}">Account</a></li>
+                <li><a class="dropdown-item" href="{% url 'orders' %}">My Orders</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{% url 'logout' %}">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-left" viewBox="0 0 16 16" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M6 12.5a.5.5 0 0 0 .5.5h8a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-8a.5.5 0 0 0-.5.5v2a.5.5 0 0 1-1 0v-2A1.5 1.5 0 0 1 6.5 2h8A1.5 1.5 0 0 1 16 3.5v9a.5.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 5 12.5v-2a.5.5 0 0 1 1 0z"/>
+                    <path fill-rule="evenodd" d="M.146 8.354a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L1.707 7.5H10.5a.5.5 0 0 1 0 1H1.707l2.147 2.146a.5.5 0 0 1-.708.708z"/>
+                  </svg> Logout
+                </a></li>
+              </ul>
+            </li>
+      
+          {% else %}
+            <li class="nav-item"><a class="nav-link" href="{% url 'signup' %}">Sign Up</a></li>
+            <li class="nav-item"><a class="nav-link" href="{% url 'signin' %}">Sign In</a></li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+
+  <!-- 🔹 Page Content -->
+  <main class="flex-grow-1">
+    {% block content %}
+    {% endblock %}
+  </main>
+
+  <!-- 🔹 Footer -->
+  <footer class="text-light text-center">
+    <hr>
+    <div class="container h-100">
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <img src="https://res.cloudinary.com/dxndvadjt/image/upload/v1765251957/main_brand_logo.png_q6eguz.png" height="150" alt="Audio Aura"><br>
+          
+        </div>
+        <div class="col-md-9 ">
+          <ul class="list-inline footer-links mb-2">
+            <li class="list-inline-item"><a href="#" class="text-light text-decoration-none">Support Center</a></li>
+            <li class="list-inline-item"><a href="#" class="text-light text-decoration-none">Shipping</a></li>
+            <li class="list-inline-item"><a href="#" class="text-light text-decoration-none">Contact</a></li>
+            <li class="list-inline-item"><a href="#" class="text-light text-decoration-none">Careers</a></li>
+            <li class="list-inline-item"><a href="#" class="text-light text-decoration-none">Blog</a></li>
+            <li class="list-inline-item"><a href="#" class="text-light text-decoration-none">FAQs</a></li>
+          </ul>
+          <p class="small " >Copyright © 2025. All rights reserved.</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+<script src="https://unpkg.com/cropperjs@1.6.2/dist/cropper.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!--JS -->
+  <script>
+  // Select all tab buttons
+  const tabButtons = document.querySelectorAll(".tab-btn");
+
+  tabButtons.forEach(button => {
+    button.addEventListener("click", () => {
+      // Remove 'active' from all buttons
+      tabButtons.forEach(btn => btn.classList.remove("active"));
+      // Add 'active' to the clicked button
+      button.classList.add("active");
+    });
+  });
+</script>
+<!-- // Select all tab buttons -->
+ <script>
+function toggleWishlist(button) {
+  button.classList.toggle('active');
+  const productCard = button.closest('.shop-product-card');
+  const productName = productCard.querySelector('.shop-product-title').innerText;
+
+  if(button.classList.contains('active')){
+    console.log(productName + " added to wishlist");
+    // AJAX call to backend to save wishlist
+  } else {
+    console.log(productName + " removed from wishlist");
+    // AJAX call to remove from wishlist
+  }
+}
+</script>
+
+</body>
+</html>
