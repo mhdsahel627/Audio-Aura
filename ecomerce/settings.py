@@ -122,10 +122,10 @@ WSGI_APPLICATION = 'ecomerce.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'new_audio_aura',
-        'USER': 'staff',
-        'PASSWORD': 'staff@123',
-        'HOST': 'localhost',
+        'NAME': 'postgres',
+        'USER': 'Audio_Aura',
+        'PASSWORD': 'Audio_Aura',
+        'HOST': 'audioaura-db.cjiom0mkqhdv.ap-south-1.rds.amazonaws.com',
         'PORT': '5432',
     }
 }
