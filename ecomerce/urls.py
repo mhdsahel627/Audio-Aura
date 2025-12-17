@@ -22,11 +22,11 @@ from django.views.static import serve
 from django.urls import re_path
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('adminn/', admin.site.urls),
     path('', include('home.urls')),
     path('accounts/', include('registration.urls')),
     path('oauth/', include('social_django.urls', namespace='social')),  # Google OAuth routes
-     path('adminside/', include('admin_side.urls')),
+     path('admin/', include('admin_side.urls')),
     path('categories/', include('category.urls')),
     path('products/', include('products.urls')),
     path('shop/', include('shop.urls')),
