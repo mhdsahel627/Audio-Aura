@@ -27,12 +27,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-=d^6fh65la-id$9#isfilccsq24x_5ow7!$e_ns=qc5**3&i+a'
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['52.66.249.202', 'localhost', '127.0.0.1']
 
 
 # Application definition
@@ -124,7 +124,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'postgres',
         'USER': 'Audio_Aura',
-        'PASSWORD': 'Audio_Aura',
+        'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': 'audioaura-db.cjiom0mkqhdv.ap-south-1.rds.amazonaws.com',
         'PORT': '5432',
     }
@@ -228,9 +228,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
 
 # Cloudinary configuration
 CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': 'dxndvadjt',
-    'API_KEY': '445827442992544',
-    'API_SECRET': 'nrFr8FecuzZPIaS09L-mtgfhWQ8',
+    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
+    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
 }
 
 # Initialize Cloudinary (THIS LINE IS WHAT WAS MISSING!)
@@ -248,10 +248,10 @@ STATICFILES_STORAGE = 'cloudinary_storage.storage.StaticHashedCloudinaryStorage'
 # ============================================
 # RAZORPAY CONFIGURATION
 # ============================================
-RAZORPAY_KEY_ID = "rzp_test_RYT8n3u06G37ZH"
-RAZORPAY_KEY_SECRET = "COkoyDY29o4wlRiAe4p8kSlp"
-RAZOR_KEY_ID = "rzp_test_RYT8n3u06G37ZH"
-RAZOR_KEY_SECRET = "COkoyDY29o4wlRiAe4p8kSlp"
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
+RAZOR_KEY_ID = os.getenv('RAZOR_KEY_ID')
+RAZOR_KEY_SECRET =os.getenv('RAZOR_KEY_SECRET')
 
 
 STORAGES = {
