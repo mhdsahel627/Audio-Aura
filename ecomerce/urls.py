@@ -20,6 +20,10 @@ from django.conf.urls.static import static
 from django.conf import settings
 from django.views.static import serve
 from django.urls import re_path
+from django.conf.urls import handler404
+
+
+handler404 = 'banner.views.custom_404'
 
 urlpatterns = [
     path('adminn/', admin.site.urls),
