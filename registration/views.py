@@ -9,6 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 from datetime import timedelta
 import random
+from django.conf import settings
 
 # Forms
 from .forms import (
@@ -107,7 +108,7 @@ def send_dynamic_otp_email(email, otp, email_type='signup', username=None):
         
         # Create email
         subject = config['subject']
-        from_email = 'Audio Aura <your_email@gmail.com>'  # Replace with your email
+        from_email = settings.DEFAULT_FROM_EMAIL# Replace with your email
         to_email = [email]
         
         # Create email with HTML
