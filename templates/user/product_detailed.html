@@ -766,7 +766,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="thumbs-wrapper" id="thumbsWrapper">
             {% for img in images %}
               <button class="thumb {% if forloop.first %}is-active{% endif %}" type="button">
-                <img src="{{ img.image.url }}" alt="{{ product.name }}">
+                <img src="{{ img.image_url }}" alt="{{ product.name }}">
               </button>
             {% empty %}
               <button class="thumb is-active" type="button">
@@ -782,7 +782,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="hero-nav prev" type="button" aria-label="Previous image">‹</button>
         <button class="hero-nav next" type="button" aria-label="Next image">›</button>
 
-        <img id="heroImg" src="{% if product.images.first %}{{ product.images.first.image.url }}{% else %}{% static 'images/logo.png' %}{% endif %}" alt="boAt Stone Lumos main"/>
+        <img id="heroImg" src="{% if product.images.first %}{{ product.images.first.image_url }}{% else %}{% static 'images/logo.png' %}{% endif %}" alt="boAt Stone Lumos main"/>
         <button class="zoom-reset" type="button" aria-label="Reset zoom">Reset</button>
 
 
@@ -823,12 +823,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     class="swatch {% if forloop.first %}is-active{% endif %}"
                     type="button"
                     data-variant-id="{{ variant.id }}"
-                    data-hero="{% if variant.images.first %}{{ variant.images.first.image.url }}
+                    data-hero="{% if variant.images.first %}{{ variant.images.first.image_url }}
                               {% elif variant.image %}{{ variant.image.url }}
-                              {% elif product.images.first %}{{ product.images.first.image.url }}
+                              {% elif product.images.first %}{{ product.images.first.image_url }}
                               {% else %}{% static 'images/logo.png' %}{% endif %}">
                     <img src="{% if variant.image %}{{ variant.image.url }}
-                              {% elif variant.images.first %}{{ variant.images.first.image.url }}
+                              {% elif variant.images.first %}{{ variant.images.first.image_url }}
                               {% else %}{% static 'images/logo.png' %}{% endif %}" 
                         alt="{{ variant.color }}">
                   </button>
@@ -1212,7 +1212,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <figure class="ph-hero" aria-label="Product highlights">
         {% for dimg in product.detailed_images.all %}
           <img 
-            src="{{ dimg.image.url }}" 
+            src="{{ dimg.image_url }}" 
             alt="{{ product.name }} highlight {{ forloop.counter }}" 
             loading="lazy" 
             decoding="async">
@@ -2182,4 +2182,3 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
-

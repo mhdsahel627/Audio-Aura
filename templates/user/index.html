@@ -1551,7 +1551,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
 
                 {% if p.images.all %}
-                  <img class="aa-img" src="{{ p.images.first.image.url }}" alt="{{ p.name }}">
+                  <img class="aa-img" src="{{ p.images.first.image_url }}" alt="{{ p.name }}">
                 {% elif p.image %}
                   <img class="aa-img" src="{{ p.image.url }}" alt="{{ p.name }}">
                 {% else %}

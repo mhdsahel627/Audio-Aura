@@ -1,3 +1,5 @@
+# authentication/views.py
+
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
@@ -7,6 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 from datetime import timedelta
 import random
+
 # Forms
 from .forms import (
     LoginForm,
@@ -21,55 +24,89 @@ from user.models import Profile
 from wallet.models import ReferralProfile, Referral, ReferralConfig, WalletAccount, WalletTransaction
 from wallet.services import credit, qualify_signup_referral_and_credit
 
+# ========== EMAIL UTILITIES ==========
+
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 
 
-def unauthenticated_user(view_func):
-    def wrapper_func(request, *args, **kwargs):
-        if request.user.is_authenticated:
-            return redirect('home')  # Redirect to homepage or dashboard
-        else:
-            return view_func(request, *args, **kwargs)
-    return wrapper_func
-
-
-def generate_otp():
+def send_dynamic_otp_email(email, otp, email_type='signup', username=None):
     """
-    Generate a random 4-digit OTP.
-
-    Returns:
-        str: Random 4-digit OTP as a string.
-    """
-    return str(random.randint(1000, 9999))
-
-
-def send_otp_email(email, otp):
-    """
-    Send OTP to the specified email address with premium HTML template.
-
+    Send dynamic OTP email based on context.
+    
     Args:
-        email (str): Recipient email.
-        otp (str): OTP to send.
-
+        email (str): Recipient email
+        otp (str): OTP code
+        email_type (str): Type of email - 'signup', 'password_reset', 'email_change'
+        username (str): User's name (optional, extracted from email if not provided)
+    
     Returns:
-        bool: True if email sent successfully, False otherwise.
+        bool: True if sent successfully, False otherwise
     """
-    from django.core.mail import EmailMultiAlternatives
-    from django.template.loader import render_to_string
-    from django.utils.html import strip_tags
+    
+    # Email type configurations
+    EMAIL_CONFIGS = {
+        'signup': {
+            'subject': '🎉 Welcome to Audio Aura - Verify Your Email',
+            'title': '🔐 Verify Your Email Address',
+            'greeting': 'Welcome to Audio Aura!',
+            'message': 'Thank you for joining <strong style="color: #7c3aed;">Audio Aura</strong>! To complete your registration and start exploring our premium audio collection, please use the verification code below:',
+            'icon': '🎉',
+            'footer_text': 'We\'re excited to have you on board!',
+        },
+        'password_reset': {
+            'subject': '🔒 Reset Your Password - Audio Aura',
+            'title': '🔑 Password Reset Request',
+            'greeting': 'Password Reset',
+            'message': 'We received a request to reset your password for your <strong style="color: #7c3aed;">Audio Aura</strong> account. Use the verification code below to proceed:',
+            'icon': '🔒',
+            'footer_text': 'If you didn\'t request this, please ignore this email.',
+        },
+        'email_change': {
+            'subject': '📧 Verify Your New Email - Audio Aura',
+            'title': '📧 Email Change Verification',
+            'greeting': 'Email Update',
+            'message': 'You\'ve requested to change your email address for your <strong style="color: #7c3aed;">Audio Aura</strong> account. Please verify your new email using the code below:',
+            'icon': '📧',
+            'footer_text': 'Keep your account secure!',
+        },
+        'login_verification': {
+            'subject': '🔐 Login Verification - Audio Aura',
+            'title': '🔐 Verify Your Login',
+            'greeting': 'Login Attempt Detected',
+            'message': 'We detected a login attempt to your <strong style="color: #7c3aed;">Audio Aura</strong> account. Please verify it\'s you using the code below:',
+            'icon': '🔐',
+            'footer_text': 'Secure your account always!',
+        }
+    }
+    
+    # Get config for email type (default to signup)
+    config = EMAIL_CONFIGS.get(email_type, EMAIL_CONFIGS['signup'])
+    
+    # Extract username from email if not provided
+    if not username:
+        username = email.split('@')[0].capitalize()
     
     # Context for email template
     context = {
-        'username': email.split('@')[0].capitalize(),  # Extract name from email
+        'username': username,
         'otp': otp,
+        'email_type': email_type,
+        'title': config['title'],
+        'greeting': config['greeting'],
+        'message': config['message'],
+        'icon': config['icon'],
+        'footer_text': config['footer_text'],
     }
     
     try:
         # Render HTML email
-        html_content = render_to_string('emails/otp_email.html', context)
+        html_content = render_to_string('emails/dynamic_otp_email.html', context)
         text_content = strip_tags(html_content)  # Fallback plain text
         
         # Create email
-        subject = 'Your OTP Code - Audio Aura'
+        subject = config['subject']
         from_email = 'Audio Aura <your_email@gmail.com>'  # Replace with your email
         to_email = [email]
         
@@ -78,14 +115,92 @@ def send_otp_email(email, otp):
         email_message.attach_alternative(html_content, "text/html")
         email_message.send()
         
-        print(f"OTP {otp} sent to {email}")
+        print(f"✅ {email_type.upper()} OTP {otp} sent to {email}")
         return True
         
     except Exception as e:
-        print(f'Error sending OTP: {e}')
+        print(f'❌ Error sending OTP: {e}')
         return False
 
 
+# ========== HELPER FUNCTIONS ==========
+
+def unauthenticated_user(view_func):
+    """Decorator to restrict authenticated users from accessing login/signup pages"""
+    def wrapper_func(request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect('home')
+        else:
+            return view_func(request, *args, **kwargs)
+    return wrapper_func
+
+
+def generate_otp():
+    """
+    Generate a random 4-digit OTP.
+    
+    Returns:
+        str: Random 4-digit OTP as a string.
+    """
+    return str(random.randint(1000, 9999))
+
+
+# ========== SIGNUP FLOW ==========
+
+@unauthenticated_user
+def SignUp(request):
+    """
+    Handle user signup with referral support.
+    Generates OTP and sends verification email.
+    """
+    # Capture referral code from URL
+    ref_from_url = request.GET.get("ref")
+    if ref_from_url:
+        request.session["ref_code"] = ref_from_url
+
+    if request.method == "POST":
+        form = SignupForm(request.POST)
+
+        if form.is_valid():
+            # Referral code from FORM or URL
+            ref_code = (
+                form.cleaned_data.get('referral_code') 
+                or request.session.get("ref_code")
+            )
+
+            # Generate OTP
+            otp = generate_otp()
+
+            # Store Temp User in session for OTP page
+            request.session['temp_user'] = {
+                'first_name': form.cleaned_data['first_name'],
+                'last_name': form.cleaned_data['last_name'],
+                'email': form.cleaned_data['email'],
+                'username': form.cleaned_data['email'],
+                'password': form.cleaned_data['password'],
+                'phone': form.cleaned_data.get('phone'),
+                'otp': otp,
+                'otp_expires': (timezone.now() + timedelta(minutes=5)).timestamp(),
+                'ref_code': ref_code,
+            }
+
+            # 🔥 SEND DYNAMIC EMAIL - SIGNUP
+            username = f"{form.cleaned_data['first_name']} {form.cleaned_data['last_name']}"
+            if send_dynamic_otp_email(
+                email=form.cleaned_data['email'],
+                otp=otp,
+                email_type='signup',
+                username=username
+            ):
+                messages.success(request, "OTP sent to your email ✅")
+                return redirect('verify_otp')
+            else:
+                messages.error(request, "Failed to send OTP. Try again.")
+
+    else:
+        form = SignupForm()
+
+    return render(request, "user/sign_up.html", {"form": form})
 
 
 def VerifyOTP(request):
@@ -165,14 +280,13 @@ def VerifyOTP(request):
     return render(request, 'verify_otp.html', {'form': form, 'temp_user': temp})
 
 
-
 def ResendOTP(request):
     """
     Resend OTP during signup.
-
+    
     Args:
         request (HttpRequest): The HTTP request object.
-
+    
     Returns:
         HttpResponseRedirect: Redirects to OTP verification page.
     """
@@ -186,74 +300,33 @@ def ResendOTP(request):
     temp_user['otp_expires'] = (timezone.now() + timedelta(minutes=5)).timestamp()
     request.session['temp_user'] = temp_user
 
-    if send_otp_email(temp_user['email'], otp):
+    # 🔥 SEND DYNAMIC EMAIL - SIGNUP RESEND
+    username = f"{temp_user.get('first_name', '')} {temp_user.get('last_name', '')}".strip()
+    if send_dynamic_otp_email(
+        email=temp_user['email'],
+        otp=otp,
+        email_type='signup',
+        username=username if username else None
+    ):
         messages.success(request, "New OTP sent successfully ✅")
     else:
         messages.error(request, "Failed to resend OTP. Try again ❌")
 
     return redirect('verify_otp')
 
-def SignUp(request):
-    
-    # A) Capture referral code from URL
-    ref_from_url = request.GET.get("ref")
-    if ref_from_url:
-        request.session["ref_code"] = ref_from_url
 
-    if request.method == "POST":
-        form = SignupForm(request.POST)
-
-        if form.is_valid():
-
-            # B) Referral code from FORM or URL
-            ref_code = (
-                form.cleaned_data.get('referral_code') 
-                or request.session.get("ref_code")
-            )
-
-            # C) Generate OTP
-            otp = generate_otp()
-
-            # D) Store Temp User inside session for OTP page
-            request.session['temp_user'] = {
-                'first_name': form.cleaned_data['first_name'],
-                'last_name': form.cleaned_data['last_name'],
-                'email': form.cleaned_data['email'],
-                'username': form.cleaned_data['email'],
-                'password': form.cleaned_data['password'],
-                'phone': form.cleaned_data.get('phone'),
-                'otp': otp,
-                'otp_expires': (timezone.now() + timedelta(minutes=5)).timestamp(),
-
-                # FIXED 🔥 (backend gets referral code now)
-                'ref_code': ref_code,
-            }
-
-            # E) Send OTP
-            if send_otp_email(form.cleaned_data['email'], otp):
-                messages.success(request, "OTP sent to your email ✅")
-                return redirect('verify_otp')
-            else:
-                messages.error(request, "Failed to send OTP. Try again.")
-                # fall through below
-
-    else:
-        form = SignupForm()
-
-    return render(request, "user/sign_up.html", {"form": form})
-
-
+# ========== PASSWORD RESET FLOW ==========
 
 @unauthenticated_user
 def forgot_password(request):
     """
     Handle forgot password requests.
-
+    
     Generates OTP, stores reset info in session, and sends OTP to user's email.
-
+    
     Args:
         request (HttpRequest): The HTTP request object.
-
+    
     Returns:
         HttpResponse: Renders forgot password form or redirects to OTP verification page.
     """
@@ -275,7 +348,14 @@ def forgot_password(request):
                 'otp_expires': otp_expires,
             }
 
-            if send_otp_email(email, otp):
+            # 🔥 SEND DYNAMIC EMAIL - PASSWORD RESET
+            username = user.get_full_name() or user.username
+            if send_dynamic_otp_email(
+                email=email,
+                otp=otp,
+                email_type='password_reset',
+                username=username
+            ):
                 messages.success(request, "OTP sent to your email ✅")
             else:
                 messages.error(request, "Failed to send OTP. Try again ❌")
@@ -290,10 +370,10 @@ def forgot_password(request):
 def verify_reset_otp(request):
     """
     Verify OTP during forgot password flow.
-
+    
     Args:
         request (HttpRequest): The HTTP request object.
-
+    
     Returns:
         HttpResponse: Renders OTP verification page or redirects to reset password page.
     """
@@ -316,14 +396,15 @@ def verify_reset_otp(request):
 
     return render(request, 'verify_reset_otp.html', {'email': User.objects.get(id=reset_user['user_id']).email})
 
+
 @unauthenticated_user
 def resend_reset_otp(request):
     """
     Resend OTP for forgot password flow.
-
+    
     Args:
         request (HttpRequest): The HTTP request object.
-
+    
     Returns:
         HttpResponseRedirect: Redirects to OTP verification page.
     """
@@ -338,21 +419,30 @@ def resend_reset_otp(request):
     request.session['reset_user'] = reset_user
 
     user = User.objects.get(id=reset_user['user_id'])
-    if send_otp_email(user.email, otp):
+    
+    # 🔥 SEND DYNAMIC EMAIL - PASSWORD RESET RESEND
+    username = user.get_full_name() or user.username
+    if send_dynamic_otp_email(
+        email=user.email,
+        otp=otp,
+        email_type='password_reset',
+        username=username
+    ):
         messages.success(request, "OTP resent successfully ✅")
     else:
         messages.error(request, "Failed to resend OTP. Try again ❌")
 
     return redirect('verify_reset_otp')
 
+
 @unauthenticated_user
 def reset_password(request):
     """
     Reset user password after OTP verification.
-
+    
     Args:
         request (HttpRequest): The HTTP request object.
-
+    
     Returns:
         HttpResponse: Renders reset password form or redirects to login page after successful reset.
     """
@@ -379,23 +469,24 @@ def reset_password(request):
     return render(request, "reset_password.html", {'form': form})
 
 
+# ========== LOGIN/LOGOUT ==========
+
 @never_cache
 def SignIn(request):
     """
     Handle user login.
-
+    
     Validates form, authenticates user, and logs in if credentials are correct.
-
+    
     Args:
         request (HttpRequest): The HTTP request object.
-
+    
     Returns:
         HttpResponse: Renders login page or redirects to home page on successful login.
-        
     """
-    # ✅ Already logged-in user prevent login page access
+    # Already logged-in user prevent login page access
     if request.user.is_authenticated:
-        return redirect("home")  # or any page you want logged-in user to go
+        return redirect("home")
     
     form = LoginForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -425,10 +516,10 @@ def SignIn(request):
 def SignOut(request):
     """
     Logout authenticated user.
-
+    
     Args:
         request (HttpRequest): The HTTP request object.
-
+    
     Returns:
         HttpResponseRedirect: Redirects to login page after logout.
     """

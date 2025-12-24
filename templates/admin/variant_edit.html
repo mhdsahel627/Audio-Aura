@@ -52,7 +52,7 @@
       <div class="mb-2 d-flex flex-wrap gap-2" id="existing-variant-images">
         {% for img in images %}
           <div class="thumb" data-existing-img="{{ img.id }}">
-            <img src="{{ img.image.url }}" alt="Variant image">
+            <img src="{{ img.image_url }}" alt="Variant image">
             <button type="button" class="remove-btn" aria-label="Remove image" data-id="{{ img.id }}">×</button>
             <input type="hidden" name="remove_image_ids[]" value="" data-hidden-for="{{ img.id }}">
           </div>

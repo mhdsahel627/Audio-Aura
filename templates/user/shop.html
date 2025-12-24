@@ -735,7 +735,7 @@
         </div>
       {% endif %}
 
-      <img src="{% if product.images.first %}{{ product.images.first.image.url }}{% else %}{% static 'images/logo.png' %}{% endif %}" alt="{{ product.name }}">
+      <img src="{% if product.images.first %}{{ product.images.first.image_url }}{% else %}{% static 'images/logo.png' %}{% endif %}" alt="{{ product.name }}">
       {% if product.offer %}
       <div class="shop-label">{{ product.offer }}</div>
       {% endif %}

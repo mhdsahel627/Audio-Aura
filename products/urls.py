@@ -15,6 +15,8 @@ urlpatterns = [
     path('admin/product/toggle/<int:id>/', views.toggle_product, name='toggle_product'),
     path("<int:id>/", views.product_detail, name="product_detail"),
     path("admin/add-brand-ajax/", views.add_brand_ajax, name="add_brand_ajax"),
+    path("adminn/products/ajax-upload-image/", views.ajax_upload_image, name="product_ajax_upload_image"),
+    path('upload-temp-image/', views.upload_temp_image, name='upload_temp_image'),
 
     
     # """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""Variant"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

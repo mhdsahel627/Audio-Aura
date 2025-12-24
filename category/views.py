@@ -17,7 +17,12 @@ from django.shortcuts import get_object_or_404
 from .models import Category, CategoryOffer
 from django.views.decorators.csrf import csrf_exempt
 from admin_side.views import is_admin
-
+from django.utils import timezone
+from datetime import datetime
+from decimal import Decimal, InvalidOperation
+from django.contrib.admin.views.decorators import staff_member_required
+from PIL import Image
+import re
 
 
 
@@ -93,138 +98,202 @@ CATEGORY
 '''
 
 """ .......................................................Add Category..................................... """
-
-@admin_required  # Decorator: restricts access to admin/staff users only.
+@admin_required
+@never_cache
 def add_category(request):
-    """
-    Handle adding a new product category from the admin panel.
-
-    Behavior:
-    - Accepts only POST requests containing category name, description, and image.
-    - Validates that the category name is provided and not duplicated.
-    - Creates a new Category object if validation passes.
-    - Returns success or error messages using Django's messages framework.
-    - On GET, renders the category creation form template.
-
-    Security and UX Notes:
-    - Protected by @admin_required to ensure only admin/staff can add categories.
-    - Uses `request.FILES` to properly handle uploaded image files.
-    - Uses `messages` to provide user-friendly feedback.
-    - Redirects after form submission to prevent duplicate submissions on refresh.
-    """
-
-    # Check if the request is a POST (form submission)
+    """Add category with validation"""
+    
+    errors = {}
+    form_data = {}
+    
     if request.method == "POST":
-        # Extract the name field from form data and remove leading/trailing spaces
-        name = request.POST.get('name').strip()
-
-        # Extract description from form data (can be optional)
-        description = request.POST.get('description')
-
-        # Extract uploaded image file from FILES dictionary
-        image = request.FILES.get('image')  # 🔹 Handles image uploads safely
-
-        # Validate that name is not empty
+        name = (request.POST.get('name') or '').strip()
+        description = (request.POST.get('description') or '').strip()
+        image = request.FILES.get('image')
+        
+        form_data = {
+            'name': name,
+            'description': description,
+        }
+        
+        # === VALIDATION ===
+        
+        # 1. Name Validation
         if not name:
-            messages.error(request, "Category name is required!")  # Show error message
-            return redirect('add_catogery')  # Redirect back to the add form
+            errors['name'] = 'Category name is required'
+        elif len(name) < 2:
+            errors['name'] = 'Category name must be at least 2 characters'
+        elif len(name) > 255:
+            errors['name'] = 'Category name cannot exceed 255 characters'
+        elif not re.match(r'^[a-zA-Z0-9\s\-&]+$', name):
+            errors['name'] = 'Category name can only contain letters, numbers, spaces, hyphens, and ampersands'
+        elif Category.objects.filter(name__iexact=name).exists():
+            errors['name'] = f'Category "{name}" already exists'
+        
+        # 2. Description Validation (optional)
+        if description:
+            if len(description) < 10:
+                errors['description'] = 'Description must be at least 10 characters if provided'
+            elif len(description) > 500:
+                errors['description'] = 'Description cannot exceed 500 characters'
+        
+        # 3. Image Validation (required)
         if not image:
-            messages.error(request,'Images is required!')
-
-        # 🔹 Check for duplicate category name (case-insensitive)
-        if Category.objects.filter(name__iexact=name).exists():
-            # Send user-friendly duplicate name message
-            messages.error(request, f"Category '{name}' already exists!")
-            return redirect('add_catogery')
-
-        # 🔹 Create and save new Category record
-        Category.objects.create(
-            name=name,
-            description=description,
-            image=image
-        )
-
-        # Show success feedback message
-        messages.success(request, "Category added successfully!")
-
-        # Redirect to category listing page after successful creation
-        return redirect('catogery')
-
-    # If GET request, render the category addition form template
+            errors['image'] = 'Category image is required'
+        else:
+            max_size = 5 * 1024 * 1024  # 5MB
+            if image.size > max_size:
+                errors['image'] = f'Image size must be less than 5MB (current: {image.size / 1024 / 1024:.1f}MB)'
+            
+            allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+            if image.content_type not in allowed_types:
+                errors['image'] = 'Only JPG, PNG, and WebP images are allowed'
+            
+            try:
+                from PIL import Image as PILImage
+                img = PILImage.open(image)
+                width, height = img.size
+                
+                min_width = 200
+                min_height = 200
+                
+                if width < min_width or height < min_height:
+                    errors['image'] = f'Image must be at least {min_width}x{min_height}px (current: {width}x{height}px)'
+                
+                image.seek(0)
+            except Exception as e:
+                errors['image'] = 'Invalid image file'
+        
+        # If errors, show them
+        if errors:
+            for field, error in errors.items():
+                messages.error(request, f"{field.replace('_', ' ').title()}: {error}")
+            
+            return render(request, 'admin/category_add.html', {
+                'errors': errors,
+                'form_data': form_data,
+            })
+        
+        # === SAVE CATEGORY ===
+        try:
+            # 🔥 FIX: Use 'image' not 'header_image'
+            Category.objects.create(
+                name=name,
+                description=description,
+                image=image  # ← Correct field name
+            )
+            messages.success(request, f'✅ Category "{name}" added successfully!')
+            return redirect('catogery')
+        
+        except Exception as e:
+            messages.error(request, f'❌ Failed to add category: {str(e)}')
+            return render(request, 'admin/category_add.html', {
+                'errors': errors,
+                'form_data': form_data,
+            })
+    
     return render(request, 'admin/category_add.html')
 
 
-""" ........................Category..................................... """
-@user_passes_test(is_admin, login_url='admin_login')
-@login_required(login_url='admin_login')
+@admin_required
+@never_cache
+@require_http_methods(["GET", "POST"])
+def category_edit(request, pk):
+    """Edit category with validation"""
+    
+    cat = get_object_or_404(Category, pk=pk)
+    errors = {}
+    
+    if request.method == "POST":
+        name = (request.POST.get('name') or '').strip()
+        description = (request.POST.get('description') or '').strip()
+        image = request.FILES.get('image')
+        
+        # === VALIDATION ===
+        
+        # 1. Name Validation
+        if not name:
+            errors['name'] = 'Category name is required'
+        elif len(name) < 2:
+            errors['name'] = 'Category name must be at least 2 characters'
+        elif len(name) > 255:
+            errors['name'] = 'Category name cannot exceed 255 characters'
+        elif not re.match(r'^[a-zA-Z0-9\s\-&]+$', name):
+            errors['name'] = 'Category name can only contain letters, numbers, spaces, hyphens, and ampersands'
+        elif Category.objects.filter(name__iexact=name).exclude(pk=pk).exists():
+            errors['name'] = f'Category "{name}" already exists'
+        
+        # 2. Description Validation
+        if description:
+            if len(description) < 10:
+                errors['description'] = 'Description must be at least 10 characters if provided'
+            elif len(description) > 500:
+                errors['description'] = 'Description cannot exceed 500 characters'
+        
+        # 3. Image Validation (optional on edit)
+        if image:
+            max_size = 5 * 1024 * 1024  # 5MB
+            if image.size > max_size:
+                errors['image'] = f'Image size must be less than 5MB (current: {image.size / 1024 / 1024:.1f}MB)'
+            
+            allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+            if image.content_type not in allowed_types:
+                errors['image'] = 'Only JPG, PNG, and WebP images are allowed'
+            
+            try:
+                from PIL import Image as PILImage
+                img = PILImage.open(image)
+                width, height = img.size
+                
+                min_width = 200
+                min_height = 200
+                
+                if width < min_width or height < min_height:
+                    errors['image'] = f'Image must be at least {min_width}x{min_height}px (current: {width}x{height}px)'
+                
+                image.seek(0)
+            except Exception as e:
+                errors['image'] = 'Invalid image file'
+        
+        # If errors, show them
+        if errors:
+            for field, error in errors.items():
+                messages.error(request, f"{field.replace('_', ' ').title()}: {error}")
+            
+            return render(request, 'admin/category_edit.html', {
+                'cat': cat,
+                'errors': errors,
+            })
+        
+        # === UPDATE CATEGORY ===
+        try:
+            cat.name = name
+            cat.description = description
+            
+            # 🔥 FIX: Use 'image' not 'header_image'
+            if image:
+                cat.image = image  # ← Correct field name
+            
+            cat.save()
+            messages.success(request, f'✅ Category "{name}" updated successfully!')
+            return redirect('catogery')
+        
+        except Exception as e:
+            messages.error(request, f'❌ Failed to update category: {str(e)}')
+    
+    return render(request, 'admin/category_edit.html', {'cat': cat})
+
+
+
+@admin_required
 @never_cache
 def catogery(request):
+    """List all categories"""
     categories = Category.objects.all().order_by('-id')
     return render(request, 'admin/catogery.html', {'categories': categories})
 
- 
 
-""" .......................................................Edit Category..................................... """
-@user_passes_test(is_admin, login_url='admin_login')
-@login_required(login_url='admin_login')
-@never_cache
-@staff_required  # Ensures that only staff/admin users can access this view
-@require_http_methods(["GET", "POST"])  # Restrict HTTP methods to GET and POST for safety
-def category_edit(request, pk):
-    """
-    Handle editing an existing category in the admin panel.
 
-    Behavior:
-    - Fetches the category by primary key (pk) or returns 404 if not found.
-    - On GET: renders the category edit form with current data.
-    - On POST: validates input, updates fields, optionally updates the image, saves changes.
-    - Provides feedback using Django messages framework.
-    - Redirects to category listing page after successful update.
-
-    Security and UX Notes:
-    - Protected by @staff_required to prevent unauthorized access.
-    - Only allows GET and POST methods.
-    - Image upload is optional; existing image is preserved if no new file is provided.
-    - Uses `messages` to display user-friendly success/error messages.
-    """
-
-    # Fetch the category object or raise 404 if it doesn't exist
-    cat = get_object_or_404(Category, pk=pk)
-
-    # Handle form submission
-    if request.method == "POST":
-        # Extract and clean name and description from form data
-        name = request.POST.get("name", "").strip()
-        desc = request.POST.get("description", "").strip()
-
-        # Extract uploaded image if provided; None if not
-        img = request.FILES.get("image", None)
-
-        # Validate that name is not empty
-        if not name:
-            messages.error(request, "Name is required.")  # Show error message
-            # Re-render edit form with current category data
-            return render(request, "admin/category_edit.html", {"cat": cat})
-
-        # 🔹 Update category fields
-        cat.name = name
-        cat.description = desc
-
-        # Replace image only if a new one was uploaded
-        if img:
-            cat.image = img
-
-        # Save the updated category object to the database
-        cat.save()
-
-        # Show success feedback to the user
-        messages.success(request, "Category updated successfully.")
-
-        # Redirect back to category listing page
-        return redirect("catogery")
-
-    # For GET requests, render the edit form with current category data
-    return render(request, "admin/category_edit.html", {"cat": cat})
 
 
 
@@ -303,51 +372,232 @@ def view_variants(request, product_id):
 
 
 """ .......................................................Category Offer Add Edit Delete..................................... """
-
-@csrf_exempt
+@staff_member_required
+@require_http_methods(["POST"])
 def add_category_offer(request):
-    if request.method == "POST":
-        category_id = request.POST.get('category_id')
-        title = request.POST.get('title')
-        discount_percent = request.POST.get('discount_percent') or None
-        discount_rs = request.POST.get('discount_rs') or None
-        start_date = request.POST.get('start_date')
-        end_date = request.POST.get('end_date')
-        if category_id and title and start_date and end_date:
-            CategoryOffer.objects.create(
-                category_id=category_id,
-                title=title,
-                discount_percent=discount_percent,
-                discount_rs=discount_rs,
-                start_date=start_date,
-                end_date=end_date,
-            )
-            return JsonResponse({'success': True})
-    return JsonResponse({'success': False})
-
-@csrf_exempt
-def edit_category_offer(request, offer_id):
-    offer = get_object_or_404(CategoryOffer, id=offer_id)
-    if request.method == "POST":
-        offer.title = request.POST.get('title', offer.title)
-        offer.discount_percent = request.POST.get('discount_percent') or None
-        offer.discount_rs = request.POST.get('discount_rs') or None
-        offer.start_date = request.POST.get('start_date', offer.start_date)
-        offer.end_date = request.POST.get('end_date', offer.end_date)
-        offer.save()
-        return JsonResponse({'success': True})
-    else:
+    """Add category offer with percentage discount only"""
+    
+    category_id = request.POST.get('category_id')
+    title = request.POST.get('title', '').strip()
+    discount_percent = request.POST.get('discount_percent', '').strip()
+    start_date_str = request.POST.get('start_date')
+    end_date_str = request.POST.get('end_date')
+    
+    errors = {}
+    
+    # 1. Category validation
+    if not category_id:
         return JsonResponse({
+            'success': False,
+            'message': 'Category ID is required'
+        }, status=400)
+    
+    try:
+        category = Category.objects.get(id=category_id, is_active=True)
+    except Category.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'message': 'Category not found or inactive'
+        }, status=404)
+    
+    # 2. Title validation
+    if not title:
+        errors['offer_title'] = 'Offer title is required'
+    elif len(title) < 3:
+        errors['offer_title'] = 'Title must be at least 3 characters'
+    elif len(title) > 100:
+        errors['offer_title'] = 'Title cannot exceed 100 characters'
+    
+    # 3. Discount percentage validation
+    if not discount_percent:
+        errors['discount_percent'] = 'Discount percentage is required'
+    else:
+        try:
+            discount_percent = Decimal(discount_percent)
+            if discount_percent <= 0:
+                errors['discount_percent'] = 'Percentage must be greater than 0'
+            elif discount_percent > 100:
+                errors['discount_percent'] = 'Percentage cannot exceed 100%'
+        except (ValueError, InvalidOperation):
+            errors['discount_percent'] = 'Invalid percentage value'
+    
+    # 4. Date validation
+    if not start_date_str:
+        errors['start_date'] = 'Start date is required'
+    if not end_date_str:
+        errors['end_date'] = 'End date is required'
+    
+    if start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            today = timezone.now().date()
+            
+            if start_date < today:
+                errors['start_date'] = 'Start date cannot be in the past'
+            
+            if end_date < start_date:
+                errors['end_date'] = 'End date must be after start date'
+            elif end_date == start_date:
+                errors['end_date'] = 'Offer must be at least 1 day long'
+            
+            duration = (end_date - start_date).days
+            if duration > 365:
+                errors['end_date'] = 'Offer duration cannot exceed 1 year'
+            
+        except (ValueError, TypeError):
+            errors['start_date'] = 'Invalid date format'
+    
+    # 5. Check for overlapping offers
+    if not errors and start_date_str and end_date_str:
+        overlapping = CategoryOffer.objects.filter(
+            category=category,
+            start_date__lte=end_date,
+            end_date__gte=start_date
+        ).exists()
+        
+        if overlapping:
+            errors['general'] = 'An offer already exists for this period. Please choose different dates.'
+    
+    if errors:
+        return JsonResponse({
+            'success': False,
+            'message': 'Please fix the errors below',
+            'errors': errors
+        }, status=400)
+    
+    # Create offer
+    try:
+        offer = CategoryOffer.objects.create(
+            category=category,
+            title=title,
+            discount_percent=discount_percent,
+            discount_rs=None,  # Always None
+            start_date=start_date,
+            end_date=end_date,
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Category offer "{title}" ({discount_percent}% off) added successfully!',
+            'offer': {
+                'id': offer.id,
+                'title': offer.title,
+                'discount_percent': str(discount_percent),
+                'start_date': start_date.strftime('%d %b %Y'),
+                'end_date': end_date.strftime('%d %b %Y')
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Failed to create offer: {str(e)}'
+        }, status=500)
+
+
+@staff_member_required
+@require_http_methods(["POST", "GET"])
+def edit_category_offer(request, offer_id):
+    """Edit category offer - percentage only"""
+    
+    offer = get_object_or_404(CategoryOffer, id=offer_id)
+    
+    if request.method == "GET":
+        return JsonResponse({
+            'success': True,
             'category_id': offer.category_id,
             'title': offer.title,
-            'discount_percent': offer.discount_percent,
-            'discount_rs': offer.discount_rs,
-            'start_date': offer.start_date,
-            'end_date': offer.end_date,
+            'discount_percent': str(offer.discount_percent) if offer.discount_percent else '',
+            'start_date': offer.start_date.strftime('%Y-%m-%d'),
+            'end_date': offer.end_date.strftime('%Y-%m-%d'),
         })
+    
+    # POST - Update
+    title = request.POST.get('title', '').strip()
+    discount_percent = request.POST.get('discount_percent', '').strip()
+    start_date_str = request.POST.get('start_date')
+    end_date_str = request.POST.get('end_date')
+    
+    errors = {}
+    
+    if not title or len(title) < 3:
+        errors['offer_title'] = 'Title must be at least 3 characters'
+    
+    if not discount_percent:
+        errors['discount_percent'] = 'Discount percentage is required'
+    else:
+        try:
+            discount_percent = Decimal(discount_percent)
+            if discount_percent <= 0 or discount_percent > 100:
+                errors['discount_percent'] = 'Percentage must be between 0 and 100'
+        except (ValueError, InvalidOperation):
+            errors['discount_percent'] = 'Invalid percentage value'
+    
+    if start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            
+            if end_date <= start_date:
+                errors['end_date'] = 'End date must be after start date'
+            
+            # Check overlapping (exclude current offer)
+            overlapping = CategoryOffer.objects.filter(
+                category=offer.category,
+                start_date__lte=end_date,
+                end_date__gte=start_date
+            ).exclude(id=offer_id).exists()
+            
+            if overlapping:
+                errors['general'] = 'Another offer exists for this period'
+                
+        except (ValueError, TypeError):
+            errors['start_date'] = 'Invalid date format'
+    
+    if errors:
+        return JsonResponse({
+            'success': False,
+            'message': 'Please fix the errors',
+            'errors': errors
+        }, status=400)
+    
+    try:
+        offer.title = title
+        offer.discount_percent = discount_percent
+        offer.discount_rs = None
+        offer.start_date = start_date
+        offer.end_date = end_date
+        offer.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Category offer "{title}" updated successfully!'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Failed to update: {str(e)}'
+        }, status=500)
 
-@csrf_exempt
+
+@staff_member_required
+@require_http_methods(["POST"])
 def delete_category_offer(request, offer_id):
+    """Delete category offer"""
+    
     offer = get_object_or_404(CategoryOffer, id=offer_id)
-    offer.delete()
-    return JsonResponse({'success': True})
+    
+    try:
+        offer_title = offer.title
+        offer.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Offer "{offer_title}" deleted successfully!'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Failed to delete offer: {str(e)}'
+        }, status=500)

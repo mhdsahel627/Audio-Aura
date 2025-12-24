@@ -1,107 +1,422 @@
 {% extends 'admin/admin-base.html' %}
 {% load static %}
 
-{% block title %}Category edit{% endblock %}
+{% block title %}Edit Category{% endblock %}
 
 {% block content %}
+
 <style>
-  .form-section{ background:#000; padding:2rem; border-radius:12px; }
-  .image-upload{ border:2px dashed #666; border-radius:8px; padding:40px 20px; text-align:center; background:#1e1e1e; cursor:pointer; transition:border .3s; }
-  .image-upload:hover{ border-color:#8855ff; }
-  .image-upload.highlight{ border-color:#8855ff; background:#2a2a2a; }
-  .btn-submit{ background:#7c5c5c; color:#fff; }
-  .btn-submit:hover{ background:#5a4141; }
-  .current-thumb{ display:inline-block; background:#141414; padding:8px; border-radius:10px; }
-  .current-thumb img{ max-width:180px; border-radius:8px; }
+  .form-section {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+    padding: 2rem;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  
+  .form-control {
+    background: #000 !important;
+    border: 2px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 10px !important;
+    color: #fff !important;
+    padding: 0.75rem 1rem !important;
+  }
+  
+  .form-control:focus {
+    border-color: #8855ff !important;
+    box-shadow: 0 0 0 3px rgba(136, 85, 255, 0.2) !important;
+  }
+  
+  .form-control.is-invalid {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+  }
+  
+  .form-label {
+    font-weight: 600;
+    color: #e0e0e0;
+    margin-bottom: 0.5rem;
+  }
+  
+  .required-star {
+    color: #ef4444;
+    font-weight: 700;
+  }
+  
+  .invalid-feedback {
+    display: block !important;
+    color: #ef4444 !important;
+    font-size: 0.875rem !important;
+    margin-top: 0.5rem !important;
+    font-weight: 600 !important;
+  }
+  
+  .invalid-feedback::before {
+    content: '⚠️ ';
+  }
+  
+  .current-image-container {
+    background: #1e1e1e;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+  }
+  
+  .current-image {
+    max-width: 300px;
+    max-height: 300px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  .image-upload {
+    border: 2px dashed #666;
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    background: #1e1e1e;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  
+  .image-upload:hover {
+    border-color: #8855ff;
+  }
+  
+  .image-upload.is-invalid {
+    border-color: #ef4444 !important;
+  }
+  
+  .image-preview {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    margin-top: 10px;
+  }
+  
+  .btn-submit {
+    background: linear-gradient(135deg, #8855ff, #6b3dd9);
+    color: #fff;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+  
+  .btn-submit:hover {
+    background: linear-gradient(135deg, #6b3dd9, #5a2ec4);
+    transform: translateY(-2px);
+  }
+  
+  .page-header {
+    background: rgba(136, 85, 255, 0.1);
+    border: 1px solid rgba(136, 85, 255, 0.3);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .page-header h2 {
+    color: #8855ff;
+    font-weight: 700;
+    margin: 0;
+  }
+  .text-muted {
+    color: #999999 !important;
+  }
 </style>
 
 <div class="container py-5">
-  <h2 class="fw-bold mb-4">EDIT CATEGORY</h2>
+  <!-- Page Header -->
+  <div class="page-header">
+    <h2>✏️ Edit Category</h2>
+  </div>
 
+  <!-- Error Messages -->
   {% if messages %}
-    <div class="mb-3">
-      {% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}
+  <div class="mb-3">
+    {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
+    {% endfor %}
+  </div>
   {% endif %}
 
-  <form class="form-section" method="POST" enctype="multipart/form-data">
+  <!-- Edit Form -->
+  <form class="form-section" method="POST" enctype="multipart/form-data" id="editForm" novalidate>
     {% csrf_token %}
 
-    <!-- Current image preview -->
-    <div class="mb-3">
-      <label class="form-label">Current Image</label><br>
-      {% if cat.image %}
-        <span class="current-thumb"><img src="{{ cat.image.url }}" alt="{{ cat.name }}"></span>
-      {% else %}
-        <span class="text-muted">No image</span>
-      {% endif %}
-    </div>
-
-    <!-- Replace image -->
+    <!-- Current Image Preview -->
+    {% if cat.image %}
     <div class="mb-4">
-      <label class="form-label">Replace Image (optional)</label>
-      <input type="file" name="image" class="form-control mb-2" accept="image/*">
-      <div class="image-upload" id="dropper">
-        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="#9c8df0" stroke="#9c8df0" viewBox="0 0 16 16">
+      <label class="form-label">Current Image</label>
+      <div class="current-image-container">
+        <img src="{{ cat.image.url }}" alt="{{ cat.name }}" class="current-image">
+        <p style="color: #999; margin-top: 0.5rem; font-size: 0.875rem;">{{ cat.image.name }}</p>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- New Image Upload (Optional) -->
+    <div class="mb-4">
+      <label class="form-label">
+        Change Image (Optional)
+      </label>
+      <input 
+        type="file" 
+        name="image" 
+        id="imageInput"
+        class="form-control {% if errors.image %}is-invalid{% endif %}" 
+        accept="image/jpeg,image/jpg,image/png,image/webp"
+      >
+      <small class="text-muted d-block mb-2">JPG, PNG, WebP only • 200x200 to 4000x4000px • Max 5MB</small>
+      
+      <div class="image-upload {% if errors.image %}is-invalid{% endif %}" id="dropArea">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="#9c8df0" class="bi bi-image mb-2" viewBox="0 0 16 16">
           <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0"/>
           <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1z"/>
         </svg>
-        <p>Drag and drop new image here, or click to select</p>
+        <p style="color: #999; margin: 0;">Drag & drop new image or click to browse</p>
       </div>
-      <div id="newPreview" class="mt-2"></div>
+      
+      {% if errors.image %}
+      <div class="invalid-feedback">{{ errors.image }}</div>
+      {% endif %}
     </div>
 
-    <!-- Name -->
+    <!-- Category Name -->
     <div class="mb-4">
-      <label for="categoryName" class="form-label">Category Name</label>
-      <input type="text" id="categoryName" name="name" class="form-control" value="{{ cat.name }}" required>
+      <label for="categoryName" class="form-label">
+        Category Name <span class="required-star">*</span>
+      </label>
+      <input 
+        type="text" 
+        id="categoryName" 
+        name="name" 
+        class="form-control {% if errors.name %}is-invalid{% endif %}" 
+        placeholder="e.g., Headphones, Speakers"
+        value="{{ cat.name }}"
+        maxlength="255"
+        required
+      >
+      <small class="text-muted">Must contain letters, 2-255 characters</small>
+      {% if errors.name %}
+      <div class="invalid-feedback">{{ errors.name }}</div>
+      {% endif %}
     </div>
 
     <!-- Description -->
     <div class="mb-4">
       <label for="description" class="form-label">Description</label>
-      <textarea id="description" name="description" class="form-control" rows="4">{{ cat.description }}</textarea>
+      <textarea 
+        id="description" 
+        name="description" 
+        class="form-control {% if errors.description %}is-invalid{% endif %}" 
+        rows="4" 
+        placeholder="Brief description..."
+        maxlength="500"
+      >{{ cat.description|default:'' }}</textarea>
+      <small class="text-muted">Optional, 10-500 characters</small>
+      {% if errors.description %}
+      <div class="invalid-feedback">{{ errors.description }}</div>
+      {% endif %}
     </div>
 
-    <div class="d-flex flex-wrap gap-3 justify-content-end">
+    <!-- Buttons -->
+    <div class="d-flex gap-3 justify-content-end">
       <a href="{% url 'catogery' %}" class="btn btn-light">Cancel</a>
-      <button type="submit" class="btn btn-submit">Save Changes</button>
+      <button type="submit" class="btn btn-submit">💾 Save Changes</button>
     </div>
   </form>
 </div>
 
 <script>
-  const dropArea = document.getElementById('dropper');
-  const fileInput = document.querySelector("input[name='image']");
-  const preview = document.getElementById('newPreview');
-
-  dropArea.addEventListener('click', ()=> fileInput.click());
-
-  ['dragenter','dragover','dragleave','drop'].forEach(ev=>{
-    dropArea.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); });
+(function() {
+  const dropArea = document.getElementById('dropArea');
+  const fileInput = document.getElementById('imageInput');
+  const form = document.getElementById('editForm');
+  
+  // Click to upload
+  dropArea.addEventListener('click', () => fileInput.click());
+  
+  // Drag and drop
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, e => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
   });
-  ['dragenter','dragover'].forEach(ev=>{
-    dropArea.addEventListener(ev, ()=> dropArea.classList.add('highlight'));
+  
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropArea.addEventListener(eventName, () => {
+      dropArea.style.borderColor = '#8855ff';
+    });
   });
-  ['dragleave','drop'].forEach(ev=>{
-    dropArea.addEventListener(ev, ()=> dropArea.classList.remove('highlight'));
+  
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, () => {
+      dropArea.style.borderColor = '#666';
+    });
   });
-
-  dropArea.addEventListener('drop', e=>{
+  
+  dropArea.addEventListener('drop', e => {
     const files = e.dataTransfer.files;
-    if (!files || !files[0]) return;
-    fileInput.files = files;
-    showPreview(files[0]);
+    if (files.length > 0) {
+      fileInput.files = files;
+      validateAndPreview(files[0]);
+    }
   });
-  fileInput.addEventListener('change', e=>{
-    const f = e.target.files?.[0];
-    if (f) showPreview(f);
+  
+  fileInput.addEventListener('change', e => {
+    if (e.target.files.length > 0) {
+      validateAndPreview(e.target.files[0]);
+    }
   });
-
-  function showPreview(file){
+  
+  // Validate and preview
+  function validateAndPreview(file) {
+    // Clear previous errors
+    fileInput.classList.remove('is-invalid');
+    dropArea.classList.remove('is-invalid');
+    
+    const feedback = dropArea.parentElement.querySelector('.invalid-feedback');
+    if (feedback) feedback.remove();
+    
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      showImageError('Only JPG, PNG, and WebP allowed');
+      fileInput.value = '';
+      return;
+    }
+    
+    // Validate file size (5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      showImageError(`File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB (max 5MB)`);
+      fileInput.value = '';
+      return;
+    }
+    
+    // Preview
     const reader = new FileReader();
-    reader.onload = ()=> preview.innerHTML = `<img src="${reader.result}" class="img-fluid rounded" style="max-width:200px">`;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        // Validate dimensions
+        if (img.width < 200 || img.height < 200) {
+          showImageError(`Image too small: ${img.width}x${img.height}px (min 200x200px)`);
+          fileInput.value = '';
+          return;
+        }
+        if (img.width > 4000 || img.height > 4000) {
+          showImageError(`Image too large: ${img.width}x${img.height}px (max 4000x4000px)`);
+          fileInput.value = '';
+          return;
+        }
+        
+        // Show preview
+        dropArea.innerHTML = `
+          <img src="${e.target.result}" class="image-preview">
+          <p style="color: #999; margin-top: 10px;">✅ New image selected - Click to change</p>
+        `;
+      };
+      img.src = e.target.result;
+    };
     reader.readAsDataURL(file);
   }
+  
+  function showImageError(message) {
+    fileInput.classList.add('is-invalid');
+    dropArea.classList.add('is-invalid');
+    
+    const feedback = document.createElement('div');
+    feedback.className = 'invalid-feedback';
+    feedback.textContent = message;
+    dropArea.parentElement.appendChild(feedback);
+  }
+  
+  // Form validation
+  form.addEventListener('submit', function(e) {
+    let isValid = true;
+    
+    // Clear previous validation
+    document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+    document.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
+    
+    // Validate name
+    const name = document.getElementById('categoryName').value.trim();
+    if (!name) {
+      showFieldError('categoryName', 'Category name is required');
+      isValid = false;
+    } else if (name.length < 2) {
+      showFieldError('categoryName', 'Name must be at least 2 characters');
+      isValid = false;
+    } else if (!/[a-zA-Z]/.test(name)) {
+      showFieldError('categoryName', 'Name must contain at least one letter');
+      isValid = false;
+    } else if (!/^[a-zA-Z0-9\s\-&]+$/.test(name)) {
+      showFieldError('categoryName', 'Only letters, numbers, spaces, hyphens, and & allowed');
+      isValid = false;
+    }
+    
+    // Validate description
+    const desc = document.getElementById('description').value.trim();
+    if (desc && desc.length < 10) {
+      showFieldError('description', 'Description must be at least 10 characters');
+      isValid = false;
+    }
+    
+    // Image validation (optional on edit, but validate if provided)
+    if (fileInput.files && fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      
+      // File type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        showImageError('Only JPG, PNG, and WebP allowed');
+        isValid = false;
+      }
+      
+      // File size
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        showImageError(`File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB (max 5MB)`);
+        isValid = false;
+      }
+    }
+    
+    if (!isValid) {
+      e.preventDefault();
+      document.querySelector('.is-invalid')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
+  
+  function showFieldError(fieldId, message) {
+    const field = document.getElementById(fieldId);
+    field.classList.add('is-invalid');
+    
+    const feedback = document.createElement('div');
+    feedback.className = 'invalid-feedback';
+    feedback.textContent = message;
+    field.parentElement.appendChild(feedback);
+  }
+})();
+
+// Auto-hide messages after 5 seconds
+setTimeout(function() {
+  const alerts = document.querySelectorAll('.alert');
+  alerts.forEach(alert => {
+    alert.style.transition = 'opacity 0.5s';
+    alert.style.opacity = '0';
+    setTimeout(() => alert.remove(), 500);
+  });
+}, 5000);
 </script>
+
 {% endblock %}

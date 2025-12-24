@@ -402,6 +402,60 @@
     font-size: 0.8rem;
     margin-top: 0.25rem;
 }
+
+/* ===== VALIDATION ERROR STYLES ===== */
+.invalid-feedback {
+    display: block !important;
+    color: #ef4444;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+    animation: slideDown 0.3s ease-out;
+}
+
+.is-invalid {
+    border-color: #ef4444 !important;
+    animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== LOADING SPINNER ===== */
+.spinner-border {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    vertical-align: text-bottom;
+    border: 0.2em solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spinner-border .75s linear infinite;
+}
+
+@keyframes spinner-border {
+    to { transform: rotate(360deg); }
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.2em;
+}
+
 </style>
 
 
@@ -493,7 +547,7 @@
             <!-- NEW: Offer badge (required) -->
             <div class="col-md-4 mb-3">
             <label class="pa-label">
-                Offer Badge <span class="pa-badge pa-badge-purple">Required</span>
+                Spec Badge <span class="pa-badge pa-badge-purple">Required</span>
             </label>
             <input type="text" name="offer" class="form-control pa-input"
                     placeholder="e.g., 25W Signature Sound" required>
@@ -597,38 +651,65 @@ document.addEventListener("DOMContentLoaded", function() {
     // ===== CONFIGURATION =====
     const MAX_PRODUCT_IMGS = 15;
     const MAX_VARIANT_IMGS = 15;
+    const MAX_DETAILED_IMGS = 5;  // ✅ Added
     const MAX_FILE_SIZE = 10 * 1024 * 1024;
     
     let variantIdx = 0;
     const productStore = new DataTransfer();
     const variantStores = {};
+    const detailedStore = new DataTransfer();  // ✅ Added
     
-    // Cropper state (FIXED)
+    // Cropper state
     let cropper = null;
     let currentCrop = null;
     let cropQueue = [];
 
-
     // ===== HELPERS =====
     function showError(msg) {
         const alert = document.getElementById("pa-error-alert");
-        alert.textContent = msg;
+        alert.innerHTML = `<strong>Error:</strong> ${msg}`;
         alert.classList.remove("d-none");
-        setTimeout(() => alert.classList.add("d-none"), 4000);
+        alert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => alert.classList.add("d-none"), 5000);
     }
-
 
     function getCsrf() {
         return document.querySelector('[name="csrfmiddlewaretoken"]').value;
     }
 
+    // ===== UPLOAD TO CLOUDINARY (AJAX) =====
+    async function uploadToCloudinary(file, listKey) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('list_key', listKey);
+        
+        try {
+            const response = await fetch("{% url 'upload_temp_image' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': getCsrf()
+                }
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                return data.temp_id;
+            } else {
+                showError(data.message || 'Upload failed');
+                return null;
+            }
+        } catch (error) {
+            showError('Network error during upload');
+            return null;
+        }
+    }
 
     // ===== PRODUCT IMAGES =====
     const productDrop = document.getElementById("pa-product-drop");
     const productInput = document.getElementById("pa-product-input");
     const productBtn = document.getElementById("pa-product-btn");
     const productPreview = document.getElementById("pa-product-preview");
-
 
     productBtn.addEventListener("click", () => productInput.click());
     productDrop.addEventListener("click", (e) => {
@@ -639,14 +720,12 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 
-
     ["dragenter", "dragover"].forEach(ev => 
         productDrop.addEventListener(ev, e => {
             e.preventDefault();
             productDrop.classList.add("pa-highlight");
         })
     );
-
 
     ["dragleave", "drop"].forEach(ev =>
         productDrop.addEventListener(ev, e => {
@@ -655,13 +734,11 @@ document.addEventListener("DOMContentLoaded", function() {
         })
     );
 
-
     productDrop.addEventListener("drop", e => handleProductFiles(e.dataTransfer.files));
     productInput.addEventListener("change", () => {
         handleProductFiles(productInput.files);
-        productInput.value = ""; // Reset to allow re-selecting same file
+        productInput.value = "";
     });
-
 
     function handleProductFiles(files) {
         if (!files || files.length === 0) return;
@@ -673,13 +750,11 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-
-    // ===== CROPPER QUEUE (FIXED) =====
+    // ===== CROPPER QUEUE =====
     function queueCrop(file, type, variantIndex) {
         cropQueue.push({ file, type, variantIndex });
         if (!currentCrop) processNextCrop();
     }
-
 
     function processNextCrop() {
         if (cropQueue.length === 0) {
@@ -712,36 +787,27 @@ document.addEventListener("DOMContentLoaded", function() {
         reader.readAsDataURL(file);
     }
 
-
-function closeCropperModal() {
-    if (cropper) {
-        cropper.destroy();
-        cropper = null;
-    }
-    
-    const modalEl = document.getElementById("pa-cropper-modal");
-    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-    
-    if (modalInstance) {
-        modalInstance.hide();
-    }
-    
-    // Force cleanup after modal hides
-    setTimeout(() => {
-        // Remove any stuck backdrops
-        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+    function closeCropperModal() {
+        if (cropper) {
+            cropper.destroy();
+            cropper = null;
+        }
         
-        // Reset body styles
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
+        const modalEl = document.getElementById("pa-cropper-modal");
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
         
-        // Process next crop
-        processNextCrop();
-    }, 300);
-}
-
-
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+        
+        setTimeout(() => {
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            processNextCrop();
+        }, 300);
+    }
 
     // Skip crop
     document.getElementById("pa-crop-skip").addEventListener("click", () => {
@@ -758,13 +824,11 @@ function closeCropperModal() {
         closeCropperModal();
     });
 
-
     // Cancel crop
     document.getElementById("pa-crop-cancel").addEventListener("click", () => {
         currentCrop = null;
         closeCropperModal();
     });
-
 
     // Save crop
     document.getElementById("pa-crop-save").addEventListener("click", () => {
@@ -785,15 +849,20 @@ function closeCropperModal() {
         }, "image/jpeg", 0.9);
     });
 
-
-    function addProductImage(file) {
+    // ===== ADD PRODUCT IMAGE (WITH CLOUDINARY UPLOAD) =====
+    async function addProductImage(file) {
         if (productStore.files.length >= MAX_PRODUCT_IMGS) return showError(`Max ${MAX_PRODUCT_IMGS} images`);
+        
+        // Upload to Cloudinary first
+        const tempId = await uploadToCloudinary(file, 'product');
+        if (!tempId) return;  // Upload failed
         
         productStore.items.add(file);
         productInput.files = productStore.files;
         
         const wrapper = document.createElement("div");
         wrapper.className = "pa-img-wrapper";
+        wrapper.dataset.tempId = tempId;  // ✅ Store temp ID
         if (productPreview.children.length === 0) wrapper.classList.add("pa-img-cover");
         
         const img = document.createElement("img");
@@ -819,7 +888,6 @@ function closeCropperModal() {
         productPreview.appendChild(wrapper);
     }
 
-
     // ===== VARIANTS =====
     function createVariant(idx) {
         const card = document.createElement("div");
@@ -833,11 +901,11 @@ function closeCropperModal() {
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="pa-label">Color</label>
-                    <input type="text" name="color[]" class="form-control pa-input" placeholder="e.g., Black">
+                    <input type="text" name="variant_color[]" class="form-control pa-input" placeholder="e.g., Black">
                 </div>
                 <div class="col-md-6">
                     <label class="pa-label">Stock Quantity</label>
-                    <input type="number" name="stock[]" class="form-control pa-input" placeholder="0" min="0">
+                    <input type="number" name="variant_stock[]" class="form-control pa-input" placeholder="0" min="0">
                 </div>
             </div>
             <div class="pa-dropzone pa-variant-drop" data-variant="${idx}" style="padding: 1.5rem;">
@@ -880,7 +948,6 @@ function closeCropperModal() {
         });
     }
 
-
     function handleVariantFiles(idx, files) {
         if (!files || files.length === 0) return;
         [...files].forEach(f => {
@@ -891,10 +958,14 @@ function closeCropperModal() {
         });
     }
 
-
-    function addVariantImage(file, idx) {
+    // ===== ADD VARIANT IMAGE (WITH CLOUDINARY UPLOAD) =====
+    async function addVariantImage(file, idx) {
         const store = variantStores[idx];
         if (!store || store.files.length >= MAX_VARIANT_IMGS) return;
+        
+        // Upload to Cloudinary first
+        const tempId = await uploadToCloudinary(file, `variant_${idx}`);
+        if (!tempId) return;  // Upload failed
         
         store.items.add(file);
         const card = document.querySelector(`[data-idx="${idx}"]`);
@@ -905,6 +976,7 @@ function closeCropperModal() {
         
         const wrapper = document.createElement("div");
         wrapper.className = "pa-img-wrapper";
+        wrapper.dataset.tempId = tempId;  // ✅ Store temp ID
         
         const img = document.createElement("img");
         img.src = URL.createObjectURL(file);
@@ -930,28 +1002,42 @@ function closeCropperModal() {
         preview.appendChild(wrapper);
     }
 
-
     // Init first variant
     createVariant(variantIdx++);
     document.getElementById("pa-add-variant").addEventListener("click", () => createVariant(variantIdx++));
 
-
-    // ===== DETAILED IMAGES =====
+    // ===== DETAILED IMAGES (WITH CLOUDINARY UPLOAD) ✅ FIXED =====
     const detailedInput = document.getElementById("pa-detailed-input");
     const detailedPreview = document.getElementById("pa-detailed-preview");
 
-
-    detailedInput.addEventListener("change", () => {
-        detailedPreview.innerHTML = "";
-        const dt = new DataTransfer();
+    detailedInput.addEventListener("change", async () => {
+        const files = [...detailedInput.files];
+        detailedInput.value = ""; // Reset input
         
-        [...detailedInput.files].forEach((file, idx) => {
-            if (!file.type.startsWith("image/")) return;
-            if (file.size > MAX_FILE_SIZE) return;
-            dt.items.add(file);
+        for (const file of files) {
+            if (!file.type.startsWith("image/")) {
+                showError("Only images allowed");
+                continue;
+            }
+            if (file.size > MAX_FILE_SIZE) {
+                showError("Max 10MB per image");
+                continue;
+            }
+            if (detailedStore.files.length >= MAX_DETAILED_IMGS) {
+                showError(`Max ${MAX_DETAILED_IMGS} detailed images`);
+                continue;
+            }
+            
+            // ✅ Upload to Cloudinary
+            const tempId = await uploadToCloudinary(file, 'detailed');
+            if (!tempId) continue;  // Upload failed
+            
+            detailedStore.items.add(file);
+            detailedInput.files = detailedStore.files;
             
             const wrapper = document.createElement("div");
             wrapper.className = "pa-img-wrapper";
+            wrapper.dataset.tempId = tempId;  // ✅ Store temp ID
             
             const img = document.createElement("img");
             img.src = URL.createObjectURL(file);
@@ -962,6 +1048,16 @@ function closeCropperModal() {
             btn.type = "button";
             btn.style.opacity = "1";
             btn.addEventListener("click", () => {
+                // Remove from store
+                const idx = [...detailedPreview.children].indexOf(wrapper);
+                const dt = new DataTransfer();
+                [...detailedStore.files].forEach((f, i) => { 
+                    if (i !== idx) dt.items.add(f); 
+                });
+                detailedStore.items.clear();
+                [...dt.files].forEach(f => detailedStore.items.add(f));
+                detailedInput.files = detailedStore.files;
+                
                 URL.revokeObjectURL(img.src);
                 wrapper.remove();
             });
@@ -969,11 +1065,8 @@ function closeCropperModal() {
             wrapper.appendChild(img);
             wrapper.appendChild(btn);
             detailedPreview.appendChild(wrapper);
-        });
-        
-        detailedInput.files = dt.files;
+        }
     });
-
 
     // ===== BRAND AJAX =====
     document.getElementById("pa-brand-form").addEventListener("submit", function(e) {
@@ -998,7 +1091,6 @@ function closeCropperModal() {
                     modalInstance.hide();
                 }
                 
-                // Force cleanup
                 setTimeout(() => {
                     document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
                     document.body.classList.remove('modal-open');
@@ -1013,29 +1105,150 @@ function closeCropperModal() {
         .catch(() => showError("Network error"));
     });
 
-
-    // ===== FORM VALIDATION =====
+    // ===== AJAX FORM SUBMISSION WITH VALIDATION =====
     document.getElementById("pa-form").addEventListener("submit", function(e) {
-        // Reindex variant inputs
-        document.querySelectorAll(".pa-variant").forEach((card, idx) => {
-            const input = card.querySelector("input[type='file']");
-            if (input) input.name = `variant_images_${idx}`;
-        });
+        e.preventDefault();
         
+        // Clear previous errors
+        document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        document.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
+        document.getElementById("pa-error-alert").classList.add("d-none");
+
+        // Validate product images
         if (productStore.files.length < 1) {
-            e.preventDefault();
             showError("At least 1 product image required");
             return false;
         }
+        
+        // Create FormData
+        const formData = new FormData(this);
+        
+        // ✅ ADD PRODUCT IMAGE IDs
+        const productImageWrappers = productPreview.querySelectorAll('.pa-img-wrapper');
+        productImageWrappers.forEach(wrapper => {
+            const tempId = wrapper.dataset.tempId;
+            if (tempId) {
+                formData.append('temp_product_images[]', tempId);
+            }
+        });
+
+        // ✅ ADD VARIANT IMAGE IDs
+        document.querySelectorAll('.pa-variant').forEach((card, idx) => {
+            const variantPreview = card.querySelector('.pa-variant-preview');
+            const variantImageWrappers = variantPreview.querySelectorAll('.pa-img-wrapper');
+            variantImageWrappers.forEach(wrapper => {
+                const tempId = wrapper.dataset.tempId;
+                if (tempId) {
+                    formData.append(`temp_variant_images_${idx}[]`, tempId);
+                }
+            });
+        });
+
+        // ✅ ADD DETAILED IMAGE IDs (FIXED!)
+        const detailedImageWrappers = detailedPreview.querySelectorAll('.pa-img-wrapper');
+        detailedImageWrappers.forEach(wrapper => {
+            const tempId = wrapper.dataset.tempId;
+            if (tempId) {
+                formData.append('temp_detailed_images[]', tempId);
+            }
+        });
+
+        // Debug: Check what's being sent
+        console.log('Form data being sent:');
+        for (let pair of formData.entries()) {
+            console.log(pair[0] + ': ' + pair[1]);
+        }
+        
+        // Show loading state
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        
+        // Send AJAX request
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': getCsrf(),
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json().then(data => ({status: response.status, body: data})))
+        .then(({status, body}) => {
+            if (body.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Product Added! 🎉',
+                    text: body.message,
+                    confirmButtonText: 'View Products',
+                    confirmButtonColor: '#7c3aed'
+                }).then(() => {
+                    window.location.href = body.redirect_url;
+                });
+            } else {
+                displayErrors(body);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError('Network error. Please check your connection and try again.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+        });
     });
 
+    // Display validation errors
+    function displayErrors(response) {
+        if (response.non_field_errors && response.non_field_errors.length > 0) {
+            const alert = document.getElementById("pa-error-alert");
+            let errorHtml = '<strong>Please fix the following errors:</strong><ul class="mb-0 mt-2">';
+            response.non_field_errors.forEach(error => {
+                errorHtml += `<li>${error}</li>`;
+            });
+            errorHtml += '</ul>';
+            alert.innerHTML = errorHtml;
+            alert.classList.remove('d-none');
+            alert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        if (response.field_errors) {
+            Object.entries(response.field_errors).forEach(([fieldName, errors]) => {
+                const field = document.querySelector(`[name="${fieldName}"]`);
+                
+                if (field) {
+                    field.classList.add('is-invalid');
+                    
+                    const errorText = Array.isArray(errors) ? errors.join(', ') : errors;
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'invalid-feedback d-block';
+                    errorDiv.textContent = errorText;
+                    
+                    field.parentNode.appendChild(errorDiv);
+                    
+                    if (!document.querySelector('.scrolled-to-error')) {
+                        field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        field.classList.add('scrolled-to-error');
+                        setTimeout(() => field.classList.remove('scrolled-to-error'), 1000);
+                    }
+                }
+            });
+        }
+    }
 
     // ===== FORM RESET =====
     document.querySelector('button[type="reset"]').addEventListener("click", () => {
         productStore.items.clear();
         productInput.files = productStore.files;
         productPreview.innerHTML = "";
+        
+        // ✅ Clear detailed images store
+        detailedStore.items.clear();
+        detailedInput.files = detailedStore.files;
         detailedPreview.innerHTML = "";
+        
         Object.keys(variantStores).forEach(k => {
             variantStores[k].items.clear();
             delete variantStores[k];
@@ -1044,8 +1257,10 @@ function closeCropperModal() {
         variantIdx = 0;
         createVariant(variantIdx++);
     });
+
 });
 </script>
+
 
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

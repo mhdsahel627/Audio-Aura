@@ -34,7 +34,8 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = ['52.66.249.202', 'localhost', '127.0.0.1']
 
-
+# DEBUG =  'True'
+# ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [

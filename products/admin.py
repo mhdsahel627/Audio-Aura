@@ -1,10 +1,38 @@
+from django import forms
 from django.contrib import admin
 from .models import (
     Product, ProductVariant,
     ProductImage, ProductVariantImage,
-    ProductDetailedImage, TemporaryUpload,ProductOffer
+    ProductDetailedImage, TemporaryUpload, ProductOffer
 )
 from django.utils.html import format_html
+
+
+#Custom ModelForm for Product (replaces forms.Form)
+class ProductModelForm(forms.ModelForm):
+    class Meta:
+        model = Product
+        fields = '__all__'
+        widgets = {
+            'short_description': forms.Textarea(attrs={'rows': 3}),
+            'long_description': forms.Textarea(attrs={'rows': 5}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        base_price = cleaned_data.get('base_price')
+        discount_price = cleaned_data.get('discount_price')
+        
+        if base_price and discount_price and discount_price >= base_price:
+            raise forms.ValidationError({
+                'discount_price': "Discount price must be less than base price."
+            })
+        
+        # Name required validation
+        if not cleaned_data.get('name'):
+            raise forms.ValidationError({'name': "Product name is required."})
+            
+        return cleaned_data
 
 
 # 🔹 Inline admin for ProductImage
@@ -21,7 +49,6 @@ class ProductImageInline(admin.TabularInline):
     image_preview.short_description = "Preview"
 
     def save_model(self, request, obj, form, change):
-        # Ensure only one featured image per product
         if obj.featured:
             ProductImage.objects.filter(product=obj.product, featured=True).exclude(pk=obj.pk).update(featured=False)
         super().save_model(request, obj, form, change)
@@ -41,7 +68,6 @@ class ProductVariantImageInline(admin.TabularInline):
     image_preview.short_description = "Preview"
 
     def save_model(self, request, obj, form, change):
-        # Ensure only one featured image per variant
         if obj.featured:
             ProductVariantImage.objects.filter(variant=obj.variant, featured=True).exclude(pk=obj.pk).update(featured=False)
         super().save_model(request, obj, form, change)
@@ -55,14 +81,17 @@ class ProductVariantInline(admin.StackedInline):
     inlines = [ProductVariantImageInline]
 
 
-# 🔹 Main Product admin
+# 🔹 Main Product admin - 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
+    form = ProductModelForm  #ModelForm use cheyyunnu
     list_display = ["name", "brand", "category", "stock_quantity", "is_listed", "created_at", "updated_at"]
     list_filter = ["is_listed", "category", "brand"]
     search_fields = ["name", "brand__name", "category__name"]
     prepopulated_fields = {"slug": ("name",)}
     inlines = [ProductImageInline, ProductVariantInline]
+    
+
 
 
 # 🔹 Register ProductVariant separately (optional)
@@ -79,10 +108,7 @@ class ProductDetailedImageAdmin(admin.ModelAdmin):
     list_display = ["product", "created_at"]
 
 
-# 🔹 Temporary Uploads (staging area)
-@admin.register(TemporaryUpload)
-class TemporaryUploadAdmin(admin.ModelAdmin):
-    list_display = ["file", "owner", "list_key", "created_at"]
+
 
 
 @admin.register(ProductOffer)
@@ -90,3 +116,4 @@ class ProductOfferAdmin(admin.ModelAdmin):
     list_display = ('id', 'product', 'title', 'discount_percent', 'discount_rs', 'is_extra', 'start_date', 'end_date')
     list_filter = ('product', 'is_extra')
     search_fields = ('product__name', 'title')
+    

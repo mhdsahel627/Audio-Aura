@@ -1,8 +1,9 @@
 # products/views.py
 from coupons.models import Coupon 
 from django.contrib.auth.decorators import user_passes_test,login_required
+from django.contrib.admin.views.decorators import staff_member_required
 from admin_side.views import is_admin
-from datetime import date  
+from datetime import date, datetime  
 from datetime import timezone
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
@@ -23,9 +24,14 @@ import re
 from django.core.paginator import Paginator
 from django.views.decorators.csrf import csrf_exempt
 from decimal import Decimal, InvalidOperation
+from .models import TemporaryUpload
+import cloudinary.uploader
 import json
 from django.db.models import Sum
 from django.urls import reverse
+from .forms import ProductAddForm 
+from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_http_methods
 
 def admin_required(view_func):
     """
@@ -45,279 +51,242 @@ alnum_nospace_re = re.compile(r'^[A-Za-z0-9]+$')  # only letters and numbers, no
 name_re = re.compile(r'^[A-Za-z0-9 _-]+$')  # letters, numbers, spaces, underscore, hyphen
 
 """ .......................................................Add Product..................................... """
-@user_passes_test(is_admin, login_url='admin_login')
-@login_required(login_url='admin_login')
-@never_cache
-@admin_required  # Restrict access to authenticated admin/staff users
-@never_cache  # Prevent caching to always show fresh form data
-@csrf_protect  # Protect against CSRF attacks for POST requests
+@login_required
+@require_http_methods(["GET", "POST"])
 def add_product(request):
-    """
-    Handle adding a new product along with images and variants in the admin panel.
-
-    Behavior:
-    - On GET: render the product add form with available categories and brands.
-    - On POST:
-        - Validate product fields: name, brand, category, base price, discount price.
-        - Validate uploaded product images, detailed images, and variant images.
-        - Validate variant color/stock combinations.
-        - Handle duplicates and field format errors.
-        - Save product, images, detailed images, and variants atomically using a transaction.
-        - Update product stock based on variant stock sum.
-        - Provide success/error messages via Django messages framework.
-        - Return the same page with a success_flag for JS SweetAlert handling.
-    - On validation errors, render the form with errors and sticky values.
-
-    Security and UX Notes:
-    - Protected by @admin_required to prevent unauthorized access.
-    - CSRF protection ensures POST requests are secure.
-    - Uses Django's transaction.atomic() to ensure product + variants + images are saved consistently.
-    - Provides both field-level and non-field error reporting.
-    - File size limits and type checks ensure only valid images are stored.
-    """
-
-    # Fetch all active categories and all brands for form dropdowns
     categories = Category.objects.filter(is_active=True)
     brands = Brand.objects.all()
-
-    # Handle form submission
+    
     if request.method == "POST":
-        # Collect sticky form values (trimmed)
-        form_values = {
-            "name": request.POST.get("name", "").strip(),
-            "short_desc": request.POST.get("short_desc", "").strip(),
-            "long_desc": request.POST.get("long_desc", "").strip(),
-            "brand": request.POST.get("brand"),
-            "category": request.POST.get("category"),
-            "base_price": request.POST.get("base_price"),
-            "discount_price": request.POST.get("discount_price", "").strip(),
-            "offer": request.POST.get("offer", "").strip(),
-            "video": request.POST.get("video", "").strip(),
-        }
+        form = ProductAddForm(request.POST)
+        
+        # Variant raw data
+        colors = request.POST.getlist("variant_color[]")
+        stocks_raw = request.POST.getlist("variant_stock[]")
+        
+        # Temporary uploads (Cloudinary staged)
+        temp_product_ids = request.POST.getlist("temp_product_images[]")
+        temp_detailed_ids = request.POST.getlist("temp_detailed_images[]")
 
-        # Initialize error containers
-        errors = {}
-        non_field_errors = []
+        try:
+            # ✅ STEP 1: Validate Django Form
+            if not form.is_valid():
+                return JsonResponse({
+                    "success": False,
+                    "field_errors": {k: [str(e) for e in v] for k, v in form.errors.items()},
+                    "non_field_errors": [str(e) for e in form.non_field_errors()],
+                }, status=400)
 
-        # ------------------- Field Validations -------------------
-        # Product name validation + duplicate check
-        if not form_values["name"]:
-            errors["name"] = "Product name is required."
-        elif not name_re.match(form_values["name"]):
-            errors["name"] = "Name can contain letters, numbers, spaces, underscores and hyphens only."
-        elif Product.objects.filter(name__iexact=form_values["name"]).exists():
-            errors["name"] = f"Product '{form_values['name']}' already exists."
+            # ✅ STEP 2: Extra validations (images, variants)
+            non_field_errors = []
+            
+            # Validate product images
+            if not temp_product_ids:
+                non_field_errors.append("At least one product image is required.")
+            
+            # Validate variants
+            if not colors:
+                non_field_errors.append("At least one variant color is required.")
+            
+            # Validate each variant
+            for idx, color in enumerate(colors):
+                if not color.strip():
+                    non_field_errors.append(f"Variant {idx + 1}: Color cannot be empty.")
+                
+                # Validate stock for this variant
+                if idx < len(stocks_raw):
+                    try:
+                        stock_val = int(stocks_raw[idx])
+                        if stock_val < 0:
+                            non_field_errors.append(f"Variant {idx + 1}: Stock cannot be negative.")
+                    except ValueError:
+                        non_field_errors.append(f"Variant {idx + 1}: Invalid stock value.")
+                
+                # ✅ NEW: Validate variant images
+                v_ids = request.POST.getlist(f"temp_variant_images_{idx}[]")
+                if not v_ids or len(v_ids) == 0:
+                    non_field_errors.append(f"Variant {idx + 1} ({color.strip() if color.strip() else 'unnamed'}): At least one image is required.")
 
-        # Brand and category required checks
-        if not form_values["brand"]:
-            errors["brand"] = "Brand is required."
-        if not form_values["category"]:
-            errors["category"] = "Category is required."
-
-        # Base price validation
-        base_price = None
-        discount_price = None
-        if not form_values["base_price"]:
-            errors["base_price"] = "Base price is required."
-        else:
-            try:
-                base_price = Decimal(form_values["base_price"])
-                if base_price < 0:
-                    errors["base_price"] = "Base price cannot be negative."
-            except (InvalidOperation, ValueError):
-                errors["base_price"] = "Invalid base price format."
-
-        # Discount price validation
-        if form_values["discount_price"]:
-            try:
-                discount_price = Decimal(form_values["discount_price"])
-                if discount_price < 0:
-                    errors["discount_price"] = "Discount price cannot be negative."
-            except (InvalidOperation, ValueError):
-                errors["discount_price"] = "Invalid discount price format."
-
-        # Ensure discount < base price
-        if base_price is not None and discount_price is not None:
-            if discount_price >= base_price:
-                errors["discount_price"] = "Discount price must be less than base price."
-
-        # ------------------- File Uploads Validation -------------------
-        product_images = request.FILES.getlist("product_images")
-        detailed_images = request.FILES.getlist("detailed_images")
-
-        max_file_size = 15 * 1024 * 1024  # 15MB
-        max_product_images = 15
-        max_detailed_images = 10
-        max_variant_images = 15
-
-        # Product images: required and within max limit
-        if len(product_images) == 0:
-            errors["product_images"] = "At least one product image is required."
-        elif len(product_images) > max_product_images:
-            errors["product_images"] = f"Maximum {max_product_images} product images allowed."
-        else:
-            for img in product_images:
-                if not getattr(img, "content_type", "").startswith("image/"):
-                    errors["product_images"] = "Only image files are allowed."
-                    break
-                if img.size > max_file_size:
-                    errors["product_images"] = "Each product image must be <= 15MB."
-                    break
-
-        # Detailed images: optional, capped, validate type/size
-        if len(detailed_images) > max_detailed_images:
-            non_field_errors.append(f"Only first {max_detailed_images} detailed images will be saved.")
-            detailed_images = detailed_images[:max_detailed_images]
-        for img in detailed_images:
-            if not getattr(img, "content_type", "").startswith("image/"):
-                non_field_errors.append("Detailed images must be valid image files.")
-                break
-            if img.size > max_file_size:
-                non_field_errors.append("Each detailed image must be <= 15MB.")
-                break
-
-        # ------------------- Variants Validation -------------------
-        colors = [c.strip() for c in request.POST.getlist("color[]")]
-        stocks_raw = request.POST.getlist("stock[]")
-
-        if len(colors) != len(stocks_raw):
-            non_field_errors.append("Mismatch between colors and stock quantities.")
-
-        seen_colors = set()
-        variant_errors = []
-        parsed_stocks = []
-        total_stock = 0
-
-        for idx in range(min(len(colors), len(stocks_raw))):
-            color = colors[idx]
-            stock_val_raw = stocks_raw[idx]
-
-            if not color:
-                variant_errors.append(f"Variant {idx+1}: Color is required.")
-            elif color in seen_colors:
-                variant_errors.append(f"Variant {idx+1}: Duplicate color '{color}'.")
-            else:
-                seen_colors.add(color)
-
-            try:
-                stock_val = int(stock_val_raw) if stock_val_raw else 0
-                if stock_val < 0:
-                    variant_errors.append(f"Variant {idx+1}: Stock cannot be negative.")
-            except ValueError:
-                variant_errors.append(f"Variant {idx+1}: Stock must be a whole number.")
-                stock_val = 0
-
-            parsed_stocks.append(stock_val)
-            total_stock += max(stock_val, 0)
-
-        if variant_errors:
-            non_field_errors.extend(variant_errors)
-
-        # ------------------- Early Return on Errors -------------------
-        if errors or non_field_errors:
-            messages.error(request, "Please fix the highlighted errors and resubmit.")
-            return render(
-                request,
-                "admin/product_add.html",
-                {
-                    "categories": categories,
-                    "brands": brands,
-                    "errors": errors,
+            # Return validation errors if any
+            if non_field_errors:
+                return JsonResponse({
+                    "success": False,
+                    "field_errors": {},
                     "non_field_errors": non_field_errors,
-                    "values": form_values,
-                    "variant_values": list(zip(colors, stocks_raw)),
-                },
+                }, status=400)
+
+            # ✅ STEP 3: All validations passed - Create Product
+            cd = form.cleaned_data
+
+            product = Product.objects.create(
+                name=cd["name"],
+                short_description=cd["short_desc"],
+                long_description=cd["long_desc"],
+                brand_id=cd["brand"],
+                category_id=cd["category"],
+                base_price=cd["base_price"],
+                discount_price=cd["discount_price"],
+                offer=cd["offer"],
+                video=cd["video"] or None,
+                is_listed=True
             )
 
-        # ------------------- Save Product, Images, and Variants -------------------
-        try:
-            with transaction.atomic():
-                brand_obj = get_object_or_404(Brand, id=form_values["brand"])
-                category_obj = get_object_or_404(Category, id=form_values["category"])
-
-                # Create main product record
-                product = Product.objects.create(
-                    name=form_values["name"],
-                    short_description=form_values["short_desc"],
-                    long_description=form_values["long_desc"],
-                    brand=brand_obj,
-                    category=category_obj,
-                    base_price=base_price,
-                    discount_price=discount_price,
-                    offer=form_values["offer"],
-                    video=form_values["video"],
-                    stock_quantity=0,
+            # ✅ STEP 4: Product images (staged → permanent)
+            temp_products = TemporaryUpload.objects.filter(
+                list_key="product", id__in=temp_product_ids
+            )
+            for t in temp_products:
+                ProductImage.objects.create(
+                    product=product,
+                    cloud_url=t.cloud_url,
+                    public_id=t.public_id
                 )
 
-                # Save product images
-                for img in product_images:
-                    ProductImage.objects.create(product=product, image=img)
-
-                # Save detailed images
-                for img in detailed_images:
-                    ProductDetailedImage.objects.create(product=product, image=img)
-
-                # Save variants and variant images
-                for idx, color in enumerate(colors):
-                    stock_val = parsed_stocks[idx] if idx < len(parsed_stocks) else 0
-                    variant = ProductVariant.objects.create(product=product, color=color, stock=stock_val)
-
-                    v_images = request.FILES.getlist(f"variant_images_{idx}")
-                    if len(v_images) > max_variant_images:
-                        v_images = v_images[:max_variant_images]
-                    for vimg in v_images:
-                        ctype = getattr(vimg, "content_type", "") or ""
-                        if not ctype.startswith("image/"):
-                            continue
-                        if vimg.size > max_file_size:
-                            continue
-                        ProductVariantImage.objects.create(variant=variant, image=vimg)
-
-                # Update product total stock based on variants
-                product.stock_quantity = ProductVariant.objects.filter(product=product).aggregate(
-                    s=Sum("stock")
-                )["s"] or 0
-                product.save(update_fields=["stock_quantity"])
-
-                # Success: render same page with success flag for JS handling
-                messages.success(request, "Product created successfully!")
-                return render(
-                    request,
-                    "admin/product_add.html",
-                    {
-                        "categories": categories,
-                        "brands": brands,
-                        "success_flag": True,
-                        "redirect_url": reverse("product_list"),
-                    },
+            # ✅ STEP 5: Detailed images
+            temp_details = TemporaryUpload.objects.filter(
+                list_key="detailed", id__in=temp_detailed_ids
+            )
+            for t in temp_details:
+                ProductDetailedImage.objects.create(
+                    product=product,
+                    cloud_url=t.cloud_url,
+                    public_id=t.public_id
                 )
 
-        except ValidationError as e:
-            messages.error(request, str(e))
+            # ✅ STEP 6: Variants + variant images
+            for idx, color in enumerate(colors):
+                if not color.strip():
+                    continue
+                
+                stock_val = 0
+                if idx < len(stocks_raw) and stocks_raw[idx]:
+                    try:
+                        stock_val = max(int(stocks_raw[idx]), 0)
+                    except ValueError:
+                        stock_val = 0
+
+                variant = ProductVariant.objects.create(
+                    product=product,
+                    color=color.strip(),
+                    stock=stock_val
+                )
+
+                # Variant images
+                v_ids = request.POST.getlist(f"temp_variant_images_{idx}[]")
+                if v_ids:
+                    v_temp = TemporaryUpload.objects.filter(
+                        list_key=f"variant_{idx}", id__in=v_ids
+                    )
+                    for t in v_temp:
+                        ProductVariantImage.objects.create(
+                            variant=variant,
+                            cloud_url=t.cloud_url,
+                            public_id=t.public_id
+                        )
+
+            # Stock sync happens automatically in ProductVariant.save()
+            product.refresh_from_db()
+
+            messages.success(request, f"Product '{cd['name']}' created successfully!")
+            
+            return JsonResponse({
+                "success": True,
+                "message": f"Product '{cd['name']}' created successfully with {len(product.images.all())} images!",
+                "redirect_url": reverse("product_list"),
+            })
+
+        except ValidationError as ve:
+            # Handle Django ValidationErrors
+            return JsonResponse({
+                "success": False,
+                "field_errors": {},
+                "non_field_errors": [str(ve)],
+            }, status=400)
+        
         except Exception as e:
-            messages.error(request, f"Error: {str(e)}")
+            # Log the error for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Product creation failed: {str(e)}", exc_info=True)
+            
+            return JsonResponse({
+                "success": False,
+                "field_errors": {},
+                "non_field_errors": [f"Failed to create product: {str(e)}"],
+            }, status=500)
 
-        # Fallback render on exception paths
-        return render(
-            request,
-            "admin/product_add.html",
-            {
-                "categories": categories,
-                "brands": brands,
-                "errors": {},
-                "non_field_errors": [],
-                "values": form_values,
-                "variant_values": list(zip(colors, stocks_raw)),
-            },
+    # GET request
+    form = ProductAddForm()
+    return render(request, "admin/product_add.html", {
+        "categories": categories,
+        "brands": brands,
+        "form": form,
+    })
+
+
+@require_http_methods(["POST"])
+def upload_temp_image(request):
+    try:
+        file = request.FILES.get('file')
+        list_key = request.POST.get('list_key', 'product')
+        
+        if not file:
+            return JsonResponse({'success': False, 'message': 'No file provided'})
+        
+        # Upload to Cloudinary
+        result = cloudinary.uploader.upload(
+            file,
+            folder='audio_aura/temp/',
+            resource_type='image'
         )
+        
+        # Create TemporaryUpload record
+        temp_upload = TemporaryUpload.objects.create(
+            list_key=list_key,
+            cloud_url=result['secure_url'],
+            public_id=result['public_id'],
+            owner=request.user if request.user.is_authenticated else None
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'temp_id': temp_upload.id,
+            'url': result['secure_url']
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
 
-    # ------------------- GET Request -------------------
-    return render(
-        request,
-        "admin/product_add.html",
-        {"categories": categories, "brands": brands},
-    )
 
+
+@require_POST
+@login_required
+def ajax_upload_image(request):
+    file_obj = request.FILES.get('file')
+    list_key = request.POST.get('list_key')  # "product", "detailed", "variant_0" etc.
+    if not file_obj or not list_key:
+        return JsonResponse({'success': False, 'error': 'Missing file or list_key'}, status=400)
+
+    try:
+        result = cloudinary.uploader.upload(file_obj)  # you can pass folder/preset here
+        temp = TemporaryUpload.objects.create(
+            owner=request.user,
+            session_key=request.session.session_key or "",
+            list_key=list_key,
+            cloud_url=result["secure_url"],
+            public_id=result["public_id"],
+        )
+        return JsonResponse({
+            'success': True,
+            'id': temp.id,
+            'url': temp.cloud_url,
+            'public_id': temp.public_id,
+            'list_key': list_key,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+    
 @admin_required
 @csrf_protect
 def add_brand_ajax(request):
@@ -578,69 +547,24 @@ def product_list(request):
 @never_cache
 @csrf_protect
 def product_edit(request, product_id):
-    """
-    Admin view to edit an existing product with full support for:
-    - Core product fields (name, description, brand, category, prices, offer, video)
-    - Product images and detailed images (add/remove, validated)
-    - Product variants (edit existing, add new, remove, validate stock & color uniqueness)
-    - Variant images (add/remove, max 10 per variant)
-    - Atomic transaction to ensure data consistency
-    - Stock quantity recalculation
-
-    Behavior:
-    - Handles both GET and POST requests.
-    - GET: Renders the product edit form with all current product data, images, detailed images, and variants.
-    - POST: Validates and updates product details, including:
-    - Core fields: name, description, brand, category, prices, offer, video
-    - Product images and detailed images (add/remove)
-    - Variants: update existing, remove, and add new variants with their images
-    - Ensures stock quantities are recalculated after variant updates
-    - Uses atomic transactions to avoid partial updates if any error occurs
-
-    Notes:
-    - Validates uniqueness of product name (excluding the current product)
-    - Validates image types, sizes, and maximum counts:
-    - Product images ≤ 15
-    - Detailed images ≤ 5
-    - Variant images ≤ 10
-    - Ensures variant colors are unique and stocks are non-negative integers
-    - Any invalid input triggers a ValidationError and prevents database changes
-    - Displays admin messages for success or error via Django’s messages framework
-    - Designed for AJAX or standard POST submissions in the admin panel
-
-    Working Flow:
-    GET Request:
-    - Fetch product, categories, brands, images, detailed images, and variants
-    - Render product_edit.html with context
-
-    POST Request:
-    - Validate core fields (name, brand, category, prices)
-    - Parse uploaded images and check counts/sizes/types
-    - Validate existing and new variants (colors, stock, images)
-    - If validation fails → return errors and messages without saving
-    - If validation passes → perform database writes atomically:
-        - Update core product fields
-        - Delete removed images/variants
-        - Add new images/variants
-        - Update stock quantity
-    - On success → show message and redirect to product_list
-    """
-    # ------------------- Fetch initial data -------------------
+    """Edit product with enhanced validation and error handling"""
+    
     product = get_object_or_404(Product, id=product_id)
     categories = Category.objects.filter(is_active=True)
     brands = Brand.objects.all()
-
+    
     # File upload limits
-    max_file_size = 15 * 1024 * 1024  # 15MB
+    max_file_size = 5 * 1024 * 1024  # 5MB
     max_product_images = 15
     max_detailed_images = 5
     max_variant_images = 15
-
-    # ------------------- Handle POST request -------------------
+    
+    errors = {}  # For field-specific errors
+    
     if request.method == "POST":
         try:
-            with transaction.atomic():  # single atomic transaction
-                # ----- Core Fields -----
+            with transaction.atomic():
+                # Core Fields
                 name = (request.POST.get("name") or "").strip()
                 short_desc = (request.POST.get("short_desc") or "").strip()
                 long_desc = (request.POST.get("long_desc") or "").strip()
@@ -650,102 +574,185 @@ def product_edit(request, product_id):
                 discount_price_in = request.POST.get("discount_price", "")
                 offer = (request.POST.get("offer") or "").strip()
                 video = (request.POST.get("video") or "").strip()
+                
+                # === VALIDATION ===
+                # 1. Name validation
+                if not name:
+                    errors['name'] = 'Product name is required'
+                elif len(name) < 3:
+                    errors['name'] = 'Product name must be at least 3 characters'
+                elif len(name) > 200:
+                    errors['name'] = 'Product name cannot exceed 200 characters'
+                elif not re.match(r'^[A-Za-z0-9 _-]+$', name):
+                    errors['name'] = 'Product name can only contain letters, numbers, spaces, hyphens, and underscores'
+                elif Product.objects.filter(name__iexact=name).exclude(id=product.id).exists():
+                    errors['name'] = 'A product with this name already exists'
+                
 
-                # Required checks
-                if not name or not category_id or not brand_id:
-                    raise ValidationError("Name, category, and brand are required.")
-
-                # Name format & uniqueness
-                if not re.match(r'^[A-Za-z0-9 _-]+$', name):
-                    raise ValidationError("Invalid name format.")
-                if Product.objects.filter(name__iexact=name).exclude(id=product.id).exists():
-                    raise ValidationError("Product name already exists.")
-
-                # ----- Price Validation -----
-                try:
-                    base_price = Decimal(base_price_in) if base_price_in not in (None, "") else Decimal("0")
-                    discount_price = None
-                    if discount_price_in not in (None, ""):
+                # 3. Category validation
+                if not category_id:
+                    errors['category'] = 'Category is required'
+                else:
+                    try:
+                        category_obj = Category.objects.get(id=category_id, is_active=True)
+                    except Category.DoesNotExist:
+                        errors['category'] = 'Invalid category selected'
+                
+                # 4. Brand validation
+                if not brand_id:
+                    errors['brand'] = 'Brand is required'
+                else:
+                    try:
+                        brand_obj = Brand.objects.get(id=brand_id)
+                    except Brand.DoesNotExist:
+                        errors['brand'] = 'Invalid brand selected'
+                
+                # 5. Price validation
+                if not base_price_in:
+                    errors['base_price'] = 'Base price is required'
+                else:
+                    try:
+                        base_price = Decimal(base_price_in)
+                        if base_price <= 0:
+                            errors['base_price'] = 'Base price must be greater than 0'
+                        elif base_price > 9999999:
+                            errors['base_price'] = 'Base price is too high'
+                    except (ValueError, InvalidOperation):
+                        errors['base_price'] = 'Invalid price format'
+                
+                # 6. Discount price validation
+                discount_price = None
+                if discount_price_in:
+                    try:
                         discount_price = Decimal(discount_price_in)
-                    if base_price < 0:
-                        raise ValidationError("Base price cannot be negative.")
-                    if discount_price is not None and discount_price >= base_price:
-                        raise ValidationError("Discount price must be less than base price.")
-                except Exception:
-                    raise ValidationError("Invalid price format.")
-
-                brand_obj = get_object_or_404(Brand, id=brand_id)
-                category_obj = get_object_or_404(Category, id=category_id)
-
-                # ------------------- Handle Removals -------------------
+                        if discount_price <= 0:
+                            errors['discount_price'] = 'Discount price must be greater than 0'
+                        elif 'base_price' not in errors and discount_price >= base_price:
+                            errors['discount_price'] = 'Discount price must be less than base price'
+                    except (ValueError, InvalidOperation):
+                        errors['discount_price'] = 'Invalid discount price format'
+                
+                # Handle image removals
                 remove_product_image_ids = [int(x) for x in request.POST.getlist("remove_product_image_ids[]") if x]
                 remove_detailed_image_ids = [int(x) for x in request.POST.getlist("remove_detailed_image_ids[]") if x]
                 remove_variant_ids = [int(x) for x in request.POST.getlist("remove_variant_ids[]") if x]
-
+                
                 # Validate new uploads
                 new_product_images = request.FILES.getlist("product_images")
                 new_detailed_images = request.FILES.getlist("detailed_images")
+                
+                # 7. Image validation
                 for img in new_product_images + new_detailed_images:
-                    ctype = getattr(img, "content_type", "") or ""
-                    if not ctype.startswith("image/") or img.size > max_file_size:
-                        raise ValidationError("Invalid image upload.")
-
-                # Check resulting counts
+                    content_type = getattr(img, "content_type", "") or ""
+                    if not content_type.startswith("image/"):
+                        errors['images'] = 'Only image files are allowed'
+                        break
+                    if img.size > max_file_size:
+                        errors['images'] = f'Each image must be less than 5MB (found {img.size / 1024 / 1024:.1f}MB)'
+                        break
+                
+                # Check image counts
                 remaining_product_count = ProductImage.objects.filter(product=product).exclude(id__in=remove_product_image_ids).count()
                 remaining_detailed_count = ProductDetailedImage.objects.filter(product=product).exclude(id__in=remove_detailed_image_ids).count()
-
+                
                 if remaining_product_count + len(new_product_images) > max_product_images:
-                    raise ValidationError(f"Max {max_product_images} product images allowed.")
+                    errors['product_images'] = f'Maximum {max_product_images} product images allowed'
+                
                 if remaining_detailed_count + len(new_detailed_images) > max_detailed_images:
-                    raise ValidationError(f"Max {max_detailed_images} detailed images allowed.")
-
-                # ------------------- Variants Validation -------------------
+                    errors['detailed_images'] = f'Maximum {max_detailed_images} detailed images allowed'
+                
+                # Ensure at least one product image remains
+                if remaining_product_count + len(new_product_images) == 0:
+                    errors['product_images'] = 'At least one product image is required'
+                
+                # 8. Variants validation
                 existing_ids = [int(x) for x in request.POST.getlist("existing_variant_id[]")]
                 existing_colors = request.POST.getlist("color_existing[]")
                 existing_stocks = request.POST.getlist("stock_existing[]")
                 new_colors = request.POST.getlist("color_new[]")
                 new_stocks = request.POST.getlist("stock_new[]")
-
+                
                 if not (len(existing_ids) == len(existing_colors) == len(existing_stocks)):
-                    raise ValidationError("Malformed variant arrays.")
-
+                    errors['variants'] = 'Invalid variant data submitted'
+                
                 final_colors = set()
+                
                 # Validate existing variants
                 for idx, v_id in enumerate(existing_ids):
                     if v_id in remove_variant_ids:
                         continue
+                    
                     color = (existing_colors[idx] or "").strip()
                     stock_raw = existing_stocks[idx] or ""
-                    stock_val = int(stock_raw) if stock_raw != "" else 0
-                    if not color or stock_val < 0:
-                        raise ValidationError(f"Invalid color or stock for variant ID {v_id}.")
+                    
+                    if not color:
+                        errors[f'variant_{v_id}_color'] = 'Variant color is required'
+                    
+                    try:
+                        stock_val = int(stock_raw) if stock_raw != "" else 0
+                        if stock_val < 0:
+                            errors[f'variant_{v_id}_stock'] = 'Stock cannot be negative'
+                    except ValueError:
+                        errors[f'variant_{v_id}_stock'] = 'Invalid stock quantity'
+                    
                     if color in final_colors:
-                        raise ValidationError(f"Duplicate color '{color}' among variants.")
-                    final_colors.add(color)
-
+                        errors[f'variant_{v_id}_color'] = f'Duplicate color "{color}"'
+                    else:
+                        final_colors.add(color)
+                    
                     # Variant images validation
-                    v = get_object_or_404(ProductVariant, id=v_id, product=product)
-                    current_v_count = ProductVariantImage.objects.filter(variant=v).count()
-                    to_remove = [int(x) for x in request.POST.getlist(f"remove_variant_image_ids_{v_id}[]") if x]
-                    resulting_count = current_v_count - len(to_remove)
-                    variant_new_images = request.FILES.getlist(f"variant_images_{v.id}")
-                    if resulting_count + len(variant_new_images) > max_variant_images:
-                        raise ValidationError(f"Max {max_variant_images} images for variant '{color}'.")
-
+                    try:
+                        v = ProductVariant.objects.get(id=v_id, product=product)
+                        current_v_count = ProductVariantImage.objects.filter(variant=v).count()
+                        to_remove = [int(x) for x in request.POST.getlist(f"remove_variant_image_ids_{v_id}[]") if x]
+                        resulting_count = current_v_count - len(to_remove)
+                        variant_new_images = request.FILES.getlist(f"variant_images_{v.id}")
+                        
+                        if resulting_count + len(variant_new_images) > max_variant_images:
+                            errors[f'variant_{v_id}_images'] = f'Maximum {max_variant_images} images allowed per variant'
+                    except ProductVariant.DoesNotExist:
+                        errors[f'variant_{v_id}'] = 'Invalid variant'
+                
                 # Validate new variants
                 for i, (color_raw, stock_raw) in enumerate(zip(new_colors, new_stocks)):
                     color = (color_raw or "").strip()
-                    stock_val = int(stock_raw) if stock_raw not in (None, "") else 0
-                    if not color or stock_val < 0:
-                        raise ValidationError(f"Invalid color or stock for new variant {i+1}.")
+                    
+                    if not color:
+                        errors[f'new_variant_{i}_color'] = 'Variant color is required'
+                    
+                    try:
+                        stock_val = int(stock_raw) if stock_raw not in (None, "") else 0
+                        if stock_val < 0:
+                            errors[f'new_variant_{i}_stock'] = 'Stock cannot be negative'
+                    except ValueError:
+                        errors[f'new_variant_{i}_stock'] = 'Invalid stock quantity'
+                    
                     if color in final_colors:
-                        raise ValidationError(f"Duplicate color '{color}' in new variant {i+1}.")
-                    final_colors.add(color)
+                        errors[f'new_variant_{i}_color'] = f'Duplicate color "{color}"'
+                    else:
+                        final_colors.add(color)
+                    
                     new_v_images = request.FILES.getlist(f"variant_images_new_{i}")
                     if len(new_v_images) > max_variant_images:
-                        raise ValidationError(f"Max {max_variant_images} images for new variant {i+1}.")
-
-                # ------------------- Save Changes -------------------
+                        errors[f'new_variant_{i}_images'] = f'Maximum {max_variant_images} images allowed'
+                
+                # If there are errors, stop and return
+                if errors:
+                    for field, error in errors.items():
+                        messages.error(request, f"{field}: {error}")
+                    
+                    context = {
+                        "product": product,
+                        "categories": categories,
+                        "brands": brands,
+                        "product_images": ProductImage.objects.filter(product=product),
+                        "detailed_images": ProductDetailedImage.objects.filter(product=product),
+                        "variants": ProductVariant.objects.filter(product=product).prefetch_related("images"),
+                        "errors": errors
+                    }
+                    return render(request, "admin/product_edit.html", context)
+                
+                # === SAVE CHANGES ===
                 product.name = name
                 product.short_description = short_desc
                 product.long_description = long_desc
@@ -756,7 +763,7 @@ def product_edit(request, product_id):
                 product.offer = offer
                 product.video = video
                 product.save()
-
+                
                 # Apply deletions
                 if remove_product_image_ids:
                     ProductImage.objects.filter(product=product, id__in=remove_product_image_ids).delete()
@@ -764,17 +771,18 @@ def product_edit(request, product_id):
                     ProductDetailedImage.objects.filter(product=product, id__in=remove_detailed_image_ids).delete()
                 if remove_variant_ids:
                     ProductVariant.objects.filter(product=product, id__in=remove_variant_ids).delete()
+                
                 for v_id in ProductVariant.objects.filter(product=product).values_list("id", flat=True):
                     to_remove = [int(x) for x in request.POST.getlist(f"remove_variant_image_ids_{v_id}[]") if x]
                     if to_remove:
                         ProductVariantImage.objects.filter(variant_id=v_id, id__in=to_remove).delete()
-
-                # Append new images
+                
+                # Add new images
                 for img in new_product_images:
                     ProductImage.objects.create(product=product, image=img)
                 for img in new_detailed_images:
                     ProductDetailedImage.objects.create(product=product, image=img)
-
+                
                 # Update existing variants
                 for idx, v_id in enumerate(existing_ids):
                     if v_id in remove_variant_ids:
@@ -783,28 +791,33 @@ def product_edit(request, product_id):
                     v.color = (existing_colors[idx] or "").strip()
                     v.stock = int(existing_stocks[idx] or 0)
                     v.save()
+                    
                     for img in request.FILES.getlist(f"variant_images_{v.id}"):
                         ProductVariantImage.objects.create(variant=v, image=img)
-
+                
                 # Add new variants
                 for i, (color_raw, stock_raw) in enumerate(zip(new_colors, new_stocks)):
-                    v = ProductVariant.objects.create(product=product, color=(color_raw or "").strip(), stock=int(stock_raw or 0))
+                    v = ProductVariant.objects.create(
+                        product=product,
+                        color=(color_raw or "").strip(),
+                        stock=int(stock_raw or 0)
+                    )
                     for img in request.FILES.getlist(f"variant_images_new_{i}"):
                         ProductVariantImage.objects.create(variant=v, image=img)
-
-                # Recompute total stock
+                
+                # Recalculate total stock
                 product.stock_quantity = ProductVariant.objects.filter(product=product).aggregate(s=Sum('stock'))['s'] or 0
                 product.save(update_fields=["stock_quantity"])
-
-                messages.success(request, "Product updated successfully.")
-                return redirect("product_list")
-
+                
+                messages.success(request, f'✅ Product "{product.name}" updated successfully!')
+                return redirect(reverse("product_list") + "?edit_success=1")
+        
         except ValidationError as e:
             messages.error(request, str(e))
         except Exception as e:
-            messages.error(request, f"Error: {str(e)}")
-
-    # ------------------- Render template -------------------
+            messages.error(request, f"❌ Error: {str(e)}")
+    
+    # Render template
     context = {
         "product": product,
         "categories": categories,
@@ -812,8 +825,10 @@ def product_edit(request, product_id):
         "product_images": ProductImage.objects.filter(product=product),
         "detailed_images": ProductDetailedImage.objects.filter(product=product),
         "variants": ProductVariant.objects.filter(product=product).prefetch_related("images"),
+        "errors": errors
     }
     return render(request, "admin/product_edit.html", context)
+
 
 """ .......................................................Admin Toggle Product Listing..................................... """
 
@@ -1129,57 +1144,235 @@ def get_discounted_price(product):
         if offer.discount_rs:
             return product.price - offer.discount_rs
     return product.price
-
-
-@csrf_exempt
+@staff_member_required
+@require_http_methods(["POST"])
 def add_offer(request):
-    if request.method == "POST":
-        product_id = request.POST.get('product_id')
-        title = request.POST.get('title')
-        discount_percent = request.POST.get('discount_percent') or None
-        discount_rs = request.POST.get('discount_rs') or None
-        start_date = request.POST.get('start_date')
-        end_date = request.POST.get('end_date')
-        if product_id and title and start_date and end_date:  # Add more checks if needed
-            ProductOffer.objects.create(
-                product_id=product_id,
-                title=title,
-                discount_percent=discount_percent,
-                discount_rs=discount_rs,
-                start_date=start_date,
-                end_date=end_date,
-            )
-            return JsonResponse({'success': True})
-    return JsonResponse({'success': False})
-
-@csrf_exempt
-def edit_offer(request, offer_id):
-    offer = get_object_or_404(ProductOffer, id=offer_id)
-    if request.method == "POST":
-        offer.title = request.POST.get('title', offer.title)
-        offer.discount_percent = request.POST.get('discount_percent') or None
-        offer.discount_rs = request.POST.get('discount_rs') or None
-        offer.start_date = request.POST.get('start_date', offer.start_date)
-        offer.end_date = request.POST.get('end_date', offer.end_date)
-        offer.save()
-        return JsonResponse({'success': True})
-    else:
-        # Return product_id also for JS to populate modal hidden input
+    """Add product offer with percentage discount only"""
+    
+    product_id = request.POST.get('product_id')
+    title = request.POST.get('title', '').strip()
+    discount_percent = request.POST.get('discount_percent', '').strip()
+    start_date_str = request.POST.get('start_date')
+    end_date_str = request.POST.get('end_date')
+    
+    errors = {}
+    
+    # 1. Product validation
+    if not product_id:
         return JsonResponse({
+            'success': False,
+            'message': 'Product ID is required'
+        }, status=400)
+    
+    try:
+        product = Product.objects.get(id=product_id, is_listed=True)
+    except Product.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'message': 'Product not found or unlisted'
+        }, status=404)
+    
+    # 2. Title validation
+    if not title:
+        errors['offer-title'] = 'Offer title is required'
+    elif len(title) < 3:
+        errors['offer-title'] = 'Title must be at least 3 characters'
+    elif len(title) > 100:
+        errors['offer-title'] = 'Title cannot exceed 100 characters'
+    
+    # 3. Discount percentage validation
+    if not discount_percent:
+        errors['discount-percent'] = 'Discount percentage is required'
+    else:
+        try:
+            discount_percent = Decimal(discount_percent)
+            if discount_percent <= 0:
+                errors['discount-percent'] = 'Percentage must be greater than 0'
+            elif discount_percent > 100:
+                errors['discount-percent'] = 'Percentage cannot exceed 100%'
+        except (ValueError, InvalidOperation):
+            errors['discount-percent'] = 'Invalid percentage value'
+    
+    # 4. Date validation
+    if not start_date_str:
+        errors['start-date'] = 'Start date is required'
+    if not end_date_str:
+        errors['end-date'] = 'End date is required'
+    
+    if start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            today = timezone.now().date()
+            
+            if start_date < today:
+                errors['start-date'] = 'Start date cannot be in the past'
+            
+            if end_date < start_date:
+                errors['end-date'] = 'End date must be after start date'
+            elif end_date == start_date:
+                errors['end-date'] = 'Offer must be at least 1 day long'
+            
+            duration = (end_date - start_date).days
+            if duration > 365:
+                errors['end-date'] = 'Offer duration cannot exceed 1 year'
+            
+        except (ValueError, TypeError):
+            errors['start-date'] = 'Invalid date format'
+    
+    # 5. Check for overlapping offers
+    if not errors and start_date_str and end_date_str:
+        overlapping = ProductOffer.objects.filter(
+            product=product,
+            start_date__lte=end_date,
+            end_date__gte=start_date
+        ).exists()
+        
+        if overlapping:
+            errors['general'] = 'An offer already exists for this period. Please choose different dates.'
+    
+    if errors:
+        return JsonResponse({
+            'success': False,
+            'message': 'Please fix the errors below',
+            'errors': errors
+        }, status=400)
+    
+    # Create offer
+    try:
+        offer = ProductOffer.objects.create(
+            product=product,
+            title=title,
+            discount_percent=discount_percent,
+            discount_rs=None,  # Always None
+            start_date=start_date,
+            end_date=end_date,
+            is_extra=True
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Offer "{title}" ({discount_percent}% off) added successfully!',
+            'offer': {
+                'id': offer.id,
+                'title': offer.title,
+                'discount_percent': str(discount_percent),
+                'start_date': start_date.strftime('%d %b %Y'),
+                'end_date': end_date.strftime('%d %b %Y')
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Failed to create offer: {str(e)}'
+        }, status=500)
+
+
+@staff_member_required
+@require_http_methods(["POST", "GET"])
+def edit_offer(request, offer_id):
+    """Edit offer - percentage only"""
+    
+    offer = get_object_or_404(ProductOffer, id=offer_id)
+    
+    if request.method == "GET":
+        return JsonResponse({
+            'success': True,
             'product_id': offer.product_id,
             'title': offer.title,
-            'discount_percent': offer.discount_percent,
-            'discount_rs': offer.discount_rs,
-            'start_date': offer.start_date,
-            'end_date': offer.end_date,
+            'discount_percent': str(offer.discount_percent) if offer.discount_percent else '',
+            'start_date': offer.start_date.strftime('%Y-%m-%d'),
+            'end_date': offer.end_date.strftime('%Y-%m-%d'),
         })
+    
+    # POST - Update
+    title = request.POST.get('title', '').strip()
+    discount_percent = request.POST.get('discount_percent', '').strip()
+    start_date_str = request.POST.get('start_date')
+    end_date_str = request.POST.get('end_date')
+    
+    errors = {}
+    
+    if not title or len(title) < 3:
+        errors['offer-title'] = 'Title must be at least 3 characters'
+    
+    if not discount_percent:
+        errors['discount-percent'] = 'Discount percentage is required'
+    else:
+        try:
+            discount_percent = Decimal(discount_percent)
+            if discount_percent <= 0 or discount_percent > 100:
+                errors['discount-percent'] = 'Percentage must be between 0 and 100'
+        except (ValueError, InvalidOperation):
+            errors['discount-percent'] = 'Invalid percentage value'
+    
+    if start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            
+            if end_date <= start_date:
+                errors['end-date'] = 'End date must be after start date'
+            
+            # Check overlapping (exclude current offer)
+            overlapping = ProductOffer.objects.filter(
+                product=offer.product,
+                start_date__lte=end_date,
+                end_date__gte=start_date
+            ).exclude(id=offer_id).exists()
+            
+            if overlapping:
+                errors['general'] = 'Another offer exists for this period'
+                
+        except (ValueError, TypeError):
+            errors['start-date'] = 'Invalid date format'
+    
+    if errors:
+        return JsonResponse({
+            'success': False,
+            'message': 'Please fix the errors',
+            'errors': errors
+        }, status=400)
+    
+    try:
+        offer.title = title
+        offer.discount_percent = discount_percent
+        offer.discount_rs = None
+        offer.start_date = start_date
+        offer.end_date = end_date
+        offer.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Offer "{title}" updated successfully!'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Failed to update: {str(e)}'
+        }, status=500)
 
 
-@csrf_exempt
+
+@staff_member_required
+@require_http_methods(["POST"])
 def delete_offer(request, offer_id):
-    offer = get_object_or_404(ProductOffer, id=offer_id)
-    offer.delete()
-    return JsonResponse({'success': True})
+    """Delete offer"""
+    try:
+        offer = get_object_or_404(ProductOffer, id=offer_id)
+        offer_title = offer.title
+        offer.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Offer "{offer_title}" deleted successfully!'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Failed to delete offer: {str(e)}'
+        }, status=500)
 
 def get_final_discounted_price(product):
     today = timezone.now().date()

@@ -172,106 +172,430 @@
     .tile.img{padding:24px}
     .tile.img .t-row{display:flex;align-items:baseline;gap:10px}
     }
+.input.error {
+    border-color: #ef4444 !important;
+    background-color: #fef2f2 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}
 
-    </style>
+.error-message {
+    color: #ef4444;
+    font-size: 12px;
+    margin-top: 4px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    animation: slideIn 0.3s ease;
+}
 
-    <section class="page">
-    <div class="wrap">
-       
-        <div class="welcome">Welcome {{ user.get_full_name|default:user.username }} !</div>
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 
-        <div class="grid">
+.error-message::before {
+    content: '⚠️';
+    font-size: 14px;
+}
 
-      {% include "user/sidebar.html" with active_tab="profile" %}
+.field.has-error .label {
+    color: #ef4444;
+}
+
+/* Success message styling */
+.messages {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    max-width: 400px;
+}
+
+.message {
+    background: #fff;
+    border-left: 4px solid #10b981;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: slideInRight 0.3s ease;
+}
+
+.message.error {
+    border-left-color: #ef4444;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+</style>
+
+<section class="page">
+<div class="wrap">
+    <div class="welcome">Welcome {{ user.get_full_name|default:user.username }}!</div>
+
+    <!-- Messages Display -->
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="message {% if message.tags %}{{ message.tags }}{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="grid">
+        {% include "user/sidebar.html" with active_tab="profile" %}
 
         <!-- Content -->
         <div class="panel">
             <div class="pwrap">
-
-            <!-- Tiles -->
+                <!-- Tiles -->
                 <div class="tiles">
-                <a class="tile img order" href="{% url 'orders' %}">
-                    <div class="t-row">
-                    <h3 class="t-title">Order Tracking <br><span class="t-sub">See your order history</span></h3>
-                    </div>
-                </a>
-
-                <a class="tile img billing" href="{% url 'address' %}">
-                    <div class="t-row">
-                    <h3 class="t-title">Billing Address <br> <span class="t-sub">Set your billing address.</span></h3>
-                    
-                    </div>
-                </a>
-                </div>
-
-            <!-- Account details -->
-            <div class="section">
-                <div class="sec-title">Account Details</div>
-
-                <form id="profile-form" method="post" action="{% url 'profile_update' %}" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div class="formgrid">
-                    <div class="field">
-                    <label class="label">First Name</label>
-                    <input class="input" type="text" name="first_name" value="{{ user.first_name }}" readonly>
-                    </div>
-                    <div class="field">
-                    <label class="label">Last Name</label>
-                    <input class="input" type="text" name="last_name" value="{{ user.last_name }}" readonly>
-                    </div>
-
-                    <div class="field">
-                    <label class="label">Email Address</label>
-                    <input class="input" type="email" name="email" value="{{ user.email }}" readonly>
-                    </div>
-                    <div class="field">
-                    <label class="label">Phone</label>
-                    <input class="input" type="text" name="phone" value="{{ user.profile.phone|default:'' }}" readonly>
-                    </div>
-
-                    <!-- Avatar edit (hidden until Edit mode) -->
-                    <div class="field" id="avatar-field" style="display:none">
-                    <label class="label">Avatar</label>
-
-                    <!-- Only JPG allowed by accept -->
-                    <input class="input" id="avatar-input" type="file" name="avatar" accept=".jpg,.jpeg,image/jpeg">
-
-                    {% if user.profile.avatar %}
-                        <small class="label">Current: {{ user.profile.avatar.name }}</small>
-                    {% endif %}
-
-                    <!-- Crop UI -->
-                    <div id="cropper-wrap" style="display:none; margin-top:10px;">
-                        <img id="cropper-image" style="max-width:100%; border-radius:12px;" />
-                        <div class="actions" style="margin-top:10px;">
-                        <button class="btn" type="button" id="crop-apply">Apply Crop</button>
-                        <button class="btn ghost" type="button" id="crop-cancel">Cancel</button>
+                    <a class="tile img order" href="{% url 'orders' %}">
+                        <div class="t-row">
+                            <h3 class="t-title">Order Tracking <br><span class="t-sub">See your order history</span></h3>
                         </div>
-                    </div>
+                    </a>
 
-                    <!-- Will be filled by JS submit hook as a file via FormData -->
-                    <input type="hidden" name="avatar_cropped" id="avatar-cropped-holder" />
-                    </div>
-
+                    <a class="tile img billing" href="{% url 'address' %}">
+                        <div class="t-row">
+                            <h3 class="t-title">Billing Address <br><span class="t-sub">Set your billing address.</span></h3>
+                        </div>
+                    </a>
                 </div>
 
-                <div class="actions">
-                    <button class="btn" type="button" id="edit-btn">Edit Profile</button>
-                    <button class="btn" type="submit" id="save-btn" style="display:none">Save Changes</button>
-                    <button class="btn ghost" type="button" id="cancel-btn" style="display:none">Cancel</button>
-                    
+                <!-- Account Details -->
+                <div class="section">
+                    <div class="sec-title">Account Details</div>
+
+                    <form id="profile-form" method="post" action="{% url 'profile_update' %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="formgrid">
+                            <!-- First Name -->
+                            <div class="field {% if errors.first_name %}has-error{% endif %}">
+                                <label class="label">First Name <span style="color: #ef4444;">*</span></label>
+                                <input 
+                                    class="input {% if errors.first_name %}error{% endif %}" 
+                                    type="text" 
+                                    name="first_name" 
+                                    value="{{ form_data.first_name|default:user.first_name }}" 
+                                    readonly
+                                    maxlength="50"
+                                    id="first_name"
+                                >
+                                {% if errors.first_name %}
+                                <div class="error-message">{{ errors.first_name }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Last Name -->
+                            <div class="field {% if errors.last_name %}has-error{% endif %}">
+                                <label class="label">Last Name <span style="color: #ef4444;">*</span></label>
+                                <input 
+                                    class="input {% if errors.last_name %}error{% endif %}" 
+                                    type="text" 
+                                    name="last_name" 
+                                    value="{{ form_data.last_name|default:user.last_name }}" 
+                                    readonly
+                                    maxlength="50"
+                                    id="last_name"
+                                >
+                                {% if errors.last_name %}
+                                <div class="error-message">{{ errors.last_name }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Email -->
+                            <div class="field">
+                                <label class="label">Email Address</label>
+                                <input 
+                                    class="input" 
+                                    type="email" 
+                                    name="email" 
+                                    value="{{ user.email }}" 
+                                    readonly
+                                >
+                            </div>
+
+                            <!-- Phone -->
+                            <div class="field {% if errors.phone %}has-error{% endif %}">
+                                <label class="label">Phone</label>
+                                <input 
+                                    class="input {% if errors.phone %}error{% endif %}" 
+                                    type="text" 
+                                    name="phone" 
+                                    value="{{ form_data.phone|default:user.profile.phone|default:'' }}" 
+                                    readonly
+                                    placeholder="e.g., +91 9876543210"
+                                    id="phone"
+                                >
+                                {% if errors.phone %}
+                                <div class="error-message">{{ errors.phone }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Avatar -->
+                            <div class="field {% if errors.avatar %}has-error{% endif %}" id="avatar-field" style="display:none">
+                                <label class="label">Avatar (JPG only, max 5MB)</label>
+                                <input 
+                                    class="input {% if errors.avatar %}error{% endif %}" 
+                                    id="avatar-input" 
+                                    type="file" 
+                                    name="avatar" 
+                                    accept=".jpg,.jpeg,image/jpeg"
+                                >
+                                {% if user.profile.avatar %}
+                                <small class="label">Current: {{ user.profile.avatar.name }}</small>
+                                {% endif %}
+                                {% if errors.avatar %}
+                                <div class="error-message">{{ errors.avatar }}</div>
+                                {% endif %}
+
+                                <!-- Crop UI -->
+                                <div id="cropper-wrap" style="display:none; margin-top:10px;">
+                                    <img id="cropper-image" style="max-width:100%; border-radius:12px;" />
+                                    <div class="actions" style="margin-top:10px;">
+                                        <button class="btn" type="button" id="crop-apply">Apply Crop</button>
+                                        <button class="btn ghost" type="button" id="crop-cancel">Cancel</button>
+                                    </div>
+                                </div>
+
+                                <input type="hidden" name="avatar_cropped" id="avatar-cropped-holder" />
+                            </div>
+                        </div>
+
+                        <div class="actions">
+                            <button class="btn" type="button" id="edit-btn">Edit Profile</button>
+                            <button class="btn" type="submit" id="save-btn" style="display:none">Save Changes</button>
+                            <button class="btn ghost" type="button" id="cancel-btn" style="display:none">Cancel</button>
+                        </div>
+                    </form>
                 </div>
-                </form>
             </div>
-
-            </div>
-        </div>
-
         </div>
     </div>
-    </section>
+</div>
+</section>
 
- <script>
+<!-- Your existing cropper script -->
+<script>
+(function(){
+  const fileInput = document.getElementById('avatar-input');
+  const wrap = document.getElementById('cropper-wrap');
+  const img = document.getElementById('cropper-image');
+  const applyBtn = document.getElementById('crop-apply');
+  const cancelBtn = document.getElementById('crop-cancel');
+  const form = document.getElementById('profile-form');
+  let cropper;
+
+  function revoke(url){ try{ URL.revokeObjectURL(url); }catch(_){} }
+
+  fileInput.addEventListener('change', function(){
+    const f = this.files && this.files[0];
+    if(!f) return;
+
+    // Client-side type guard
+    const okTypes = ['image/jpeg', 'image/pjpeg'];
+    if (!okTypes.includes(f.type)) {
+      alert('❌ Only JPG format is allowed.');
+      this.value = '';
+      return;
+    }
+
+    // Client-side size check
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (f.size > maxSize) {
+      alert(`❌ File size must be less than 5MB (current: ${(f.size / 1024 / 1024).toFixed(1)}MB)`);
+      this.value = '';
+      return;
+    }
+
+    const url = URL.createObjectURL(f);
+    img.src = url;
+    wrap.style.display = '';
+    
+    if (cropper) cropper.destroy();
+    cropper = new Cropper(img, {
+      aspectRatio: 1,
+      viewMode: 1,
+      autoCropArea: 1,
+      background: false,
+      movable: true,
+      zoomable: true,
+      rotatable: false,
+      scalable: false,
+      responsive: true,
+    });
+
+    cancelBtn.onclick = () => {
+      if (cropper) { cropper.destroy(); cropper = null; }
+      wrap.style.display = 'none';
+      revoke(url);
+      fileInput.value = '';
+    };
+
+    applyBtn.onclick = async () => {
+      if (!cropper) return;
+      const canvas = cropper.getCroppedCanvas({ width: 512, height: 512 });
+      canvas.toBlob(function(blob){
+        if (!blob) { alert('❌ Failed to crop image.'); return; }
+        const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+        form._avatarCroppedBlob = file;
+        fileInput.value = '';
+        wrap.style.display = 'none';
+        cropper.destroy(); cropper = null;
+        revoke(url);
+        alert('✅ Crop applied. Click Save Changes to upload.');
+      }, 'image/jpeg', 0.9);
+    };
+  });
+})();
+</script>
+
+<!-- Edit/Cancel functionality with CLIENT-SIDE VALIDATION -->
+<script>
+(function() {
+    const form = document.getElementById('profile-form');
+    const editBtn = document.getElementById('edit-btn');
+    const saveBtn = document.getElementById('save-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const avatarField = document.getElementById('avatar-field');
+    const inputs = form.querySelectorAll('input.input');
+
+    const initial = {};
+    inputs.forEach(i => initial[i.name] = i.value);
+
+    function setReadonly(ro) {
+        inputs.forEach(i => { i.readOnly = ro; });
+        avatarField.style.display = ro ? 'none' : '';
+    }
+
+    editBtn.addEventListener('click', function() {
+        setReadonly(false);
+        editBtn.style.display = 'none';
+        saveBtn.style.display = '';
+        cancelBtn.style.display = '';
+        
+        // Clear previous errors
+        document.querySelectorAll('.error-message').forEach(el => el.remove());
+        document.querySelectorAll('.input.error').forEach(el => el.classList.remove('error'));
+    });
+
+    cancelBtn.addEventListener('click', function() {
+        inputs.forEach(i => i.value = initial[i.name] || '');
+        setReadonly(true);
+        editBtn.style.display = '';
+        saveBtn.style.display = 'none';
+        cancelBtn.style.display = 'none';
+        
+        const av = form.querySelector('input[type=file][name=avatar]');
+        if (av) av.value = '';
+        
+        // Clear errors
+        document.querySelectorAll('.error-message').forEach(el => el.remove());
+        document.querySelectorAll('.input.error').forEach(el => el.classList.remove('error'));
+    });
+
+    // CLIENT-SIDE VALIDATION on submit
+    form.addEventListener('submit', function(e) {
+        // Clear previous errors
+        document.querySelectorAll('.error-message').forEach(el => el.remove());
+        document.querySelectorAll('.input.error').forEach(el => el.classList.remove('error'));
+        
+        let hasErrors = false;
+        
+        // First Name
+        const firstName = document.getElementById('first_name').value.trim();
+        if (!firstName) {
+            showError('first_name', 'First name is required');
+            hasErrors = true;
+        } else if (firstName.length < 2) {
+            showError('first_name', 'First name must be at least 2 characters');
+            hasErrors = true;
+        } else if (!/^[a-zA-Z\s]+$/.test(firstName)) {
+            showError('first_name', 'First name can only contain letters and spaces');
+            hasErrors = true;
+        }
+        
+        // Last Name
+        const lastName = document.getElementById('last_name').value.trim();
+        if (!lastName) {
+            showError('last_name', 'Last name is required');
+            hasErrors = true;
+        } else if (lastName.length < 2) {
+            showError('last_name', 'Last name must be at least 2 characters');
+            hasErrors = true;
+        } else if (!/^[a-zA-Z\s]+$/.test(lastName)) {
+            showError('last_name', 'Last name can only contain letters and spaces');
+            hasErrors = true;
+        }
+        
+        // Phone (if provided)
+        const phone = document.getElementById('phone').value.trim();
+        if (phone) {
+            const phoneClean = phone.replace(/[\s\-]/g, '');
+            if (!/^\+?[0-9]{10,15}$/.test(phoneClean)) {
+                showError('phone', 'Phone must be 10-15 digits');
+                hasErrors = true;
+            }
+        }
+        
+        if (hasErrors) {
+            e.preventDefault();
+            // Scroll to first error
+            const firstError = document.querySelector('.input.error');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstError.focus();
+            }
+        }
+    });
+    
+    function showError(fieldId, message) {
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+        
+        field.classList.add('error');
+        
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.textContent = message;
+        
+        field.parentElement.appendChild(errorDiv);
+    }
+})();
+</script>
+
+<!-- Auto-hide messages after 5 seconds -->
+<script>
+setTimeout(function() {
+    const messages = document.querySelector('.messages');
+    if (messages) {
+        messages.style.transition = 'opacity 0.5s';
+        messages.style.opacity = '0';
+        setTimeout(() => messages.remove(), 500);
+    }
+}, 5000);
+</script>
+
+<!-- Email change & cropper submit handler (keep your existing code) -->
+<script>
 (function(){
   const form = document.getElementById('profile-form');
   const saveBtn = document.getElementById('save-btn');
@@ -293,7 +617,6 @@
   const csrftoken = getCookie('csrftoken');
 
   async function postFormWithOptionalCrop(){
-    // Handle email OTP flow first, if email changed
     const emailInput = form.querySelector('input[name="email"]');
     const originalEmail = "{{ user.email|escapejs }}".toLowerCase();
     const newEmail = (emailInput ? emailInput.value.trim().toLowerCase() : originalEmail);
@@ -315,10 +638,8 @@
       return;
     }
 
-    // Build FormData for profile update, include cropped if available
     const fd2 = new FormData(form);
     if (form._avatarCroppedBlob) {
-      // Prefer cropped; drop raw
       fd2.delete('avatar');
       fd2.append('avatar_cropped', form._avatarCroppedBlob, 'avatar.jpg');
     }
@@ -338,218 +659,14 @@
 
   saveBtn.addEventListener('click', function(e){
     e.preventDefault();
-    postFormWithOptionalCrop();
-  });
-
-  // Prevent native submit from bypassing the crop flow
-  form.addEventListener('submit', function(e){
-    // If Save is clicked, we already handle; block default to avoid duplicate posts
-    e.preventDefault();
-    // Optionally call postFormWithOptionalCrop() if someone triggers Enter key submit:
-    postFormWithOptionalCrop();
-  });
-})();
-</script>
-
-
-    <script>
-    // CSRF helper (reads cookie)
-    function getCookie(name){
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-            }
-        }
-        }
-        return cookieValue;
-    }
-    const csrftoken = getCookie('csrftoken');
-
-    // Email-change save handler
-document.getElementById('save-btn').addEventListener('click', async function(event){
-  event.preventDefault(); // ensure form doesn't submit
-  const form = document.getElementById('profile-form');
-  const email = form.querySelector('input[name="email"]').value.trim().toLowerCase();
-  const original = "{{ user.email|escapejs }}".toLowerCase();
-
-  if (email !== original) {
-    const fd = new FormData();
-    fd.append('new_email', email);
-    const res = await fetch("{% url 'start_email_change' %}", {
-      method:'POST',
-      body: fd,
-      headers: { 'X-CSRFToken': csrftoken },
-      credentials: 'same-origin'
-    });
-    const data = await res.json();
-    if (data.ok) {
-      // navigate to full OTP page
-      location.href = "{% url 'email_change_otp_page' %}";
-    } else {
-      alert(data.error || 'Unable to start email change');
-    }
-  } else {
-    form.submit();
-  }
-});
-
-    document.getElementById('confirm-email-otp').addEventListener('click', async function(){
-        const code = document.getElementById('email-otp').value.trim();
-        const fd = new FormData();
-        fd.append('otp', code);
-        const res = await fetch("{% url 'verify_email_change' %}", {
-        method:'POST',
-        body: fd,
-        headers: { 'X-CSRFToken': csrftoken },
-        credentials: 'same-origin'
-        });
-        const data = await res.json();
-        if (data.ok) {
-        location.reload();
-        } else {
-        alert(data.error || 'Verification failed');
-        }
-    });
-
-    document.getElementById('resend-email-otp').addEventListener('click', async function(){
-        const email = document.querySelector('input[name="email"]').value.trim();
-        const fd = new FormData();
-        fd.append('new_email', email);
-        await fetch("{% url 'start_email_change' %}", {
-        method:'POST',
-        body: fd,
-        headers: { 'X-CSRFToken': csrftoken },
-        credentials: 'same-origin'
-        });
-        alert('OTP resent');
-    });
-    </script>
-
-    <script>
-    (function() {
-        const form = document.getElementById('profile-form');
-        const editBtn = document.getElementById('edit-btn');
-        const saveBtn = document.getElementById('save-btn');
-        const cancelBtn = document.getElementById('cancel-btn');
-        const avatarField = document.getElementById('avatar-field');
-        const inputs = form.querySelectorAll('input.input');
-
-        const initial = {};
-        inputs.forEach(i => initial[i.name] = i.value);
-
-        function setReadonly(ro) {
-        inputs.forEach(i => { i.readOnly = ro; }); // remove the email exception
-        avatarField.style.display = ro ? 'none' : '';
-        }
-
-        editBtn.addEventListener('click', function() {
-        setReadonly(false);
-        editBtn.style.display = 'none';
-        saveBtn.style.display = '';
-        cancelBtn.style.display = '';
-        });
-
-        cancelBtn.addEventListener('click', function() {
-        inputs.forEach(i => i.value = initial[i.name] || '');
-        setReadonly(true);
-        editBtn.style.display = '';
-        saveBtn.style.display = 'none';
-        cancelBtn.style.display = 'none';
-        const av = form.querySelector('input[type=file][name=avatar]');
-        if (av) av.value = '';
-        });
-    })();
-    </script>
-
-<script>
-(function(){
-  const fileInput = document.getElementById('avatar-input');
-  const wrap = document.getElementById('cropper-wrap');
-  const img = document.getElementById('cropper-image');
-  const applyBtn = document.getElementById('crop-apply');
-  const cancelBtn = document.getElementById('crop-cancel');
-  const form = document.getElementById('profile-form');
-  let cropper;
-
-  function revoke(url){ try{ URL.revokeObjectURL(url); }catch(_){} }
-
-  fileInput.addEventListener('change', function(){
-    const f = this.files && this.files[0];
-    if(!f) return;
-
-    // Client-side type guard: allow only JPG
-    const okTypes = ['image/jpeg', 'image/pjpeg'];
-    if (!okTypes.includes(f.type)) {
-      alert('Only JPG format is allowed.');
-      this.value = '';
-      return;
-    }
-
-    const url = URL.createObjectURL(f);
-    img.src = url;
-    wrap.style.display = '';
-    // Destroy old cropper if any
-    if (cropper) cropper.destroy();
-    cropper = new Cropper(img, {
-      aspectRatio: 1, // square avatar
-      viewMode: 1,
-      autoCropArea: 1,
-      background: false,
-      movable: true,
-      zoomable: true,
-      rotatable: false,
-      scalable: false,
-      responsive: true,
-    });
-
-    cancelBtn.onclick = () => {
-      if (cropper) { cropper.destroy(); cropper = null; }
-      wrap.style.display = 'none';
-      revoke(url);
-      fileInput.value = '';
-    };
-
-    applyBtn.onclick = async () => {
-    if (!cropper) return;
-    const canvas = cropper.getCroppedCanvas({ width: 512, height: 512 });
-    canvas.toBlob(function(blob){
-        if (!blob) { alert('Failed to crop image.'); return; }
-        const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
-        form._avatarCroppedBlob = file;
-        // Critical: clear raw input so native form cannot upload the original
-        fileInput.value = '';
-        wrap.style.display = 'none';
-        cropper.destroy(); cropper = null;
-        revoke(url);
-        alert('Crop applied. Click Save Changes to upload.');
-    }, 'image/jpeg', 0.9);
-    };
-  });
-
-  // Intercept submit to append cropped blob as avatar_cropped
-  form.addEventListener('submit', function(e){
-    if (form._avatarCroppedBlob) {
-      // Build FormData manually and post
-      e.preventDefault();
-      const fd = new FormData(form);
-      fd.delete('avatar'); // ignore raw file if any
-      fd.append('avatar_cropped', form._avatarCroppedBlob, 'avatar.jpg');
-
-      fetch(form.action, {
-        method: 'POST',
-        body: fd,
-        headers: { 'X-CSRFToken': (document.querySelector('input[name=csrfmiddlewaretoken]')||{}).value || '' },
-        credentials: 'same-origin'
-      }).then(r => window.location.reload());
+    
+    // Trigger form validation first
+    const event = new Event('submit', { cancelable: true });
+    if (form.dispatchEvent(event)) {
+      postFormWithOptionalCrop();
     }
   });
 })();
 </script>
 
-
-    {% endblock %}
+{% endblock %}

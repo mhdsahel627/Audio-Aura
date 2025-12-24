@@ -806,16 +806,24 @@ def _cart_items_context(request):
 
         v = v_by_id.get(int(vid)) if vid else None
 
-        # Images
+        # ✅ FIXED IMAGES - Uses .image_url property
         img = None
+        
+        # Try variant image first
         if v and getattr(v, "first_image", None):
             vf = v.first_image[0] if v.first_image else None
-            if vf and getattr(vf, "image", None):
-                img = vf.image.url
+            if vf:
+                img = vf.image_url  # ✅ FIXED - Changed from vf.image.url
+        
+        # Fallback to product image
         if not img and getattr(p, "prefetched_images", None):
             fp = p.prefetched_images[0] if p.prefetched_images else None
-            if fp and getattr(fp, "image", None):
-                img = fp.image.url
+            if fp:
+                img = fp.image_url  # ✅ FIXED - Changed from fp.image.url
+        
+        # Final fallback to placeholder
+        if not img:
+            img = '/static/images/placeholder.jpg'  # ✅ ADDED fallback
 
         # Metadata
         color = getattr(v, "color", None) if v else None
@@ -908,7 +916,6 @@ def _cart_items_context(request):
         "applied_coupon": applied_coupon,
         "coupon_discount": int(coupon_discount),
     }
-
 
 # ==================== CART PAGE VIEW ====================
 @never_cache

@@ -17,7 +17,7 @@ class Product(models.Model):
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     short_description = models.CharField(max_length=500, blank=True, null=True)
     long_description = models.TextField(blank=True, null=True)
-
+    
     brand = models.ForeignKey('category.Brand', on_delete=models.SET_NULL, blank=True, null=True)
     category = models.ForeignKey('category.Category', on_delete=models.CASCADE, related_name="products")
 
@@ -250,44 +250,60 @@ class ProductVariant(models.Model):
             'product_after': self.product.stock_quantity  # Auto-updated value
         }
 
+    # ✅ KEEP ONLY THIS ONE - Works with both cloud_url and image field
     @property
     def primary_image_url(self):
+        """Get primary variant image URL"""
         imgs = getattr(self, "prefetched_images", None) or list(self.images.all()[:1])
-        return imgs[0].image.url if imgs else None
+        return imgs[0].image_url if imgs else '/static/images/placeholder.jpg'
 
     def __str__(self):
         return f"{self.product.name} - {self.color}"
 
 
 
+
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
-    image = models.ImageField(upload_to="products/images/")
+    image = models.ImageField(upload_to="products/images/", blank=True, null=True)  
     cloud_url = models.URLField(blank=True, null=True)
-    featured = models.BooleanField(default=False)  # ✅ Primary image flag
-
+    featured = models.BooleanField(default=False)
+    public_id = models.CharField(max_length=255, blank=True) 
+    
     class Meta:
-        ordering = ["-featured", "id"]  # Featured first, stable order
+        ordering = ["-featured", "id"]
 
     def save(self, *args, **kwargs):
         # Ensure only one featured image per product
         if self.featured:
             ProductImage.objects.filter(product=self.product, featured=True).exclude(pk=self.pk).update(featured=False)
+        super().save(*args, **kwargs)
 
-        super().save(*args, **kwargs)  # Save original
-
-
+    # ✅ NEW: Property to get image URL from either source
+    @property
+    def image_url(self):
+        """Get image URL from cloud_url or image field"""
+        if self.cloud_url:
+            return self.cloud_url
+        if self.image:
+            try:
+                return self.image.url
+            except ValueError:
+                return '/static/images/placeholder.jpg'  # Fallback
+        return '/static/images/placeholder.jpg'
 
     def __str__(self):
         return f"{self.product.name} - Image"
 
 
+
 class ProductVariantImage(models.Model):
     variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, related_name="images")
-    image = models.ImageField(upload_to="products/variants/")
+    image = models.ImageField(upload_to="products/variants/", blank=True, null=True)  # ✅ Made nullable
     cloud_url = models.URLField(blank=True, null=True)
     featured = models.BooleanField(default=False) 
-
+    public_id = models.CharField(max_length=255, blank=True) 
+    
     class Meta:
         ordering = ["-featured", "id"]
 
@@ -295,30 +311,60 @@ class ProductVariantImage(models.Model):
         # Ensure only one featured image per variant
         if self.featured:
             ProductVariantImage.objects.filter(variant=self.variant, featured=True).exclude(pk=self.pk).update(featured=False)
-
         super().save(*args, **kwargs)
 
+    # ✅ NEW: Property to get image URL from either source
+    @property
+    def image_url(self):
+        """Get image URL from cloud_url or image field"""
+        if self.cloud_url:
+            return self.cloud_url
+        if self.image:
+            try:
+                return self.image.url
+            except ValueError:
+                return '/static/images/placeholder.jpg'
+        return '/static/images/placeholder.jpg'
 
     def __str__(self):
         return f"{self.variant.product.name} - {self.variant.color} - Image"
 
 
+
 class ProductDetailedImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="detailed_images")
-    image = models.ImageField(upload_to="products/detailed/")
+    image = models.ImageField(upload_to="products/detailed/", blank=True, null=True)  # ✅ Made nullable
     cloud_url = models.URLField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
+    public_id = models.CharField(max_length=255, blank=True)
+    
+    # ✅ NEW: Property to get image URL from either source
+    @property
+    def image_url(self):
+        """Get image URL from cloud_url or image field"""
+        if self.cloud_url:
+            return self.cloud_url
+        if self.image:
+            try:
+                return self.image.url
+            except ValueError:
+                return '/static/images/placeholder.jpg'
+        return '/static/images/placeholder.jpg'
+    
     def __str__(self):
         return f"Detailed Image for {self.product.name}"
 
 
+
 class TemporaryUpload(models.Model):
-    file = models.ImageField(upload_to="staged/")
+    # file = models.ImageField(upload_to="staged/")  # ❌ not needed for direct Cloudinary
     owner = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
     session_key = models.CharField(max_length=64, blank=True)
     list_key = models.CharField(max_length=64)  # "product", "detailed", f"variant_{idx}"
+    cloud_url = models.URLField(blank=True, null=True)      # ✅ add
+    public_id = models.CharField(max_length=255, blank=True)  # ✅ add
     created_at = models.DateTimeField(auto_now_add=True)
+
 
 
 class ProductOffer(models.Model):
