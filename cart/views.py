@@ -771,7 +771,6 @@ def checkout_cart_summary(request):
     data = _cart_summary_from_session(request)
     return JsonResponse({"ok": True, "summary": data}, status=200)
 
-
 def _cart_items_context(request):
     """Build full cart context for rendering"""
     cart_map = _get_session_cart(request)
@@ -848,7 +847,7 @@ def _cart_items_context(request):
         if not p:
             continue
 
-        # ✅ FIXED: Pass coupon percent to get_final_price
+        # ✅ Pass coupon percent to get_final_price
         unit_sell = int(p.get_final_price(coupon_discount_percent))
         unit_mrp = int(p.base_price)
         line_sell = int(unit_sell * qty)
@@ -878,11 +877,11 @@ def _cart_items_context(request):
         color = getattr(v, "color", None) if v else None
         display_name = f"{p.name} {color}".strip() if color else p.name
 
-        # ✅ Discount percent (calculated from MRP to final price)
+        # Discount percent
         perc = p.get_discount_percent() if hasattr(p, 'get_discount_percent') else 0
 
         available_stock = v.stock if v and hasattr(v, "stock") else getattr(p, "stock_quantity", 0)
-        max_qty = min(10, available_stock)  # MAX_QTY_PER_LINE
+        max_qty = min(10, available_stock)
 
         items.append({
             "id": p.id,
@@ -904,7 +903,7 @@ def _cart_items_context(request):
     # Calculate product discount
     discount = int(max(subtotal_mrp - subtotal_sell, 0))
     
-    # ✅ Coupon discount calculation (for flat coupons or display)
+    # ✅ Coupon discount calculation
     coupon_discount = Decimal('0')
     if applied_coupon:
         # Check minimum purchase requirement
@@ -915,13 +914,10 @@ def _cart_items_context(request):
             applied_coupon = None
         else:
             if applied_coupon.coupon_type.upper() in ('PERCENT', 'PERCENTAGE'):
-                # For percentage coupons, prices already include discount
-                # Just calculate for display
                 coupon_discount = (Decimal(subtotal_sell) * Decimal(applied_coupon.discount)) / Decimal(100)
                 if applied_coupon.max_redeemable:
                     coupon_discount = min(coupon_discount, applied_coupon.max_redeemable)
             else:
-                # Flat discount - apply to total
                 coupon_discount = Decimal(applied_coupon.discount)
             
             coupon_discount = min(coupon_discount, Decimal(subtotal_sell))
@@ -930,17 +926,39 @@ def _cart_items_context(request):
     total_payable = int(subtotal_sell - coupon_discount)
     save_note = int(discount + coupon_discount)
 
-    # Get active coupons
-    active_coupons = Coupon.objects.filter(
-        is_active=True,
-        expiry_date__gte=today
-    ).order_by('-discount')
+    # ✅ GET ACTIVE COUPONS - FILTER BY USER ELIGIBILITY
+    if request.user.is_authenticated:
+        # Get all active coupons first
+        all_coupons = Coupon.objects.filter(
+            is_active=True,
+            expiry_date__gte=today,
+            start_date__lte=today
+        ).order_by('display_order', '-discount')
+        
+        # Filter by user eligibility
+        eligible_coupons = []
+        for coupon in all_coupons:
+            # Check if user can use this coupon (usage limit, first-time only, etc.)
+            user_eligible, _ = coupon.check_user_eligibility(request.user)
+            
+            # Check if global usage limit reached
+            if user_eligible and coupon.used_count < coupon.limit:
+                eligible_coupons.append(coupon)
+        
+        active_coupons = eligible_coupons
+    else:
+        # Anonymous users see all active coupons
+        active_coupons = Coupon.objects.filter(
+            is_active=True,
+            expiry_date__gte=today,
+            start_date__lte=today
+        ).order_by('display_order', '-discount')
 
     return {
         "items": items,
         "subtotal_sell": int(subtotal_sell),
         "subtotal_mrp": int(subtotal_mrp),
-        "coupons": active_coupons,
+        "coupons": active_coupons,  # ✅ Now filtered by user eligibility
         "discount": discount,
         "qty_sum": qty_sum,
         "total_payable": total_payable,
@@ -950,6 +968,25 @@ def _cart_items_context(request):
         "coupon_discount": int(coupon_discount),
     }
 
+
+@never_cache
+def cart(request):
+    """Render cart page"""
+    context = _cart_items_context(request)
+    context['categories'] = Category.objects.filter(is_active=True).order_by('name')
+    
+    # Active offers
+    context['offers'] = get_active_offers(request)
+    
+    # Pincode data from session
+    context['delivery_pincode'] = request.session.get('delivery_pincode')
+    context['delivery_city'] = request.session.get('delivery_city')
+    context['delivery_date'] = request.session.get('delivery_date')
+    context['cod_available'] = request.session.get('cod_available', True)
+    
+    # applied_coupon and coupon_discount already in context from _cart_items_context!
+    
+    return render(request, "user/cart.html", context)
 
 # ==================== CART PAGE VIEW ====================
 @never_cache
