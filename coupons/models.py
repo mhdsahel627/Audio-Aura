@@ -144,12 +144,12 @@ class CouponUsage(models.Model):
     def __str__(self):
         return f"{self.user.username} used {self.coupon.code}"
 
-
 class DeliveryPincode(models.Model):
     """Store serviceable pincodes"""
-    pincode = models.CharField(max_length=6, unique=True)
-    city = models.CharField(max_length=100)
-    state = models.CharField(max_length=100)
+    pincode = models.CharField(max_length=6, unique=True, db_index=True)
+    city = models.CharField(max_length=100, db_index=True)  # Office name (Chettippedi)
+    district = models.CharField(max_length=100, blank=True)  # ← NEW: District (MALAPPURAM)
+    state = models.CharField(max_length=100, db_index=True)
     delivery_days = models.IntegerField(default=5, help_text="Expected delivery days")
     is_cod_available = models.BooleanField(default=True)
     is_serviceable = models.BooleanField(default=True)
@@ -158,6 +158,9 @@ class DeliveryPincode(models.Model):
     class Meta:
         verbose_name = "Delivery Pincode"
         verbose_name_plural = "Delivery Pincodes"
+        indexes = [
+            models.Index(fields=['pincode', 'is_serviceable']),
+        ]
     
     def __str__(self):
-        return f"{self.pincode} - {self.city}"
+        return f"{self.pincode} - {self.city}, {self.state}"
