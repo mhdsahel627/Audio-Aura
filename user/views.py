@@ -565,3 +565,27 @@ def password_reset(request):
     else:
         form = ResetPasswordForm()
     return render(request, 'user/password_reset.html')
+
+@login_required
+def address_get_data(request, pk):
+    """AJAX endpoint to fetch address data for modal"""
+    try:
+        addr = Address.objects.get(pk=pk, user=request.user)
+        data = {
+            'success': True,
+            'data': {
+                'full_name': addr.full_name,
+                'phone': addr.phone,
+                'address_line1': addr.address_line1,
+                'address_line2': addr.address_line2 or '',
+                'postcode': addr.postcode,
+                'city': addr.city,
+                'state': addr.state,
+                'country': addr.country,
+                'notes': addr.notes or '',
+                'is_default': addr.is_default,
+            }
+        }
+        return JsonResponse(data)
+    except Address.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Address not found'})

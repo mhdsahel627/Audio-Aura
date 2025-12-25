@@ -9,6 +9,8 @@ urlpatterns = [
     path("orders/<str:order_number>/items/<int:item_id>/track/",views.track_item,name="track_item"),
     path('address_check/', views.address_check, name='address_check'),
     path('select_address/', views.select_address, name='select_address'),
+    path('checkout/address/create/', views.checkout_address_create, name='checkout_address_create'),
+    path('checkout/address/update/<int:pk>/', views.checkout_address_update, name='checkout_address_update'),
     
     
     path('checkout/', views.checkout, name='checkout'),

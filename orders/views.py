@@ -25,6 +25,7 @@ from decimal import Decimal
 from payments.views import _gen_order_number
 from coupons.models import Coupon, DeliveryPincode
 from cart.views import CART_SESSION_KEY, BUY_NOW_SESSION_KEY
+from user.forms import AddressForm
 
 
 
@@ -1514,9 +1515,107 @@ def select_address(request):
         request.session['checkout_address_id'] = int(addr_id)
     return redirect('checkout')
 
+@login_required
+def checkout_address_create(request):
+    """Create address from checkout - AJAX + Form support"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
+    
+    form = AddressForm(request.POST)
+    
+    if form.is_valid():
+        addr = form.save(commit=False)
+        addr.user = request.user
+        
+        with transaction.atomic():
+            addr.save()
+            if addr.is_default:
+                Address.objects.filter(user=request.user).exclude(id=addr.id).update(is_default=False)
+        
+        # AJAX Response
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Address added successfully! ✅',
+                'address': {
+                    'id': addr.id,
+                    'full_name': addr.full_name,
+                    'phone': addr.phone,
+                    'address_line1': addr.address_line1,
+                    'address_line2': addr.address_line2 or '',
+                    'city': addr.city,
+                    'state': addr.state,
+                    'postcode': addr.postcode,
+                    'country': addr.country,
+                    'notes': addr.notes or '',
+                    'is_default': addr.is_default,
+                }
+            })
+        
+        # Regular Form Response
+        messages.success(request, 'Address added successfully! ✅')
+        return redirect('checkout')
+    
+    # Validation Errors
+    errors = {field: error[0] for field, error in form.errors.items()}
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'success': False, 'errors': errors}, status=400)
+    
+    messages.error(request, 'Please correct the errors')
+    return redirect('checkout')
 
 
-
+@login_required
+def checkout_address_update(request, pk):
+    """Update address from checkout - AJAX + Form support"""
+    addr = get_object_or_404(Address, pk=pk, user=request.user)
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
+    
+    form = AddressForm(request.POST, instance=addr)
+    
+    if form.is_valid():
+        addr = form.save(commit=False)
+        
+        with transaction.atomic():
+            addr.save()
+            if addr.is_default:
+                Address.objects.filter(user=request.user).exclude(id=addr.id).update(is_default=False)
+        
+        # AJAX Response
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Address updated successfully! ✅',
+                'address': {
+                    'id': addr.id,
+                    'full_name': addr.full_name,
+                    'phone': addr.phone,
+                    'address_line1': addr.address_line1,
+                    'address_line2': addr.address_line2 or '',
+                    'city': addr.city,
+                    'state': addr.state,
+                    'postcode': addr.postcode,
+                    'country': addr.country,
+                    'notes': addr.notes or '',
+                    'is_default': addr.is_default,
+                }
+            })
+        
+        # Regular Form Response
+        messages.success(request, 'Address updated successfully! ✅')
+        return redirect('checkout')
+    
+    # Validation Errors
+    errors = {field: error[0] for field, error in form.errors.items()}
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'success': False, 'errors': errors}, status=400)
+    
+    messages.error(request, 'Please correct the errors')
+    return redirect('checkout')
 
 
     

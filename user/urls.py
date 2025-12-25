@@ -21,6 +21,9 @@ urlpatterns = [
     path('resetpassword/', views.password_reset, name='password_reset'),
     
     
+    path('address/get/<int:pk>/', views.address_get_data, name='address_get_data'),
+
+    
 
 
 

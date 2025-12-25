@@ -10,7 +10,7 @@ class AddressForm(forms.ModelForm):
 
     def clean_phone(self):
         p = self.cleaned_data['phone'].strip()
-        if len(p) < 7:
+        if len(p) < 10:
             raise forms.ValidationError('Enter a valid phone number.')
         return p
 
