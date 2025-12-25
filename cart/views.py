@@ -748,9 +748,32 @@ def _cart_items_context(request):
     
     # Auto-clean invalid items
     _validate_cart_items(request)
-    cart_map = _get_session_cart(request)  # Reload after validation
+    cart_map = _get_session_cart(request)
     
     items, subtotal_sell, subtotal_mrp, qty_sum = [], 0, 0, 0
+
+    # ✅ GET COUPON EARLY - before calculating prices
+    applied_coupon_code = request.session.get('applied_coupon')
+    applied_coupon = None
+    coupon_discount_percent = Decimal('0')
+    today = date.today()
+
+    if applied_coupon_code:
+        try:
+            applied_coupon = Coupon.objects.get(
+                code=applied_coupon_code,
+                is_active=True,
+                expiry_date__gte=today
+            )
+            # Get percentage for passing to get_final_price()
+            if applied_coupon.coupon_type.upper() in ('PERCENT', 'PERCENTAGE'):
+                coupon_discount_percent = Decimal(applied_coupon.discount)
+        except Coupon.DoesNotExist:
+            if 'applied_coupon' in request.session:
+                del request.session['applied_coupon']
+            if 'applied_coupon_discount' in request.session:
+                del request.session['applied_coupon_discount']
+            applied_coupon = None
 
     # Prefetch products/variants
     product_ids, variant_ids = set(), set()
@@ -795,8 +818,8 @@ def _cart_items_context(request):
         if not p:
             continue
 
-        # Pricing
-        unit_sell = int(getattr(p, "get_final_price", lambda: p.discount_price or p.base_price)())
+        # ✅ FIXED: Pass coupon percent to get_final_price
+        unit_sell = int(p.get_final_price(coupon_discount_percent))
         unit_mrp = int(p.base_price)
         line_sell = int(unit_sell * qty)
         line_mrp = int(unit_mrp * qty)
@@ -806,42 +829,30 @@ def _cart_items_context(request):
 
         v = v_by_id.get(int(vid)) if vid else None
 
-        # ✅ FIXED IMAGES - Uses .image_url property
+        # Images
         img = None
-        
-        # Try variant image first
         if v and getattr(v, "first_image", None):
             vf = v.first_image[0] if v.first_image else None
             if vf:
-                img = vf.image_url  # ✅ FIXED - Changed from vf.image.url
+                img = vf.image_url
         
-        # Fallback to product image
         if not img and getattr(p, "prefetched_images", None):
             fp = p.prefetched_images[0] if p.prefetched_images else None
             if fp:
-                img = fp.image_url  # ✅ FIXED - Changed from fp.image.url
+                img = fp.image_url
         
-        # Final fallback to placeholder
         if not img:
-            img = '/static/images/placeholder.jpg'  # ✅ ADDED fallback
+            img = '/static/images/placeholder.jpg'
 
         # Metadata
         color = getattr(v, "color", None) if v else None
         display_name = f"{p.name} {color}".strip() if color else p.name
 
-        # Discount percent
-        perc = None
-        gp = getattr(p, "get_discount_percent", None)
-        if callable(gp):
-            try:
-                perc = gp()
-            except Exception:
-                perc = None
-        elif gp is not None:
-            perc = gp
+        # ✅ Discount percent (calculated from MRP to final price)
+        perc = p.get_discount_percent() if hasattr(p, 'get_discount_percent') else 0
 
         available_stock = v.stock if v and hasattr(v, "stock") else getattr(p, "stock_quantity", 0)
-        max_qty = min(MAX_QTY_PER_LINE, available_stock)
+        max_qty = min(10, available_stock)  # MAX_QTY_PER_LINE
 
         items.append({
             "id": p.id,
@@ -860,40 +871,32 @@ def _cart_items_context(request):
             "max_qty": max_qty,
         })
 
-    # Coupon logic
-    applied_coupon_code = request.session.get('applied_coupon')
-    applied_coupon = None
+    # Calculate product discount
+    discount = int(max(subtotal_mrp - subtotal_sell, 0))
+    
+    # ✅ Coupon discount calculation (for flat coupons or display)
     coupon_discount = Decimal('0')
-    today = date.today()
-
-    if applied_coupon_code:
-        try:
-            applied_coupon = Coupon.objects.get(
-                code=applied_coupon_code,
-                is_active=True,
-                expiry_date__gte=today
-            )
-            if applied_coupon.min_purchase and subtotal_sell < applied_coupon.min_purchase:
-                del request.session['applied_coupon']
-                del request.session['applied_coupon_discount']
-                applied_coupon = None
-            else:
-                if applied_coupon.coupon_type.upper() in ('PERCENT', 'PERCENTAGE'):
-                    coupon_discount = (Decimal(subtotal_sell) * Decimal(applied_coupon.discount)) / Decimal(100)
-                    if applied_coupon.max_redeemable:
-                        coupon_discount = min(coupon_discount, applied_coupon.max_redeemable)
-                else:
-                    coupon_discount = Decimal(applied_coupon.discount)
-                coupon_discount = min(coupon_discount, Decimal(subtotal_sell))
-                request.session['applied_coupon_discount'] = str(coupon_discount)
-        except Coupon.DoesNotExist:
-            if 'applied_coupon' in request.session:
-                del request.session['applied_coupon']
+    if applied_coupon:
+        # Check minimum purchase requirement
+        if applied_coupon.min_purchase and subtotal_sell < applied_coupon.min_purchase:
+            del request.session['applied_coupon']
             if 'applied_coupon_discount' in request.session:
                 del request.session['applied_coupon_discount']
             applied_coupon = None
+        else:
+            if applied_coupon.coupon_type.upper() in ('PERCENT', 'PERCENTAGE'):
+                # For percentage coupons, prices already include discount
+                # Just calculate for display
+                coupon_discount = (Decimal(subtotal_sell) * Decimal(applied_coupon.discount)) / Decimal(100)
+                if applied_coupon.max_redeemable:
+                    coupon_discount = min(coupon_discount, applied_coupon.max_redeemable)
+            else:
+                # Flat discount - apply to total
+                coupon_discount = Decimal(applied_coupon.discount)
+            
+            coupon_discount = min(coupon_discount, Decimal(subtotal_sell))
+            request.session['applied_coupon_discount'] = str(coupon_discount)
 
-    discount = int(max(subtotal_mrp - subtotal_sell, 0))
     total_payable = int(subtotal_sell - coupon_discount)
     save_note = int(discount + coupon_discount)
 
@@ -916,6 +919,7 @@ def _cart_items_context(request):
         "applied_coupon": applied_coupon,
         "coupon_discount": int(coupon_discount),
     }
+
 
 # ==================== CART PAGE VIEW ====================
 @never_cache

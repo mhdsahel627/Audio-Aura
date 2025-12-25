@@ -121,13 +121,27 @@ class Product(models.Model):
         cat_discount = cat_offer.discount_percent if cat_offer and cat_offer.discount_percent else 0
         return max(prod_discount, cat_discount)
 
+    from decimal import Decimal, ROUND_HALF_UP
+
     def get_final_price(self, coupon_discount_percent=0):
+        """Calculate final price with all discounts - rounded to nearest rupee"""
         base_selling = self.get_base_selling_price()
         best_discount = self.get_best_discount()
+        
+        # Apply product/category offer
         discounted_price = base_selling - (base_selling * best_discount / Decimal('100'))
-        if coupon_discount_percent:
+        
+        # Apply coupon percentage
+        if coupon_discount_percent > 0:
+            coupon_discount_percent = Decimal(str(coupon_discount_percent))
             discounted_price -= (discounted_price * coupon_discount_percent / Decimal('100'))
-        return max(discounted_price, Decimal('0.00'))
+        
+        # ✅ Round to nearest whole rupee (999.60 → 1000.00)
+        final = discounted_price.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+        
+        return max(final, Decimal('0.00'))
+
+
 
     def get_discount_percent(self):
         base_price = self.base_price
