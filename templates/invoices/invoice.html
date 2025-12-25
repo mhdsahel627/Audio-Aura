@@ -1,92 +1,658 @@
-<!-- templates/invoices/invoice.html -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Invoice {{ order.order_number }}</title>
-  <style>
-    @page { size: A4; margin: 18mm 14mm; }
-    body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; font-size: 12px; color:#111; }
-    .hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}
-    .brand h1{font-size:18px;margin:0;}
-    .meta{font-size:12px;text-align:right;}
-    .box{border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:10px;}
-    .grid{display:flex;gap:12px;}
-    .col{flex:1;}
-    table{width:100%;border-collapse:collapse;margin-top:10px;}
-    th,td{border-bottom:1px solid #e5e7eb;padding:8px;text-align:left;}
-    th{background:#f8fafc;font-weight:700;}
-    tfoot td{font-weight:700;}
-    .right{text-align:right;}
-    .muted{color:#6b7280;}
+<style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      color: #2c2c2c;
+      line-height: 1.5;
+      background: #ffffff;
+    }
+    
+    .page {
+      border: 1px solid black;
+      max-width: 800px;
+      margin: 0 auto;
+      background: #dcdcdc;
+    }
+    
+    /* ============================================
+       HEADER - SOLID PURPLE BACKGROUND
+    ============================================ */
+    .header {
+      background: #450623;
+      padding: 24px 40px;
+      color: white;
+      position: relative;
+    }
+    
+    .header-content {
+      display: table;
+      width: 100%;
+    }
+    
+    .logo-section {
+      display: table-cell;
+      width: 50%;
+      vertical-align: middle;
+    }
+    
+    .logo-section > div {
+      display: table;
+    }
+    
+    .logo {
+        display: table-cell;
+        width: 150px;
+        height: 150px;
+        /* background: white; */
+        border-radius: 12px;
+        padding: 10px;
+        vertical-align: middle;
+    }
+    
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    
+    .brand-info {
+      display: table-cell;
+      vertical-align: middle;
+      padding-left: 18px;
+    }
+    
+    .brand-info h1 {
+      font-size: 32px;
+      font-weight: 900;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: white;
+    }
+    
+    .brand-info .tagline {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 600;
+    }
+    
+    .invoice-meta {
+      display: table-cell;
+      width: 50%;
+      vertical-align: middle;
+      text-align: right;
+    }
+    
+    .invoice-title {
+      font-size: 28px;
+      font-weight: 900;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: white;
+    }
+    
+    .meta-item {
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+    
+    .meta-label {
+      color: rgba(255, 255, 255, 0.85);
+      font-weight: 600;
+    }
+    
+    .meta-value {
+      font-weight: 800;
+      background: rgba(255, 255, 255, 0.15);
+      padding: 4px 12px;
+      border-radius: 6px;
+      color: white;
+      display: inline-block;
+      margin-left: 8px;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 8px;
+    }
+    
+    .status-PLACED { background: #fff3e0; color: #e65100; }
+    .status-CONFIRMED { background: #e3f2fd; color: #1565c0; }
+    .status-PROCESSING { background: #e1f5fe; color: #0277bd; }
+    .status-SHIPPED { background: #b3e5fc; color: #01579b; }
+    .status-DELIVERED { background: #c8e6c9; color: #1b5e20; }
+    .status-CANCELLED { background: #ffcdd2; color: #b71c1c; }
+    .status-RETURNED { background: #f8bbd0; color: #880e4f; }
+    
+    /* ============================================
+       CONTENT
+    ============================================ */
+    .content {
+      padding: 40px;
+    }
+    
+    .section-title {
+      font-size: 16px;
+      font-weight: 900;
+      color: #450623;
+      margin: 30px 0 18px 0;
+      padding-bottom: 10px;
+      border-bottom: 3px solid #e8dce4;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+    
+    /* Info Boxes */
+    .info-grid {
+      display: table;
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 25px 0;
+      margin-bottom: 35px;
+    }
+    
+    .info-box {
+      display: table-cell;
+      width: 50%;
+      background: #faf8fa;
+      border: 2px solid #e8dce4;
+      border-radius: 12px;
+      padding: 22px;
+      vertical-align: top;
+    }
+    
+    .box-header {
+      font-weight: 900;
+      font-size: 14px;
+      color: #450623;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px dotted #e8dce4;
+    }
+    
+    .info-row {
+      margin-bottom: 7px;
+      font-size: 11px;
+      color: #3c3c3c;
+      line-height: 1.7;
+    }
+    
+    .info-row strong {
+      color: #450623;
+      font-weight: 800;
+    }
+    
+    .info-icon {
+      color: #6b6b6b;
+      font-size: 10px;
+      margin-top: 12px;
+    }
+    
+    /* ============================================
+       PRODUCT TABLE
+    ============================================ */
+    .product-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 25px;
+      border: 3px solid #450623;
+    }
+    
+    .product-table thead th {
+      background: #450623;
+      color: white;
+      font-weight: 900;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      padding: 18px 16px;
+      text-align: left;
+      border-right: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .product-table thead th:last-child {
+      border-right: none;
+    }
+    
+    .col-product { width: 40%; }
+    .col-qty { width: 10%; text-align: center !important; }
+    .col-unit { width: 15%; text-align: right !important; }
+    .col-total { width: 18%; text-align: right !important; }
+    .col-status { width: 17%; text-align: center !important; }
+    
+    .product-table tbody td {
+      padding: 18px 16px;
+      border: 1px solid #e8dce4;
+      vertical-align: middle;
+      font-size: 11px;
+    }
+    
+    .product-table tbody tr {
+      background: white;
+    }
+    
+    .product-table tbody tr:nth-child(even) {
+      background: #faf8fa;
+    }
+    
+    /* Product Display */
+    .product-display {
+      display: table;
+      width: 100%;
+    }
+    
+    .product-image-wrapper {
+      display: table-cell;
+      width: 70px;
+      vertical-align: middle;
+    }
+    
+    .product-thumbnail {
+      width: 65px;
+      height: 65px;
+      object-fit: contain;
+      border: 2px solid #e8dce4;
+      border-radius: 10px;
+      padding: 6px;
+      background: white;
+    }
+    
+    .product-info {
+      display: table-cell;
+      vertical-align: middle;
+      padding-left: 16px;
+    }
+    
+    .product-title {
+      font-weight: 900;
+      color: #2c2c2c;
+      font-size: 12px;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+    
+    .product-meta {
+      font-size: 10px;
+      color: #6b6b6b;
+      margin-bottom: 4px;
+    }
+    
+    .product-offer {
+      display: inline-block;
+      background: #ffd700;
+      color: #8b6914;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 9px;
+      font-weight: 800;
+      margin-top: 4px;
+    }
+    
+    .product-discount {
+      font-size: 10px;
+      color: #0CAF60;
+      font-weight: 800;
+    }
+    
+    /* Table Cells */
+    .qty-display {
+      text-align: center;
+      font-weight: 900;
+      color: #450623;
+      font-size: 16px;
+    }
+    
+    .price-display {
+      text-align: right;
+      font-weight: 800;
+      color: #2c2c2c;
+      font-size: 12px;
+    }
+    
+    .total-display {
+      text-align: right;
+      font-weight: 900;
+      color: #450623;
+      font-size: 14px;
+    }
+    
+    .status-display {
+      text-align: center;
+    }
+    
+    .item-badge {
+      display: inline-block;
+      padding: 7px 14px;
+      border-radius: 15px;
+      font-size: 9px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    
+    /* ============================================
+       TABLE FOOTER
+    ============================================ */
+    .product-table tfoot td {
+      padding: 15px 16px;
+      font-size: 12px;
+      border: 1px solid #e8dce4;
+    }
+    
+    .product-table tfoot tr {
+      background: #faf8fa;
+    }
+    
+    .total-label {
+      text-align: right;
+      color: #5c5c5c;
+      font-weight: 800;
+    }
+    
+    .total-value {
+      text-align: right;
+      color: #2c2c2c;
+      font-weight: 900;
+      font-size: 14px;
+    }
+    
+    .discount-row .total-value {
+      color: #0CAF60;
+    }
+    
+    /* Grand Total Row */
+    .grand-row td {
+      background: #450623 !important;
+      color: white !important;
+      font-weight: 900;
+      font-size: 16px;
+      padding: 20px 16px !important;
+      border: none !important;
+    }
+    
+    .grand-row .total-value {
+      color: white !important;
+      font-size: 22px !important;
+      letter-spacing: 1px;
+    }
+    
+    /* ============================================
+       FOOTER
+    ============================================ */
+    .footer {
+      background: #450623;
+      padding: 30px 40px;
+      color: white;
+      text-align: center;
+      margin-top: 40px;
+    }
+    
+    .footer-content {
+      position: relative;
+    }
+    
+    .footer-thank {
+      font-size: 16px;
+      font-weight: 900;
+      margin-bottom: 12px;
+      color: white;
+    }
+    
+    .footer-contact {
+      font-size: 12px;
+      margin-bottom: 15px;
+      line-height: 1.8;
+      color: white;
+    }
+    
+    .footer-contact a {
+      color: white;
+      text-decoration: none;
+      font-weight: 800;
+    }
+    
+    .footer-legal {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.85);
+      line-height: 1.6;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .footer strong {
+      font-weight: 900;
+      color: white;
+    }
   </style>
+
 </head>
 <body>
-  <div class="hdr">
-    <div class="brand">
-      <h1>Audio Aura</h1>
-      <div class="muted">Invoice</div>
-    </div>
-    <div class="meta">
-      <div><strong>No:</strong> {{ order.order_number }}</div>
-    <div><strong>Date:</strong>
-    {% if order.delivered_at %}
-        {{ order.delivered_at|date:"d M Y" }}
-    {% else %}
-        {{ order.created_at|date:"d M Y" }}
-    {% endif %}
+  
+  <div class="page">
+    
+    <!-- ============================================
+         HEADER WITH LOGO
+    ============================================ -->
+    <div class="header">
+      <div class="header-content">
+        <!-- Logo & Brand -->
+        <div class="logo-section">
+          <div class="logo">
+            <img src="https://res.cloudinary.com/dxndvadjt/image/upload/v1765251957/main_brand_logo.png_q6eguz.png" 
+                 alt="Audio Aura Logo">
+          </div>
+          <div class="brand-info">
+            <h1>Audio Aura</h1>
+            <div class="tagline">🎵 Premium Audio Solutions</div>
+          </div>
+        </div>
+        
+        <!-- Invoice Info -->
+        <div class="invoice-meta">
+          <div class="invoice-title">INVOICE</div>
+          <div class="meta-item">
+            <span class="meta-label">Invoice No:</span>
+            <span class="meta-value">{{ order.order_number }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Date:</span>
+            <span class="meta-value">{{ order.created_at|date:"d M Y" }}</span>
+          </div>
+          {% if order.delivered_at %}
+          <div class="meta-item">
+            <span class="meta-label">Delivered:</span>
+            <span class="meta-value">{{ order.delivered_at|date:"d M Y" }}</span>
+          </div>
+          {% endif %}
+          <div>
+            <span class="status-badge status-{{ order.status }}">
+              {{ order.get_status_display }}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
 
+    <!-- ============================================
+         MAIN CONTENT
+    ============================================ -->
+    <div class="content">
+      
+      <!-- ORDER INFORMATION -->
+      <div class="section-title">📋 Order Information</div>
+      
+      <div class="info-grid">
+        <!-- Billing & Shipping Address -->
+        <div class="info-box">
+          <div class="box-header">📦 Billing & Shipping Address</div>
+          <div class="info-row"><strong>{{ order.ship_full_name }}</strong></div>
+          <div class="info-row">{{ order.ship_line1 }}</div>
+          {% if order.ship_line2 %}
+          <div class="info-row">{{ order.ship_line2 }}</div>
+          {% endif %}
+          <div class="info-row">{{ order.ship_city }}, {{ order.ship_state }} {{ order.ship_postcode }}</div>
+          <div class="info-row">{{ order.ship_country }}</div>
+          {% if order.ship_phone %}
+          <div class="info-icon">📞 {{ order.ship_phone }}</div>
+          {% endif %}
+        </div>
+        
+        <!-- Payment Information -->
+        <div class="info-box">
+          <div class="box-header">💳 Payment Information</div>
+          <div class="info-row">
+            <strong>Method:</strong> {{ order.get_payment_method_display|default:order.payment_method }}
+          </div>
+          {% if order.paid_at %}
+          <div class="info-row">
+            <strong>Paid At:</strong> {{ order.paid_at|date:"d M Y, H:i" }}
+          </div>
+          {% else %}
+          <div class="info-row" style="color: #999;">Payment pending</div>
+          {% endif %}
+          <div class="info-row" style="margin-top: 14px;">
+            <strong>Order Status:</strong>
+            <span class="item-badge status-{{ order.status }}">
+              {{ order.get_status_display }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRODUCT DETAILS -->
+      <div class="section-title">🛍️ Product Details</div>
+      
+      <table class="product-table">
+        <thead>
+          <tr>
+            <th class="col-product">Product Details</th>
+            <th class="col-qty">Qty</th>
+            <th class="col-unit">Unit Price</th>
+            <th class="col-total">Line Total</th>
+            <th class="col-status">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <!-- Product -->
+            <td>
+              <div class="product-display">
+                <div class="product-image-wrapper">
+                  {% if item.image_url %}
+                  <img src="{{ item.image_url }}" 
+                       alt="{{ item.product_name }}" 
+                       class="product-thumbnail">
+                  {% endif %}
+                </div>
+                <div class="product-info">
+                  <div class="product-title">{{ item.product_name }}</div>
+                  {% if item.variant_color %}
+                  <div class="product-meta">🎨 Color: {{ item.variant_color }}</div>
+                  {% endif %}
+                  {% if item.offer_label %}
+                  <span class="product-offer">✨ {{ item.offer_label }}</span>
+                  {% endif %}
+                  {% if item.mrp_price and item.unit_price < item.mrp_price %}
+                  <div class="product-meta" style="margin-top: 4px;">
+                    MRP: <strike>₹{{ item.mrp_price|floatformat:0 }}</strike>
+                    <span class="product-discount">
+                      (You Save ₹{{ item.mrp_price|add:item.unit_price|floatformat:0 }})
+                    </span>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </td>
+            
+            <!-- Quantity -->
+            <td class="qty-display">{{ item.quantity }}</td>
+            
+            <!-- Unit Price -->
+            <td class="price-display">₹{{ item.unit_price|floatformat:2 }}</td>
+            
+            <!-- Line Total -->
+            <td class="total-display">₹{{ item.line_total|floatformat:2 }}</td>
+            
+            <!-- Status -->
+            <td class="status-display">
+              <span class="item-badge status-{{ item.status }}">
+                {{ item.get_status_display }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="3" class="total-label">Subtotal</td>
+            <td class="total-value">₹{{ order.subtotal|floatformat:2 }}</td>
+            <td></td>
+          </tr>
+          {% if order.shipping_amount > 0 %}
+          <tr>
+            <td colspan="3" class="total-label">Shipping Charges</td>
+            <td class="total-value">₹{{ order.shipping_amount|floatformat:2 }}</td>
+            <td></td>
+          </tr>
+          {% endif %}
+          {% if order.discount_amount > 0 %}
+          <tr class="discount-row">
+            <td colspan="3" class="total-label">Discount Applied</td>
+            <td class="total-value">−₹{{ order.discount_amount|floatformat:2 }}</td>
+            <td></td>
+          </tr>
+          {% endif %}
+          <tr class="grand-row">
+            <td colspan="3" style="text-align: right;">GRAND TOTAL</td>
+            <td class="total-value">₹{{ order.total_amount|floatformat:2 }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
+
+    <!-- ============================================
+         FOOTER
+    ============================================ -->
+    <div class="footer">
+      <div class="footer-content">
+        <div class="footer-thank">
+          🎉 Thank you for shopping with Audio Aura!
+        </div>
+        <div class="footer-contact">
+          For support: <a href="mailto:support@audioaura.com">support@audioaura.com</a> | 
+          <strong>+91-XXXXXXXXXX</strong>
+        </div>
+        <div class="footer-legal">
+          This is a computer-generated invoice and does not require a signature.<br>
+          <strong>Audio Aura</strong> • Tirur, Kerala 676101, India • GSTIN: 32XXXXXXXXXXXXX<br>
+          Visit us: <a href="https://audioaura.com">www.audioaura.com</a>
+        </div>
+      </div>
+    </div>
+    
   </div>
-
-  <div class="grid">
-    <div class="col box">
-      <div><strong>Bill To</strong></div>
-      <div>{{ order.ship_full_name }}</div>
-      <div>{{ order.ship_line1 }}</div>
-      {% if order.ship_line2 %}<div>{{ order.ship_line2 }}</div>{% endif %}
-      <div>{{ order.ship_city }}, {{ order.ship_state }} {{ order.ship_postcode }}</div>
-      <div>{{ order.ship_country }}</div>
-      {% if order.ship_phone %}<div class="muted">{{ order.ship_phone }}</div>{% endif %}
-    </div>
-    <div class="col box">
-      <div><strong>Payment</strong></div>
-      <div>Method: {{ order.get_payment_method_display|default:order.payment_method }}</div>
-      {% if order.paid_at %}<div>Paid at: {{ order.paid_at|date:"d M Y, H:i" }}</div>{% endif %}
-      {% if order.coupon_code %}<div>Coupon: {{ order.coupon_code }} (-₹{{ order.coupon_discount }})</div>{% endif %}
-    </div>
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Product</th>
-        <th class="right">Qty</th>
-        <th class="right">Unit Price</th>
-        <th class="right">Line Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for it in items %}
-      <tr>
-        <td>{{ it.product_name }}{% if it.variant_color %} ({{ it.variant_color }}){% endif %}</td>
-        <td class="right">{{ it.quantity }}</td>
-        <td class="right">RS.{{ it.unit_price }}</td>
-        <td class="right">RS{{ it.line_total }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-    <tfoot>
-      <tr><td colspan="3" class="right">Subtotal</td><td class="right">RS{{ order.subtotal }}</td></tr>
-      <tr><td colspan="3" class="right">Shipping</td><td class="right">RS{{ order.shipping_amount }}</td></tr>
-      {% if order.discount_amount %}
-      <tr><td colspan="3" class="right">Discounts</td><td class="right">−RS{{ order.discount_amount }}</td></tr>
-      {% endif %}
-      <tr><td colspan="3" class="right">Grand Total</td><td class="right">RS{{ order.total_amount }}</td></tr>
-    </tfoot>
-  </table>
-
-  <p class="muted">Status: {{ order.status }}{% if delivered %} (Delivered){% endif %}</p>
+  
 </body>
 </html>

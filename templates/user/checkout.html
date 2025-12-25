@@ -706,331 +706,181 @@
   </div>
 
     <!-- ✅ COMPLETE FIXED JAVASCRIPT -->
-  <script>
-  (function(){
-    // ==================== UTILITY FUNCTIONS ====================
-    
-    function getCookie(name) {
-      const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-      return m ? m.pop() : '';
-    }
-    
-    function fmt(n) { 
-      try { 
-        return new Intl.NumberFormat('en-IN').format(n); 
-      } catch(e) { 
-        return n; 
-      } 
-    }
-    
-    function showToast(msg) {
-      const t = document.getElementById('toast');
-      if (t) {
-        t.textContent = msg;
-        t.classList.add('show');
-        setTimeout(() => t.classList.remove('show'), 3000);
-      } else {
-        alert(msg);
-      }
-    }
-
-    // ==================== COUPON FUNCTIONS ====================
-    
-    window.applyCoupon = function(code) {
-      console.log('applyCoupon called with code:', code);
-      
-      const csrftoken = getCookie('csrftoken');
-      
-      if (!code) {
-        showToast('❌ Please enter a coupon code');
-        return;
-      }
-      
-      const formData = new FormData();
-      formData.append('coupon_code', code.toUpperCase());
-      
-      showToast('⏳ Applying coupon...');
-      
-      fetch('{% url "apply_coupon" %}', {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': csrftoken,
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: formData
-      })
-      .then(response => {
-        console.log('Response status:', response.status);
-        return response.json();
-      })
-      .then(data => {
-        console.log('Response data:', data);
-        if (data.success) {
-          showToast(`✓ ${data.message}`);
-          setTimeout(() => location.reload(), 1000);
-        } else {
-          showToast(`❌ ${data.message}`);
-        }
-      })
-      .catch(error => {
-        console.error('Error applying coupon:', error);
-        showToast('❌ Failed to apply coupon');
-      });
-    };
-
-    window.removeCoupon = function() {
-      console.log('removeCoupon called');
-      
-      const csrftoken = getCookie('csrftoken');
-      
-      showToast('⏳ Removing coupon...');
-      
-      fetch('{% url "remove_coupon" %}', {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': csrftoken,
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      })
-      .then(response => response.json())
-      .then(data => {
-        console.log('Remove response:', data);
-        if (data.success) {
-          showToast(`✓ ${data.message}`);
-          setTimeout(() => location.reload(), 1000);
-        }
-      })
-      .catch(error => {
-        console.error('Error removing coupon:', error);
-        showToast('❌ Failed to remove coupon');
-      });
-    };
-
-
-    // ==================== POST FORM UTILITY ====================
-    
-    function postForm(url, fd){
-      const csrftoken = getCookie('csrftoken');
-      return fetch(url, {
-        method: 'POST',
-        headers: { 'X-CSRFToken': csrftoken, 'X-Requested-With': 'XMLHttpRequest' },
-        body: fd
-      }).then(r=>r.json());
-    }
-
-    // ==================== QTY & REMOVE HANDLERS ====================
-// Buy Now specific handler
-document.addEventListener('DOMContentLoaded', function() {
-  const buyNowInput = document.getElementById('buyNowQtyInput');
-  
-  if (buyNowInput) {
-    const csrftoken = getCookie('csrftoken');
-    const incBtn = buyNowInput.closest('.qty').querySelector('.js-inc');
-    const decBtn = buyNowInput.closest('.qty').querySelector('.js-dec');
-
-    let updating = false;
-
-    function setControlsDisabled(disabled) {
-      incBtn.disabled = disabled;
-      decBtn.disabled = disabled;
-      buyNowInput.disabled = disabled;
-    }
-
-    function updateBuyNowQty(newQty) {
-      const maxQty = parseInt(buyNowInput.max || '10', 10);
-      if (newQty < 1) newQty = 1;
-      if (newQty > maxQty) {
-        newQty = maxQty;
-        showToast(`Only ${maxQty} units available`);
-      }
-
-      // Disable controls for the duration of the request
-      setControlsDisabled(true);
-
-      // Update server
-      const fd = new FormData();
-      fd.append('quantity', newQty);
-
-      fetch("{% url 'buy_now_update_qty' %}", {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': csrftoken,
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: fd
-      })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          buyNowInput.value = data.qty; // Always set using server-validated value
-          // Update UI elements
-          if (data.subtotal_sell) document.getElementById('jsSubSell').textContent = fmt(data.subtotal_sell);
-          if (data.subtotal_mrp) document.getElementById('jsSubMrp').textContent = fmt(data.subtotal_mrp);
-          if (data.discount) document.getElementById('coDiscount').textContent = fmt(data.discount);
-          if (data.coupon_discount) document.getElementById('jsCouponDiscount').textContent = fmt(data.coupon_discount);
-          if (data.total_payable) document.getElementById('coTotal').textContent = fmt(data.total_payable);
-          if (data.save_note) {
-            document.getElementById('jsSaveLeft').textContent = fmt(data.save_note);
-            document.getElementById('coSave').textContent = fmt(data.save_note);
-          }
-          const lineSell = document.querySelector('.js-line-sell');
-          const lineMrp = document.querySelector('.js-line-mrp');
-          if (lineSell && data.subtotal_sell) lineSell.textContent = fmt(data.subtotal_sell);
-          if (lineMrp && data.subtotal_mrp) lineMrp.textContent = fmt(data.subtotal_mrp);
-
-          
-        }
-        updating = false;
-        setControlsDisabled(false);
-      })
-      .catch(err => {
-        updating = false;
-        setControlsDisabled(false);
-        console.error('Buy now update failed:', err);
-        showToast('❌ Failed to update quantity');
-      });
-    }
-
-    if (incBtn) {
-      incBtn.addEventListener('click', () => {
-        if (updating) return;
-        updating = true;
-        const cur = parseInt(buyNowInput.value, 10) || 1;
-        updateBuyNowQty(cur + 1);
-      });
-    }
-    if (decBtn) {
-      decBtn.addEventListener('click', () => {
-        if (updating) return;
-        updating = true;
-        const cur = parseInt(buyNowInput.value, 10) || 1;
-        updateBuyNowQty(cur - 1);
-      });
-    }
-    buyNowInput.addEventListener('change', () => {
-      if (updating) return;
-      updating = true;
-      const val = parseInt(buyNowInput.value, 10) || 1;
-      updateBuyNowQty(val);
-    });
+<script>
+(function(){
+  // ========== UTILITY ==========
+  function getCookie(name) {
+    const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
   }
-});
+  
+  function fmt(n) { 
+    try { return new Intl.NumberFormat('en-IN').format(n); } 
+    catch(e) { return n; } 
+  }
+  
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    if (t) {
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    } else {
+      alert(msg);
+    }
+  }
 
-  function bindQtyHandlers() {
+  // ========== COUPON FUNCTIONS ==========
+  window.applyCoupon = function(code) {
+    const csrftoken = getCookie('csrftoken');
+    if (!code) { showToast('❌ Please enter a coupon code'); return; }
+    
+    showToast('⏳ Applying coupon...');
+    
+    fetch('{% url "apply_coupon" %}', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrftoken,
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: new URLSearchParams({ coupon_code: code.toUpperCase() })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        showToast(`✓ ${data.message}`);
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showToast(`❌ ${data.message}`);
+      }
+    })
+    .catch(e => {
+      console.error('Coupon error:', e);
+      showToast('❌ Failed to apply coupon');
+    });
+  };
+
+  window.removeCoupon = function() {
+    const csrftoken = getCookie('csrftoken');
+    showToast('⏳ Removing coupon...');
+    
+    fetch('{% url "remove_coupon" %}', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrftoken,
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        showToast(`✓ ${data.message}`);
+        setTimeout(() => location.reload(), 1000);
+      }
+    })
+    .catch(e => console.error('Remove coupon error:', e));
+  };
+
+  // ========== QTY & REMOVE HANDLERS ==========
+  function bindCartHandlers() {
     const csrftoken = getCookie('csrftoken');
 
-    document.querySelectorAll('.cart-card, .item').forEach(card => {
+    document.querySelectorAll('.item').forEach(card => {
       const dec = card.querySelector('.js-dec');
       const inc = card.querySelector('.js-inc');
-      const qtyInput = card.querySelector('.qty-input') || card.querySelector('input.qty input[type=number]');
+      const qtyInput = card.querySelector('.qty-input:not(.buy-now-qty)');
       const qtyForm = card.querySelector('.js-qty-form');
       const remForm = card.querySelector('.js-remove-form');
-      const productName = card.querySelector('.item-title, .title')?.textContent?.trim() || 'Item';
+      const productName = card.querySelector('.title')?.textContent?.trim() || 'Item';
 
       if (!qtyInput) return;
 
       async function syncServer(newQty) {
-          if (!qtyForm) return;
-          
-          const fd = new FormData(qtyForm);
-          fd.set('qty', newQty);
-          
-          try {
-              // Use cart_update_qty for cart items in checkout
-              const res = await fetch('{% url "cart_update_qty" %}', {
-                  method: 'POST',
-                  headers: {
-                      'X-CSRFToken': csrftoken,
-                      'X-Requested-With': 'XMLHttpRequest'
-                  },
-                  body: fd
-              });
-              const data = await res.json();
+        if (!qtyForm) return;
+        
+        const fd = new FormData(qtyForm);
+        fd.set('qty', newQty);
+        
+        try {
+          const res = await fetch('{% url "cart_update_qty" %}', {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': csrftoken,
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: fd
+          });
+          const data = await res.json();
 
-              // ✅ Check if coupon was removed
-              if (data.coupon_removed && data.coupon_message) {
-                  showToast('❌ ' + data.coupon_message);
-                  setTimeout(() => location.reload(), 2000);
-                  return;
-              }
-
-              // ✅ Update UI elements with parsed values
-              const updateEl = (id, val) => {
-                  const el = document.getElementById(id);
-                  if (el && val !== undefined) {
-                      el.textContent = fmt(Math.round(parseFloat(val) || 0));
-                  }
-              };
-
-              if (data.summary) {
-                  // ✅ Calculate and update discount
-                  if (data.summary.subtotal_mrp !== undefined && data.summary.subtotal_sell !== undefined) {
-                      const discount = parseFloat(data.summary.subtotal_mrp) - parseFloat(data.summary.subtotal_sell);
-                      updateEl('coDiscount', discount);
-                  }
-                  
-                  // ✅ Update Price Details panel - THIS WAS MISSING!
-                  updateEl('coMrp', data.summary.subtotal_mrp || data.summary.subtotal);
-                  updateEl('jsCouponDiscount', data.summary.coupon_amount);
-                  updateEl('coTotal', data.summary.grand_total);
-                  
-                  // ✅ Update products count - THIS WAS THE KEY MISSING PIECE!
-                  if (data.summary.items && Array.isArray(data.summary.items)) {
-                      const totalQty = data.summary.items.reduce((sum, item) => sum + (parseInt(item.qty) || 0), 0);
-                      updateEl('coProducts', totalQty);
-                  }
-                  
-                  // ✅ Update Subtotal bar
-                  updateEl('jsSubSell', data.summary.subtotal_sell || data.summary.subtotal);
-                  updateEl('jsSubMrp', data.summary.subtotal_mrp || data.summary.subtotal);
-                  
-                  // ✅ Update save note
-                  if (data.summary.subtotal_mrp && data.summary.grand_total) {
-                      const saveNote = parseFloat(data.summary.subtotal_mrp) - parseFloat(data.summary.grand_total);
-                      updateEl('jsSaveLeft', saveNote);
-                      updateEl('coSave', saveNote);
-                  }
-                  
-                  // ✅ Update per-line prices
-                  if (data.summary.items && Array.isArray(data.summary.items)) {
-                      data.summary.items.forEach(function(item) {
-                          const itemCard = document.querySelector('.item[data-product-id="' + item.id + '"]');
-                          if (itemCard) {
-                              const lineSell = itemCard.querySelector('.js-line-sell');
-                              const lineMrp = itemCard.querySelector('.js-line-mrp');
-                              
-                              if (lineSell && item.line_sell !== undefined) {
-                                  lineSell.textContent = fmt(Math.round(item.line_sell));
-                              }
-                              if (lineMrp && item.line_mrp !== undefined) {
-                                  lineMrp.textContent = fmt(Math.round(item.line_mrp));
-                              }
-                          }
-                      });
-                  }
-              }
-
-              // Update cart badge
-              const badge = document.getElementById('cartBadge');
-              if (badge && typeof data.items === 'number') {
-                  badge.textContent = data.items;
-              }
-          } catch (e) {
-              console.error('Error syncing server:', e);
+          // ✅ Check if coupon removed
+          if (data.coupon_removed && data.coupon_message) {
+            showToast('❌ ' + data.coupon_message);
+            setTimeout(() => location.reload(), 2000);
+            return;
           }
+
+          // ✅ Update all UI elements
+          const updateEl = (id, val) => {
+            const el = document.getElementById(id);
+            if (el && val !== undefined) {
+              el.textContent = fmt(Math.round(parseFloat(val) || 0));
+            }
+          };
+
+          if (data.summary) {
+            // Calculate discount
+            if (data.summary.subtotal_mrp && data.summary.subtotal_sell) {
+              const discount = parseFloat(data.summary.subtotal_mrp) - parseFloat(data.summary.subtotal_sell);
+              updateEl('coDiscount', discount);
+            }
+            
+            // Update summary panel
+            updateEl('coMrp', data.summary.subtotal_mrp || data.summary.subtotal);
+            updateEl('jsCouponDiscount', data.summary.coupon_amount || 0);
+            updateEl('coTotal', data.summary.grand_total);
+            
+            // Update subtotal bar
+            updateEl('jsSubSell', data.summary.subtotal_sell || data.summary.subtotal);
+            updateEl('jsSubMrp', data.summary.subtotal_mrp || data.summary.subtotal);
+            
+            // Update save note
+            if (data.summary.subtotal_mrp && data.summary.grand_total) {
+              const saveNote = parseFloat(data.summary.subtotal_mrp) - parseFloat(data.summary.grand_total);
+              updateEl('jsSaveLeft', saveNote);
+              updateEl('coSave', saveNote);
+            }
+            
+            // Update per-line prices
+            if (data.summary.items && Array.isArray(data.summary.items)) {
+              data.summary.items.forEach(function(item) {
+                const itemCard = document.querySelector('.item[data-product-id="' + item.id + '"]');
+                if (itemCard) {
+                  const lineSell = itemCard.querySelector('.js-line-sell');
+                  const lineMrp = itemCard.querySelector('.js-line-mrp');
+                  
+                  if (lineSell && item.line_sell !== undefined) {
+                    lineSell.textContent = fmt(Math.round(item.line_sell));
+                  }
+                  if (lineMrp && item.line_mrp !== undefined) {
+                    lineMrp.textContent = fmt(Math.round(item.line_mrp));
+                  }
+                }
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Error syncing server:', e);
+        }
       }
-
-
-
 
       function setQty(newQty) {
         const maxQty = parseInt(qtyInput.dataset.max || qtyInput.max || '10', 10);
         if (newQty < 1) newQty = 1;
         if (newQty > maxQty) {
           newQty = maxQty;
-          showToast(`🥲We're sorry! Only ${maxQty} unit${maxQty > 1 ? 's' : ''} allowed in each order`);
+          showToast(`🥲 Only ${maxQty} unit${maxQty > 1 ? 's' : ''} allowed`);
         } else {
-          showToast(`🔥${productName}: quantity updated to ${newQty}`);
+          showToast(`🔥 ${productName}: quantity updated to ${newQty}`);
         }
         qtyInput.value = newQty;
         syncServer(newQty);
@@ -1046,13 +896,12 @@ document.addEventListener('DOMContentLoaded', function() {
         setQty(cur - 1);
       });
 
-      qtyInput?.addEventListener('change', () => {
-        const val = parseInt(qtyInput.value, 10) || 1;
-        setQty(val);
-      });
-
+      // ✅ FIXED: Remove handler - Always reload
       remForm?.addEventListener('submit', async e => {
         e.preventDefault();
+        
+        showToast('⏳ Removing item...');
+        
         try {
           const res = await fetch(remForm.action, {
             method: 'POST',
@@ -1063,283 +912,134 @@ document.addEventListener('DOMContentLoaded', function() {
             body: new FormData(remForm)
           });
           const data = await res.json();
+          
           if (!res.ok || !data?.ok) throw new Error('Remove failed');
-          card.remove();
-          // Re-sync the entire cart UI if needed, or update badge count
-          if (document.querySelectorAll('.cart-card, .item').length === 0) {
-            location.href = "{% url 'cart' %}";
-          }
+          
+          // ✅ ALWAYS RELOAD - This fixes your issue!
+          showToast('✓ Item removed');
+          setTimeout(() => location.reload(), 500);
+          
         } catch (err) {
           console.error(err);
           remForm.submit(); // fallback
         }
       });
     });
+  }
 
+  // ========== BUY NOW QTY HANDLER ==========
+  function bindBuyNowHandler() {
+    const buyNowInput = document.getElementById('buyNowQtyInput');
+    if (!buyNowInput) return;
+    
+    const csrftoken = getCookie('csrftoken');
+    const incBtn = buyNowInput.closest('.qty')?.querySelector('.js-inc');
+    const decBtn = buyNowInput.closest('.qty')?.querySelector('.js-dec');
+    let updating = false;
 
-// Handle single Buy Now quantity input similarly
-const buyNowInput = document.getElementById('buyNowQtyInput');
+    function updateBuyNowQty(newQty) {
+      const maxQty = parseInt(buyNowInput.max || '10', 10);
+      if (newQty < 1) newQty = 1;
+      if (newQty > maxQty) {
+        newQty = maxQty;
+        showToast(`Only ${maxQty} units available`);
+      }
 
-if (buyNowInput) {
-  let previousQty = parseInt(buyNowInput.value, 10) || 1;
-  const maxQ = parseInt(buyNowInput.max || '10', 10);
-  const csrftoken = getCookie('csrftoken');
+      updating = true;
+      const fd = new FormData();
+      fd.append('quantity', newQty);
 
-  buyNowInput.addEventListener('change', () => {
-    let val = parseInt(buyNowInput.value, 10) || 1;
-
-    if (val < 1) val = 1;
-    if (val > maxQ) {
-      val = maxQ;
-      buyNowInput.value = val;
-      showToast(`Only ${maxQ} unit${maxQ > 1 ? 's' : ''} available`);
-    }
-
-    // Only update if quantity changed
-    if (val !== previousQty) {
-      updateBuyNowQty(val);
-    } else {
-      // Quantity didn't change, no need to call update
-      buyNowInput.value = val; // ensure display stable
-    }
-  });
-
-  function updateBuyNowQty(newQty) {
-    // Disable controls during update if you want (optional)
-    // e.g. buyNowInput.disabled = true;
-
-    const fd = new FormData();
-    fd.append('quantity', newQty);
-
-    fetch("{% url 'buy_now_update_qty' %}", {
-      method: 'POST',
-      headers: {
-        'X-CSRFToken': csrftoken,
-        'X-Requested-With': 'XMLHttpRequest'
-      },
-      body: fd
-    })
-    .then(r => r.json())
-    .then(data => {
-      if (data.success) {
-        buyNowInput.value = data.qty;
-        previousQty = data.qty;
-
-        // Update UI elements with data from response, if any
-        if (data.subtotal_sell) document.getElementById('jsSubSell').textContent = fmt(data.subtotal_sell);
-        if (data.subtotal_mrp) document.getElementById('jsSubMrp').textContent = fmt(data.subtotal_mrp);
-        if (data.discount) document.getElementById('coDiscount').textContent = fmt(data.discount);
-        if (data.coupon_discount) document.getElementById('jsCouponDiscount').textContent = fmt(data.coupon_discount);
-        if (data.total_payable) document.getElementById('coTotal').textContent = fmt(data.total_payable);
-        if (data.save_note) {
-          document.getElementById('jsSaveLeft').textContent = fmt(data.save_note);
-          document.getElementById('coSave').textContent = fmt(data.save_note);
+      fetch("{% url 'buy_now_update_qty' %}", {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': csrftoken,
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: fd
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          buyNowInput.value = data.qty;
+          
+          // Update UI
+          if (data.subtotal_sell) document.getElementById('jsSubSell').textContent = fmt(data.subtotal_sell);
+          if (data.subtotal_mrp) document.getElementById('jsSubMrp').textContent = fmt(data.subtotal_mrp);
+          if (data.discount) document.getElementById('coDiscount').textContent = fmt(data.discount);
+          if (data.coupon_discount) document.getElementById('jsCouponDiscount').textContent = fmt(data.coupon_discount);
+          if (data.total_payable) document.getElementById('coTotal').textContent = fmt(data.total_payable);
+          if (data.save_note) {
+            document.getElementById('jsSaveLeft').textContent = fmt(data.save_note);
+            document.getElementById('coSave').textContent = fmt(data.save_note);
+          }
+          
+          const lineSell = document.querySelector('.js-line-sell');
+          const lineMrp = document.querySelector('.js-line-mrp');
+          if (lineSell && data.subtotal_sell) lineSell.textContent = fmt(data.subtotal_sell);
+          if (lineMrp && data.subtotal_mrp) lineMrp.textContent = fmt(data.subtotal_mrp);
         }
+        updating = false;
+      })
+      .catch(err => {
+        console.error('Buy now update failed:', err);
+        updating = false;
+      });
+    }
 
-        showToast(`Quantity updated to ${data.qty}`);
-      } else {
-        showToast('❌ Failed to update quantity');
-      }
-      // buyNowInput.disabled = false; // re-enable controls if disabled
-    })
-    .catch(err => {
-      console.error('Buy now update failed:', err);
-      showToast('❌ Failed to update quantity');
-      // buyNowInput.disabled = false; // re-enable controls if disabled
+    incBtn?.addEventListener('click', () => {
+      if (updating) return;
+      const cur = parseInt(buyNowInput.value, 10) || 1;
+      updateBuyNowQty(cur + 1);
+    });
+    
+    decBtn?.addEventListener('click', () => {
+      if (updating) return;
+      const cur = parseInt(buyNowInput.value, 10) || 1;
+      updateBuyNowQty(cur - 1);
     });
   }
-}
 
-  }
+  // ========== COUPON MODAL ==========
+  window.showCartCouponModal = function() {
+    document.getElementById('cartCouponModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  };
 
+  window.hideCartCouponModal = function() {
+    document.getElementById('cartCouponModal').style.display = 'none';
+    document.body.style.overflow = '';
+  };
 
-      function updateBuyNowQty(qty) {
-        const csrftoken = getCookie('csrftoken');
-        // Replace with your actual buy now update URL
-        const updateUrl = "{% url 'buy_now_update_qty' %}";
-
-        const formData = new FormData();
-        formData.append('quantity', qty);
-
-        fetch(updateUrl, {
-          method: 'POST',
-          headers: {
-            'X-CSRFToken': csrftoken,
-            'X-Requested-With': 'XMLHttpRequest'
-          },
-          body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.ok) {
-            // Optionally update summary UI dynamically:
-            recomputeTotals();  // Your recompute function to update totals after buy now qty changes
-            showToast(`Quantity updated to ${qty}`);
-          } else {
-            showToast(`❌ Failed to update quantity: ${data.error || 'Unknown error'}`);
-          }
-        })
-        .catch(error => {
-          console.error('Error updating buy now quantity:', error);
-          showToast('❌ Error updating quantity');
-        });
-      }
-
-
-// On page load call to bind handlers
-document.addEventListener('DOMContentLoaded', () => {
-  bindQtyHandlers();
-});
-
-    // ==================== COUPON MODAL ====================
+  // ========== INITIALIZATION ==========
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('Checkout page initialized');
+    bindCartHandlers();
+    bindBuyNowHandler();
     
-    window.showCartCouponModal = function() {
-      document.getElementById('cartCouponModal').style.display = 'flex';
-      document.body.style.overflow = 'hidden';
-    };
-
-    window.hideCartCouponModal = function() {
-      document.getElementById('cartCouponModal').style.display = 'none';
-      document.body.style.overflow = '';
-    };
-
-    // ==================== INITIALIZATION ====================
+    // Modal click outside to close
+    const modal = document.getElementById('cartCouponModal');
+    if (modal) {
+      modal.addEventListener('click', function(e) {
+        if (e.target === this) hideCartCouponModal();
+      });
+    }
     
-    document.addEventListener('DOMContentLoaded', ()=>{
-      console.log('Checkout page initialized');
-      
-      recompute();
-      
-      // Modal click outside to close
-      const modal = document.getElementById('cartCouponModal');
-      if (modal) {
-        modal.addEventListener('click', function(e){
-          if (e.target === this) hideCartCouponModal();
-        });
-      }
-      
-      // Slider apply button
-      const sliderApplyBtn = document.querySelector('.cart-coupon-apply-btn');
-      if (sliderApplyBtn) {
-        sliderApplyBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const input = document.querySelector('.cart-coupon-code-input');
-          if (input && input.value.trim()) {
-            applyCoupon(input.value.trim());
-          } else {
-            showToast('❌ Please enter a coupon code');
-          }
-        });
-      }
-    });
-
-    recompute();
-  })();
-
-  document.addEventListener('DOMContentLoaded', function() {
-    const buyNowQtyInput = document.getElementById('buyNowQtyInput');
-    if (buyNowQtyInput) {
-      buyNowQtyInput.addEventListener('change', function() {
-        const qty = parseInt(this.value, 10);
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-        fetch("{% url 'buy_now_update_qty' %}", {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': csrfToken,
-          },
-          body: 'quantity=' + encodeURIComponent(qty)
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.ok) {
-            // Optionally refresh checkout summary or reload page
-            location.reload();
-          } else {
-            alert('Failed to update quantity: ' + data.error);
-          }
-        })
-        .catch(() => alert('Error updating quantity'));
+    // Slider apply button
+    const sliderApplyBtn = document.querySelector('.cart-coupon-apply-btn');
+    if (sliderApplyBtn) {
+      sliderApplyBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const input = document.querySelector('.cart-coupon-code-input');
+        if (input && input.value.trim()) {
+          applyCoupon(input.value.trim());
+        } else {
+          showToast('❌ Please enter a coupon code');
+        }
       });
     }
   });
-document.querySelectorAll('.remove').forEach(btn => {
-  btn.addEventListener('click', function() {
-    const confirmed = window.confirm('Are you sure you want to remove this item from your cart?');
-    if (!confirmed) return;  // User cancelled removal
-    
-    const card = this.closest('.item'); // or appropriate container selector
-    const remForm = card.querySelector('.js-remove-form');
-    if (remForm) remForm.requestSubmit(); // Submit hidden remove form
-  });
-});
-
-  // ==================== CHECKOUT SESSION CLEANUP ====================
-  let paymentCompleted = false;
-
-  // Clear checkout when leaving page (browser close or navigation)
-  window.addEventListener('beforeunload', function(e) {
-      if (!paymentCompleted) {
-          // Use sendBeacon for reliable async request on unload
-          navigator.sendBeacon(
-              '{% url "clear_checkout_session" %}',
-              new URLSearchParams({
-                  csrfmiddlewaretoken: '{{ csrf_token }}'
-              })
-          );
-      }
-  });
-
-  // Mark payment as completed when payment button clicked
-  document.querySelectorAll('[data-payment-button]').forEach(btn => {
-      btn.addEventListener('click', function() {
-          paymentCompleted = true;
-      });
-  });
-
-  // Also detect the CONTINUE button click (your actual payment trigger)
-  document.addEventListener('DOMContentLoaded', function() {
-      const continueBtn = document.querySelector('button.primary');
-      if (continueBtn) {
-          continueBtn.addEventListener('click', function() {
-              paymentCompleted = true;
-          });
-      }
-  });
-
-  // Clear on navigation clicks (links to other pages)
-  document.addEventListener('click', function(e) {
-      const link = e.target.closest('a');
-      if (link && !link.href.includes('/checkout') && !link.href.includes('/payment')) {
-          if (!paymentCompleted) {
-              // Async cleanup when clicking away
-              fetch('{% url "clear_checkout_session" %}', {
-                  method: 'POST',
-                  headers: {
-                      'X-CSRFToken': '{{ csrf_token }}',
-                      'Content-Type': 'application/x-www-form-urlencoded',
-                  },
-                  keepalive: true  // Ensures request completes even if page unloads
-              }).catch(err => console.log('Cleanup request failed:', err));
-          }
-      }
-  });
-
-  // Also handle browser back button
-  window.addEventListener('popstate', function(e) {
-      if (!paymentCompleted) {
-          fetch('{% url "clear_checkout_session" %}', {
-              method: 'POST',
-              headers: {
-                  'X-CSRFToken': '{{ csrf_token }}',
-              },
-              keepalive: true
-          });
-      }
-  });
-
-
+})();
 </script>
+
 
   {% endblock %}

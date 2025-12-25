@@ -1,10 +1,10 @@
 from django.shortcuts import get_object_or_404, render
-from django.db.models import Q, F
+from django.db.models import Q, F, Sum
 from django.db.models.functions import Coalesce
 from django.core.paginator import Paginator
 from django.urls import reverse
 from products.models import Product
-from category.models import Category, Brand  # adjust import if Brand lives elsewhere
+from category.models import Category, Brand
 from django.views.decorators.cache import never_cache
 from django.utils import timezone
 from decimal import Decimal
@@ -14,20 +14,20 @@ from decimal import Decimal
 def shop(request):
     # Query params
     q          = (request.GET.get('q') or '').strip()
-    cat_ids    = request.GET.getlist('category')           # multiple category ids
-    brand_ids  = request.GET.getlist('brand')              # multiple brand ids
-    color_terms = [t.strip() for t in request.GET.getlist('color') if t.strip()]  # multiple color tokens (e.g., black, blue)
+    cat_ids    = request.GET.getlist('category')
+    brand_ids  = request.GET.getlist('brand')
+    color_terms = [t.strip() for t in request.GET.getlist('color') if t.strip()]
     price_min  = request.GET.get('min')
     price_max  = request.GET.get('max')
-    available  = request.GET.get('available')              # '1' for in stock
-    sort_key   = request.GET.get('sort') or 'popularity'   # default
+    available  = request.GET.get('available')
+    sort_key   = request.GET.get('sort') or 'popularity'
 
     # Base queryset
     products = (
         Product.objects
         .filter(category__is_active=True, is_listed=True)
         .select_related('brand', 'category')
-        .prefetch_related('images')
+        .prefetch_related('images', 'variants')  # ✅ Added variants prefetch
     )
 
     # 1) facet filters (category, brand)
@@ -45,15 +45,14 @@ def shop(request):
             search_q |= Q(category__name__icontains=q)
         products = products.filter(search_q)
 
-    # Color filter: match any provided color token against variant color names (icontains)
-    # Adjust relation path if your models differ, e.g., variants__color_name or attributes__name, etc.
+    # Color filter
     if color_terms:
         cq = Q()
         for term in color_terms:
             cq |= Q(variants__color__name__icontains=term)
         products = products.filter(cq).distinct()
 
-    # Price filter (effective price: discount_price if set else base_price)
+    # Price filter
     products = products.annotate(price_eff=Coalesce('discount_price', 'base_price'))
 
     if price_min:
@@ -67,13 +66,17 @@ def shop(request):
         except (ValueError, TypeError):
             pass
 
-    # Availability
+    # ✅ Availability filter - check both product stock and variant stock
     if available == '1':
-        products = products.filter(stock_quantity__gt=0)
+        # Filter products that have stock OR have variants with stock
+        products = products.filter(
+            Q(stock_quantity__gt=0) |  # Simple product stock
+            Q(variants__stock__gt=0)   # Variant stock
+        ).distinct()
 
     # Sorting
     sort_map = {
-        'popularity': '-id',         # replace with real popularity metric if available
+        'popularity': '-id',
         'newest': '-id',
         'price_asc': 'price_eff',
         'price_desc': '-price_eff',
@@ -85,17 +88,28 @@ def shop(request):
     # Facets
     categories = Category.objects.filter(is_active=True).order_by('name')
     brands     = Brand.objects.all().order_by('name')
+    
+    # ✅ Build products list with pricing and stock info
     products_list = []
     for product in products:
         product.final_price = product.get_final_price()
         product.discount_percent = product.get_discount_percent()
         product.extra_off = product.get_extra_off()
-       
-
+        
+        # ✅ Calculate stock availability
+        if product.variants.exists():
+            # For variant products - sum all variant stocks
+            product.total_stock = sum(int(v.stock or 0) for v in product.variants.all())
+            product.in_stock = product.total_stock > 0
+        else:
+            # For simple products
+            product.total_stock = int(product.stock_quantity or 0)
+            product.in_stock = product.total_stock > 0
+        
         products_list.append(product)
 
     # Pagination (15 per page)
-    paginator = Paginator(products, 15)
+    paginator = Paginator(products_list, 15)  # ✅ Changed from products to products_list
     page_num  = request.GET.get('page')
     page_obj  = paginator.get_page(page_num)
 
@@ -105,7 +119,7 @@ def shop(request):
     active_brands = Brand.objects.filter(id__in=brand_ids) if brand_ids else Brand.objects.none()
 
     if q:
-        dynamic_title = f"Results for “{q}”"
+        dynamic_title = f"Results for `{q}`"
     elif active_cats.exists() and active_brands.exists():
         dynamic_title = f"{active_brands.first().name} in {active_cats.first().name}"
     elif active_cats.exists():
@@ -122,7 +136,7 @@ def shop(request):
             "q": q,
             "category": cat_ids,
             "brand": brand_ids,
-            "color": color_terms,   # persist applied colors for template checks
+            "color": color_terms,
             "min": price_min,
             "max": price_max,
             "available": available,
@@ -131,22 +145,53 @@ def shop(request):
         "crumbs": [("Home", "> "), ("Shop", request.path)],
         "page_title": dynamic_title,
     }
-    for product in products_list:
-        print(product.name, product.extra_off)
+    
     return render(request, "user/shop.html", ctx)
+
 
 def shop_category_by_id(request, id):
     category = get_object_or_404(Category, id=id, is_active=True)
-    products = Product.objects.filter(category=category, is_listed=True).select_related('brand','category')
+    products = Product.objects.filter(
+        category=category, 
+        is_listed=True
+    ).select_related('brand', 'category').prefetch_related('variants', 'images')
+    
+    # ✅ Add stock info to products
+    products_list = []
+    for product in products:
+        product.final_price = product.get_final_price()
+        product.discount_percent = product.get_discount_percent()
+        product.extra_off = product.get_extra_off()
+        
+        # Calculate stock
+        if product.variants.exists():
+            product.total_stock = sum(int(v.stock or 0) for v in product.variants.all())
+            product.in_stock = product.total_stock > 0
+        else:
+            product.total_stock = int(product.stock_quantity or 0)
+            product.in_stock = product.total_stock > 0
+        
+        products_list.append(product)
+    
     return render(request, 'user/shop.html', {
-        'products': products,
+        'products': products_list,  # ✅ Changed to products_list
         'categories': Category.objects.filter(is_active=True),
         'brands': Brand.objects.all(),
-        'applied': {'category': [str(id)], 'q': '', 'brand': [], 'min': None, 'max': None, 'available': None, 'sort': 'popularity'},
+        'applied': {
+            'category': [str(id)], 
+            'q': '', 
+            'brand': [], 
+            'min': None, 
+            'max': None, 
+            'available': None, 
+            'sort': 'popularity'
+        },
         'crumbs': [("Home", reverse("home")), ("Shop", reverse("shop")), (category.name, None)],
         'page_title': category.name,
     })
-    
+
+
+# Keep your existing helper functions
 def get_final_discounted_price(product):
     today = timezone.now().date()
     base_offer = product.offers.filter(
@@ -189,8 +234,8 @@ def get_discount_percentage(product):
     except ZeroDivisionError:
         return 0
 
+
 def get_extra_offer_amount(product):
-    from decimal import Decimal
     today = timezone.now().date()
     regular_discount = product.discount_price or product.base_price
     extra_offer = product.offers.filter(

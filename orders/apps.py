@@ -1,9 +1,11 @@
+# orders/apps.py
+
 from django.apps import AppConfig
+
 
 class OrdersConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'orders'
-
-    def ready(self):
-        # Import signal handlers so Django connects them on app init
-        from . import signals  # noqa
+    
+    # Signal-based refunds disabled to prevent double refunds
+    # Refunds now handled manually in views using refund_service.py

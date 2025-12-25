@@ -125,15 +125,31 @@ def _sum_items(session_cart):
             total += int(lines)
     return total
 
-
 def _validate_cart_items(request):
-    """Remove out-of-stock or invalid items from cart"""
+    """
+    Remove invalid items from cart:
+    - Product deleted or unlisted
+    - Category inactive  # ✅ NEW
+    - Out of stock
+    - Quantity exceeds stock
+    """
     cart_map = _get_session_cart(request)
     cleaned = False
     
     for pid_str in list(cart_map.keys()):
         try:
-            product = Product.objects.get(id=pid_str, is_listed=True)
+            # ✅ Fetch category in same query
+            product = Product.objects.select_related('category').get(
+                id=pid_str, 
+                is_listed=True
+            )
+            
+            # ✅ CHECK: Category is active (NEW!)
+            if product.category and not product.category.is_active:
+                del cart_map[pid_str]
+                cleaned = True
+                continue  # Skip to next product
+            
             node = cart_map[pid_str]
             
             if isinstance(node, list):
@@ -160,6 +176,7 @@ def _validate_cart_items(request):
                     cleaned = True
                     
         except Product.DoesNotExist:
+            # Product deleted or unlisted
             del cart_map[pid_str]
             cleaned = True
     
@@ -167,6 +184,7 @@ def _validate_cart_items(request):
         _set_session_cart(request, cart_map)
     
     return cleaned
+
 
 
 

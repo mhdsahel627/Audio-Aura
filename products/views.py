@@ -328,6 +328,7 @@ def check_stock(request, variant_id):
 @never_cache
 def product_detail(request, id):
     try:
+        # ✅ BOTH CHECKS: product.is_listed AND category.is_active
         product = (
             Product.objects
             .select_related("category", "brand")
@@ -336,11 +337,18 @@ def product_detail(request, id):
                 Prefetch("images", to_attr="prefetched_images"),
                 "detailed_images",
             )
-            .get(id=id, is_listed=True)
+            .get(
+                id=id, 
+                is_listed=True,              # ✅ Product must be listed
+                category__is_active=True     # ✅ Category must be active
+            )
         )
+            
     except ObjectDoesNotExist:
+        messages.error(request, "This product is currently unavailable.")
         return redirect("shop")
 
+    # ✅ Only active categories in sidebar
     categories = Category.objects.filter(is_active=True).order_by("name")
 
     default_variant = None
@@ -376,21 +384,18 @@ def product_detail(request, id):
     final_price = product.get_final_price()
     discount_percent = product.get_discount_percent()
 
-
     # Get active offers for this product
     today = date.today()
     active_coupons = Coupon.objects.filter(
         is_active=True,
         expiry_date__gte=today,
-        min_items__gt=0  # ONLY show quantity-based coupons
-    ).order_by('display_order', 'min_items')[:4]  # Sort by quantity (2, 5, 10...)
+        min_items__gt=0
+    ).order_by('display_order', 'min_items')[:4]
 
     offers = []
     for coupon in active_coupons:
-        # Only show condition based on min_items (ignore min_purchase)
         condition_text = f"Buy {coupon.min_items} or more"
         
-        # Discount text
         if coupon.coupon_type == 'percent':
             discount_text = f"Get {coupon.discount:.0f}% off"
         else:
@@ -405,7 +410,6 @@ def product_detail(request, id):
             'badge': coupon.badge or "",
             'min_items': coupon.min_items,
         })
-
 
     return render(
         request,
@@ -422,7 +426,7 @@ def product_detail(request, id):
             "variant_stock_map_json": variant_stock_map_json,
             "final_price": final_price,
             "discount_percent": discount_percent,
-            "offers": offers,  # ✅ ADD THIS LINE
+            "offers": offers,
         },
     )
 

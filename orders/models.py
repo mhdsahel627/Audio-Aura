@@ -10,6 +10,7 @@ from decimal import Decimal
 class Order(models.Model):
     PM_CHOICES = [
         ('COD', 'Cash on Delivery'),
+        ('razorpay', 'Razorpay'),  # ✅ ADD THIS (used in payment flow)
         ('CARD', 'Card'),
         ('UPI', 'UPI'),
         ('NET', 'Netbanking'),
@@ -24,6 +25,8 @@ class Order(models.Model):
         ('RETURN_REQUESTED', 'Return Requested'),
         ('RETURN_APPROVED', 'Return Approved'),
         ('RETURNED', 'Returned'),
+        ('PENDING', 'Pending'),  # ✅ ADD THIS (for unpaid Razorpay orders)
+        ('FAILED', 'Failed'),    # ✅ ADD THIS (for failed payments)
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='orders')
@@ -41,6 +44,26 @@ class Order(models.Model):
     payment_method = models.CharField(max_length=8, choices=PM_CHOICES, default='COD')
     status = models.CharField(max_length=25, choices=ST_CHOICES, default='PLACED')
 
+    # ✅ ADD THESE RAZORPAY FIELDS
+    razorpay_order_id = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True,
+        help_text="Razorpay Order ID for tracking"
+    )
+    razorpay_payment_id = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True,
+        help_text="Razorpay Payment ID for refunds"
+    )
+    razorpay_signature = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True,
+        help_text="Razorpay signature for verification"
+    )
+
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     shipping_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -56,7 +79,7 @@ class Order(models.Model):
     ship_postcode = models.CharField(max_length=20, blank=True)
     ship_country = models.CharField(max_length=90, default='India')
 
-    # ✅ Delivery fields
+    # Delivery fields
     delivery_days = models.IntegerField(default=5)
     expected_delivery_date = models.DateField(null=True, blank=True)
     delay_notified = models.BooleanField(default=False)
@@ -182,7 +205,6 @@ class Order(models.Model):
         
         return total_active.quantize(Decimal('0.01'))
 
-
 class OrderItem(models.Model):
     class ItemStatus(models.TextChoices):
         PLACED = "PLACED", "Placed"
@@ -201,12 +223,18 @@ class OrderItem(models.Model):
         DUPLICATE_ORDER = "DUPLICATE_ORDER", "Duplicate order"
         OTHER = "OTHER", "Other reason"
     
+    class RefundStatus(models.TextChoices):
+        PENDING = 'PENDING', 'Pending'
+        PROCESSING = 'PROCESSING', 'Processing'
+        COMPLETED = 'COMPLETED', 'Completed'
+        FAILED = 'FAILED', 'Failed'
+    
     order = models.ForeignKey("Order", on_delete=models.CASCADE, related_name="items")
     
     # ✅ SNAPSHOT FIELDS - Store product/variant info at time of order
     product_id = models.PositiveIntegerField()
     
-    # ✅ NEW FIELD - Store which variant was purchased
+    # ✅ Store which variant was purchased
     variant_id = models.PositiveIntegerField(
         null=True, 
         blank=True,
@@ -252,7 +280,40 @@ class OrderItem(models.Model):
     returned_at = models.DateTimeField(blank=True, null=True)
     return_reason = models.TextField(blank=True, null=True)
 
-    # ✅ NEW: Return policy constant
+    # ✅ REFUND TRACKING FIELDS - Prevents double refund
+    refund_status = models.CharField(
+        max_length=20, 
+        choices=RefundStatus.choices,
+        null=True, 
+        blank=True,
+        help_text="Refund processing status"
+    )
+    refund_amount = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text="Amount refunded for this item"
+    )
+    refund_method = models.CharField(
+        max_length=20, 
+        null=True, 
+        blank=True,
+        help_text="Refund method: razorpay, wallet, store_credit"
+    )
+    refund_id = models.CharField(
+        max_length=100, 
+        null=True, 
+        blank=True,
+        help_text="Razorpay refund ID (if applicable)"
+    )
+    refund_processed_at = models.DateTimeField(
+        null=True, 
+        blank=True,
+        help_text="When refund was completed"
+    )
+
+    # ✅ Return policy constant
     RETURN_WINDOW_DAYS = 10
 
     def mark_returned(self, reason: str = ""):
@@ -263,7 +324,7 @@ class OrderItem(models.Model):
         self.returned_at = timezone.now()
         self.save(update_fields=["status", "return_reason", "returned_at"])
 
-    # ✅ NEW: Return eligibility check
+    # ✅ Return eligibility check
     def is_return_eligible(self):
         """
         Check if item is eligible for return (within 10 days of delivery)
@@ -304,7 +365,7 @@ class OrderItem(models.Model):
         
         return True, f"{days_remaining} day{'s' if days_remaining != 1 else ''} left to return"
 
-    # ✅ NEW: Get return deadline date
+    # ✅ Get return deadline date
     def get_return_deadline(self):
         """
         Get the last date to return this item
@@ -314,7 +375,7 @@ class OrderItem(models.Model):
             return self.delivered_at + timedelta(days=self.RETURN_WINDOW_DAYS)
         return None
 
-    # ✅ NEW: Check if return period has expired
+    # ✅ Check if return period has expired
     def is_return_period_expired(self):
         """
         Check if the 10-day return window has passed
@@ -329,7 +390,7 @@ class OrderItem(models.Model):
         
         return False
 
-    # ✅ NEW: Get days remaining for return
+    # ✅ Get days remaining for return
     def get_days_until_return_expires(self):
         """
         Get number of days remaining in return window
@@ -347,6 +408,7 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product_name} x {self.quantity}"
+
 
 
 class ActionRequest(models.Model):

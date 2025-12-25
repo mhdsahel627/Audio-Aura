@@ -18,8 +18,8 @@ from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from .forms import ReturnReasonForm
 from django.core.mail import mail_admins 
-from xhtml2pdf import pisa
-import io
+import os
+import pdfkit
 from django.template.loader import get_template
 from decimal import Decimal 
 from payments.views import _gen_order_number
@@ -1055,13 +1055,12 @@ def admin_order_detail(request, pk):
 def admin_action_requests(request):
     pending = ActionRequest.objects.select_related("order", "item", "requested_by").filter(state="PENDING").order_by("-requested_at")
     return render(request, "admin/action_requests.html", {"pending": pending})
+
+from orders.refund_service import process_order_item_refund 
 @staff_member_required
 @transaction.atomic
 def approve_action_request(request, pk):
-    """
-    Admin approves cancellation or return request
-    ✅ Releases VARIANT stock for both CANCEL and RETURN
-    """
+    """Admin approves cancellation or return request"""
     ar = get_object_or_404(
         ActionRequest.objects.select_related('order', 'item'), 
         pk=pk, 
@@ -1070,10 +1069,9 @@ def approve_action_request(request, pk):
     now = timezone.now()
     item, order = ar.item, ar.order
     
-    # ✅ RELEASE VARIANT STOCK for both CANCEL and RETURN
+    # ✅ RELEASE VARIANT STOCK (your existing code is perfect!)
     try:
         if item.variant_id:
-            # Release variant stock (also updates product total)
             variant = ProductVariant.objects.select_for_update().get(id=item.variant_id)
             stock_info = variant.release_stock(
                 item.quantity,
@@ -1081,7 +1079,6 @@ def approve_action_request(request, pk):
                 reason=f"{ar.kind} approved: {order.order_number}"
             )
             
-            # Log transaction
             StockTransaction.objects.create(
                 product=variant.product,
                 variant=variant,
@@ -1094,7 +1091,6 @@ def approve_action_request(request, pk):
                 created_by=request.user
             )
         else:
-            # Fallback: Release product stock (for products without variants)
             product = Product.objects.select_for_update().get(id=item.product_id)
             stock_before = product.stock_quantity
             product.stock_quantity += item.quantity
@@ -1112,33 +1108,28 @@ def approve_action_request(request, pk):
             )
             
     except (ProductVariant.DoesNotExist, Product.DoesNotExist):
-        # Product/variant deleted - skip stock restoration but continue
         pass
     except Exception as e:
-        # Log error but don't block approval
         print(f"Could not restore stock for item {item.id}: {e}")
     
-    # ✅ UPDATE ITEM STATUS based on request type
+    # ✅ UPDATE ITEM STATUS
     if ar.kind == 'CANCEL':
         if item.status not in [OrderItem.ItemStatus.CANCELLED, OrderItem.ItemStatus.RETURNED]:
             item.status = OrderItem.ItemStatus.CANCELLED
             item.cancelled_at = now
-            update_fields = ['status', 'cancelled_at']
-            item.save(update_fields=update_fields)
+            item.save(update_fields=['status', 'cancelled_at'])
     
     elif ar.kind == 'RETURN':
         if item.status != OrderItem.ItemStatus.RETURNED:
             item.status = OrderItem.ItemStatus.RETURNED
             item.return_reason = ar.reason or item.return_reason
             item.returned_at = now
-            update_fields = ['status', 'return_reason', 'returned_at']
-            item.save(update_fields=update_fields)
+            item.save(update_fields=['status', 'return_reason', 'returned_at'])
     
-    # ✅ UPDATE ORDER STATUS
+    # ✅ UPDATE ORDER STATUS (your existing code)
     statuses = list(order.items.values_list('status', flat=True))
     
     if all(s in [OrderItem.ItemStatus.CANCELLED, OrderItem.ItemStatus.RETURNED] for s in statuses):
-        # All items cancelled or returned
         order.status = 'RETURNED' if any(s == OrderItem.ItemStatus.RETURNED for s in statuses) else 'CANCELLED'
         if order.status == 'CANCELLED' and not order.cancelled_at:
             order.cancelled_at = now
@@ -1147,50 +1138,36 @@ def approve_action_request(request, pk):
             order.save(update_fields=['status'])
     
     elif any(s == OrderItem.ItemStatus.RETURNED for s in statuses):
-        # Some items returned
         order.status = 'PARTIALLY_RETURNED'
         order.save(update_fields=['status'])
     
     elif any(s == OrderItem.ItemStatus.CANCELLED for s in statuses):
-        # Some items cancelled
         order.status = 'PARTIALLY_CANCELLED'
         order.save(update_fields=['status'])
     
-    elif all(s == OrderItem.ItemStatus.DELIVERED for s in statuses):
-        # All delivered
-        if not order.delivered_at:
-            order.delivered_at = now
-            order.save(update_fields=['delivered_at'])
-    
-    # ✅ APPROVE THE REQUEST
+    # ✅ APPROVE REQUEST
     ar.state = 'APPROVED'
     ar.decided_by = request.user
     ar.decided_at = now
     ar.save(update_fields=['state', 'decided_by', 'decided_at'])
     
-    # ✅ PROCESS REFUND if applicable
-    if order.payment_method != 'COD' and order.paid_at:
-        refund_amount = order.calculate_item_refund(item)
-        from wallet.services import credit
-        idem = f"refund:{ar.kind.lower()}:item:{item.id}"
-        refund_note = f"Refund for {item.product_name} ({ar.kind.title()}: {order.order_number})"
+    # ✅ PROCESS REFUND - NEW METHOD (Payment method aware!)
+    if order.paid_at:  # Only refund if order was paid
+        refund_result = process_order_item_refund(
+            order_item=item,
+            reason=f"{ar.kind} approved by admin"
+        )
         
-        try:
-            credit(
-                order.user, 
-                refund_amount, 
-                description=refund_note, 
-                reference=str(order.id), 
-                idem_key=idem
-            )
+        if refund_result['success']:
             messages.success(
                 request, 
-                f'{ar.kind.title()} approved. Stock restored and ₹{refund_amount:.2f} refunded to customer wallet.'
+                f'{ar.kind.title()} approved. Stock restored and ₹{refund_result["amount"]:.2f} '
+                f'refunded via {refund_result["method"]}.'
             )
-        except Exception as e:
+        else:
             messages.warning(
                 request, 
-                f'{ar.kind.title()} approved. Stock restored but refund failed: {str(e)}'
+                f'{ar.kind.title()} approved. Stock restored but refund failed: {refund_result["message"]}'
             )
     else:
         messages.success(request, f'{ar.kind.title()} approved and stock restored.')
@@ -1354,7 +1331,6 @@ def request_return_item(request, order_number, item_id):
     return redirect("order_item_detail", order_number=order_number, item_id=item_id)
 
 
-
 @login_required
 @transaction.atomic
 def cancel_item_now(request, order_number, item_id):
@@ -1376,7 +1352,6 @@ def cancel_item_now(request, order_number, item_id):
         messages.error(request, "Please select a cancellation reason.")
         return redirect("order_item_detail", order_number=order_number, item_id=item_id)
     
-    refund_amount = order.calculate_item_refund(item)
     now = timezone.now()
     
     # Update item status
@@ -1386,10 +1361,9 @@ def cancel_item_now(request, order_number, item_id):
     item.cancellation_note = note if note else None
     item.save(update_fields=["status", "cancelled_at", "cancellation_reason", "cancellation_note"])
 
-    # ✅ RELEASE VARIANT STOCK
+    # ✅ RELEASE VARIANT STOCK (your existing code is perfect!)
     try:
         if item.variant_id:
-            # Release variant stock (also updates product total)
             variant = ProductVariant.objects.select_for_update().get(id=item.variant_id)
             stock_info = variant.release_stock(
                 item.quantity,
@@ -1397,7 +1371,6 @@ def cancel_item_now(request, order_number, item_id):
                 reason=f"Order cancelled: {order.order_number}"
             )
             
-            # Log transaction
             StockTransaction.objects.create(
                 product=variant.product,
                 variant=variant,
@@ -1410,7 +1383,6 @@ def cancel_item_now(request, order_number, item_id):
                 created_by=request.user
             )
         else:
-            # Fallback: Release product stock
             product = Product.objects.select_for_update().get(id=item.product_id)
             stock_before = product.stock_quantity
             product.stock_quantity += item.quantity
@@ -1428,20 +1400,23 @@ def cancel_item_now(request, order_number, item_id):
             )
             
     except (ProductVariant.DoesNotExist, Product.DoesNotExist):
-        pass  # Product/variant deleted
+        pass
     except Exception as e:
         print(f"Could not restore stock: {e}")
 
-    # Process refund
-    if order.payment_method != 'COD' and order.paid_at:
-        from wallet.services import credit
-        idem = f"refund:order_item:{item.id}"
-        refund_note = f"Refund for {item.product_name} (Order {order.order_number})"
+    # ✅ PROCESS REFUND - NEW METHOD (Payment method aware!)
+    if order.paid_at:  # Only refund if paid
+        refund_result = process_order_item_refund(
+            order_item=item,
+            reason="User cancelled order"
+        )
         
-        try:
-            credit(order.user, refund_amount, description=refund_note, reference=str(order.id), idem_key=idem)
-            messages.success(request, f"Item cancelled. ₹{refund_amount:.2f} refunded to wallet.")
-        except Exception as e:
+        if refund_result['success']:
+            messages.success(
+                request, 
+                f"Item cancelled. ₹{refund_result['amount']:.2f} refunded via {refund_result['method']}."
+            )
+        else:
             messages.warning(request, "Item cancelled but refund failed. Contact support.")
     else:
         messages.success(request, "Item cancelled successfully.")
@@ -1458,6 +1433,7 @@ def cancel_item_now(request, order_number, item_id):
         order.save(update_fields=["status"])
 
     return redirect("order_item_detail", order_number=order_number, item_id=item_id)
+
 
 
 
@@ -1684,7 +1660,7 @@ def checkout(request):
         expiry_date__gte=today
     ).order_by('-discount')
     ctx['coupons'] = active_coupons
-    
+
     # Coupon handling
     coupon_discount = Decimal(str(request.session.get('applied_coupon_discount', 0)))
     applied_code = request.session.get('applied_coupon')
@@ -1919,59 +1895,99 @@ def confirm_order(request):
 """# invoice Download"""
 
 
-def _render_to_pdf(template_src, context):
-    template = get_template(template_src)
-    html = template.render(context)
-    result = io.BytesIO()
-    pdf = pisa.pisaDocument(io.BytesIO(html.encode("UTF-8")), dest=result, encoding="UTF-8")
-    return None if pdf.err else result.getvalue()
+def get_wkhtmltopdf_config():
+    """Get wkhtmltopdf configuration"""
+    path = r'C:\Program Files\wkhtmltopdf\bin)\bin\wkhtmltopdf.exe'
+    
+    if os.path.exists(path):
+        return pdfkit.configuration(wkhtmltopdf=path)
+    
+    # Fallback to PATH
+    return pdfkit.configuration()
+
+
+def _render_to_pdf_wkhtmltopdf(template_src, context):
+    """Render HTML to PDF"""
+    html = render_to_string(template_src, context)
+    
+    options = {
+        'page-size': 'A4',
+        'margin-top': '0mm',
+        'margin-right': '0mm',
+        'margin-bottom': '0mm',
+        'margin-left': '0mm',
+        'encoding': 'UTF-8',
+        'enable-local-file-access': None,
+        'dpi': 300,
+        'image-quality': 100,
+    }
+    
+    try:
+        config = get_wkhtmltopdf_config()
+        pdf = pdfkit.from_string(html, False, options=options, configuration=config)
+        return pdf
+    except Exception as e:
+        print(f"❌ PDF Error: {e}")
+        return None
+
 
 @staff_member_required
 def admin_download_invoice(request, pk):
+    """Admin: Download invoice"""
     order = get_object_or_404(Order.objects.prefetch_related("items"), pk=pk)
-    # if not (order.paid_at or order.delivered_at):
-    #     return HttpResponseForbidden("Invoice not available yet.")
-    pdf = _render_to_pdf("invoices/invoice.html", {
+    
+    pdf = _render_to_pdf_wkhtmltopdf("invoices/invoice.html", {
         "order": order,
         "items": order.items.all(),
-        "delivered": bool(order.delivered_at),
     })
-    resp = HttpResponse(pdf, content_type="application/pdf")
-    resp["Content-Disposition"] = f'attachment; filename="invoice-{order.order_number}.pdf"'
-    return resp
+    
+    if not pdf:
+        return HttpResponse("Error generating PDF", status=500)
+    
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="Invoice-{order.order_number}.pdf"'
+    return response
+
 
 @login_required
 def user_download_invoice(request, order_number):
-    order = get_object_or_404(Order.objects.prefetch_related("items"), order_number=order_number, user=request.user)
-    # if not (order.paid_at or order.delivered_at):
-    #     return HttpResponseForbidden("Invoice not available yet.")
-    pdf = _render_to_pdf("invoices/invoice.html", {
+    """User: Download invoice"""
+    order = get_object_or_404(
+        Order.objects.prefetch_related("items"), 
+        order_number=order_number, 
+        user=request.user
+    )
+    
+    pdf = _render_to_pdf_wkhtmltopdf("invoices/invoice.html", {
         "order": order,
         "items": order.items.all(),
-        "delivered": bool(order.delivered_at),
     })
-    resp = HttpResponse(pdf, content_type="application/pdf")
-    resp["Content-Disposition"] = f'attachment; filename="invoice-{order.order_number}.pdf"'
-    return resp
+    
+    if not pdf:
+        return HttpResponse("Error generating PDF", status=500)
+    
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="Invoice-{order.order_number}.pdf"'
+    return response
+
 
 @login_required
 def user_download_item_invoice(request, order_number, item_id):
+    """User: Download item invoice"""
     order = get_object_or_404(Order, order_number=order_number, user=request.user)
     item = get_object_or_404(OrderItem, id=item_id, order=order)
-    # if not (order.paid_at or order.delivered_at):
-    #     return HttpResponseForbidden("Invoice not available yet.")
-    pdf = _render_to_pdf("invoices/invoice.html", {
+    
+    pdf = _render_to_pdf_wkhtmltopdf("invoices/invoice.html", {
         "order": order,
         "items": [item],
-        "delivered": bool(order.delivered_at),
     })
-    resp = HttpResponse(pdf, content_type="application/pdf")
-    resp["Content-Disposition"] = f'attachment; filename="invoice-{order.order_number}-item-{item.id}.pdf"'
-    return resp
-
-
-
-
+    
+    if not pdf:
+        return HttpResponse("Error generating PDF", status=500)
+    
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="Invoice-{order.order_number}-Item-{item.id}.pdf"'
+    return response
 
 @login_required
 @transaction.atomic

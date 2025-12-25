@@ -962,6 +962,10 @@ background: #181b1e;
                 e.preventDefault();
                 const card = form.closest('.cart-card');
                 const fd = new FormData(form);
+                
+                // Show loading toast
+                showToast('⏳ Removing item...');
+                
                 try {
                     const res = await fetch(form.action, {
                         method: 'POST',
@@ -972,29 +976,27 @@ background: #181b1e;
                         body: fd
                     });
                     const data = await res.json();
+                    
                     if (!res.ok || !data?.ok) throw new Error('Remove failed');
                     
-                    // ✅ Check if coupon was removed
-                    if (data.coupon_removed && data.coupon_message) {
-                        showToast('❌ ' + data.coupon_message);
-                        setTimeout(() => location.reload(), 2000);
-                        return;
-                    }
+                    // ✅ ALWAYS RELOAD - This fixes your issue!
+                    showToast('✓ Item removed successfully');
+                    setTimeout(() => location.reload(), 500);
                     
-                    card.remove();
-                    if (document.querySelectorAll('.cart-card').length === 0) location.reload();
                 } catch(err) { 
                     console.error(err); 
+                    // Fallback: submit form normally
                     form.submit(); 
                 }
             });
         });
         
-        // Empty cart button handler (keep as is)
+        // Empty cart button handler
         const emptyHeaderBtn = document.querySelector('.cart-header .btn.btn-danger-outline');
         if (emptyHeaderBtn) {
             emptyHeaderBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
+                showToast('⏳ Emptying cart...');
                 try {
                     const res = await fetch("{% url 'cart_empty' %}", {
                         method: 'POST',
@@ -1012,6 +1014,7 @@ background: #181b1e;
             });
         }
     }
+
 
   // ========== COUPON MODAL ==========
   function showCartCouponModal() {

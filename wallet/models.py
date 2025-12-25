@@ -37,6 +37,16 @@ class WalletTransaction(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='completed')
     description = models.CharField(max_length=128, blank=True)
     reference = models.CharField(max_length=64, blank=True)
+    
+    # ✅ ADD THIS - Critical for preventing duplicate refunds
+    idem_key = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True, 
+        db_index=True,
+        help_text="Idempotency key to prevent duplicate transactions"
+    )
+    
     meta = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -46,6 +56,15 @@ class WalletTransaction(models.Model):
         indexes = [
             models.Index(fields=['-created_at']),
             models.Index(fields=['kind', 'status']),
+            models.Index(fields=['account', 'idem_key']),  # ✅ ADD THIS
+        ]
+        # ✅ OPTIONAL: Prevent duplicate idem_keys per account
+        constraints = [
+            models.UniqueConstraint(
+                fields=['account', 'idem_key'],
+                condition=models.Q(idem_key__isnull=False),
+                name='unique_account_idem_key'
+            )
         ]
 
     def save(self, *args, **kwargs):

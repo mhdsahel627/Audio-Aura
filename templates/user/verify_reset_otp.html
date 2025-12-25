@@ -42,42 +42,71 @@
         display: none;
       }
     }
+    
     .custom-toast {
-    background: rgba(0, 0, 0, 0.85);
-    color: #fff;
-    padding: 12px 24px;
-    margin-top: 10px;
-    border-radius: 16px;
-    text-align: center;
-    font-size: 15px;
-    font-weight: 500;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    opacity: 0;
-    transform: translateY(-30px) scale(0.95);
-    animation: slideDown 0.5s forwards, fadeOut 0.5s 3s forwards;
-  }
-
-  @keyframes slideDown {
-    from {
+      background: rgba(0, 0, 0, 0.85);
+      color: #fff;
+      padding: 12px 24px;
+      margin-top: 10px;
+      border-radius: 16px;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
       opacity: 0;
       transform: translateY(-30px) scale(0.95);
+      animation: slideDown 0.5s forwards, fadeOut 0.5s 3s forwards;
     }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
 
-  @keyframes fadeOut {
-    from {
-      opacity: 1;
-      transform: translateY(0) scale(1);
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-30px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
     }
-    to {
-      opacity: 0;
-      transform: translateY(-30px) scale(0.95);
+
+    @keyframes fadeOut {
+      from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(-30px) scale(0.95);
+      }
     }
-  }
+
+    /* ✅ Disabled Resend Button Styles */
+    #resendBtn.disabled {
+      color: #6b7280 !important;
+      cursor: not-allowed !important;
+      pointer-events: none !important;
+      opacity: 0.5;
+    }
+
+    #resendBtn:not(.disabled) {
+      color: #ec4899;
+      cursor: pointer;
+    }
+
+    #resendBtn:not(.disabled):hover {
+      color: #f9a8d4;
+    }
+
+    /* Timer highlight when active */
+    #countdown.active {
+      color: #fbbf24;
+      font-weight: 700;
+    }
+
+    #countdown.expired {
+      color: #ef4444;
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
@@ -92,9 +121,7 @@
     <!-- Right Side - OTP Form -->
     <div class="w-full md:w-1/2 flex items-center justify-center p-6 sm:p-10">
       <div id="notification-container" 
-     class="fixed top-5 left-1/2 transform -translate-x-1/2 p-3 space-y-2 z-50 w-auto max-w-md">
-
-
+           class="fixed top-5 left-1/2 transform -translate-x-1/2 p-3 space-y-2 z-50 w-auto max-w-md">
         {% if messages %}
           {% for message in messages %}
             <div class="custom-toast {{ message.tags|default:'info' }}">
@@ -102,8 +129,8 @@
             </div>
           {% endfor %}
         {% endif %}
-
       </div>      
+      
       <div class="w-full max-w-sm text-center">
 
         <!-- Logo -->
@@ -114,9 +141,9 @@
         <h1 class="text-2xl sm:text-3xl font-bold text-white mb-3 sm:mb-4">Verify OTP</h1>
         
         <p class="text-gray-300 mb-6 sm:mb-8 text-sm sm:text-base leading-relaxed">
-          We’ve sent an OTP to your email
+          We've sent an OTP to your email
           <br>
-          <span class="text-pink-400 font-semibold">{{ email }}</span>
+          <span class="text-pink-400 font-semibold">{{ temp_user.email }}</span>
         </p>
 
         <!-- OTP Form -->
@@ -124,10 +151,10 @@
           {% csrf_token %}
           
           <div class="flex justify-center space-x-3 sm:space-x-4 mb-6 sm:mb-8">
-            <input type="text" maxlength="1" class="otp-input" data-index="0">
-            <input type="text" maxlength="1" class="otp-input" data-index="1">
-            <input type="text" maxlength="1" class="otp-input" data-index="2">
-            <input type="text" maxlength="1" class="otp-input" data-index="3">
+            <input type="text" maxlength="1" class="otp-input" data-index="0" autocomplete="off">
+            <input type="text" maxlength="1" class="otp-input" data-index="1" autocomplete="off">
+            <input type="text" maxlength="1" class="otp-input" data-index="2" autocomplete="off">
+            <input type="text" maxlength="1" class="otp-input" data-index="3" autocomplete="off">
           </div>
 
           <!-- Hidden field to submit combined OTP -->
@@ -137,18 +164,19 @@
           <div class="text-center mb-6 sm:mb-8 space-y-2 text-sm sm:text-base">
             <p class="text-gray-400">
               <span class="font-medium">Send code again in</span>
-              <span class="ml-2 text-white" id="countdown">00:20</span>
+              <span class="ml-2 text-white active" id="countdown">00:30</span>
             </p>
             <p class="text-gray-400">
-              Didn’t receive a code?
+              Didn't receive a code?
               <a href="{% url 'resend_reset_otp' %}"
-                class="text-pink-400 font-medium hover:text-pink-300 transition-colors ml-1"
-                id="resendBtn">Resend</a>
+                 class="text-pink-400 font-medium hover:text-pink-300 transition-colors ml-1 disabled"
+                 id="resendBtn">Resend</a>
             </p>
           </div>
 
           <!-- Verify Button -->
-          <button type="submit" class="w-full py-3 sm:py-4 text-white font-semibold text-base sm:text-lg rounded-lg bg-black hover:bg-gray-800 transition">
+          <button type="submit" 
+                  class="w-full py-3 sm:py-4 text-white font-semibold text-base sm:text-lg rounded-lg bg-black hover:bg-gray-800 transition">
             Verify
           </button>
         </form>
@@ -157,10 +185,14 @@
   </div>
 
   <script>
+    // ============================================
+    // OTP INPUT HANDLING
+    // ============================================
     const otpInputs = document.querySelectorAll('.otp-input');
     const hiddenInput = document.getElementById('otp-hidden');
 
     otpInputs.forEach((input, index) => {
+      // Handle input
       input.addEventListener('input', (e) => {
         if(e.target.value.length > 1) e.target.value = e.target.value.slice(0,1);
         if(e.target.value && index < otpInputs.length - 1) {
@@ -169,38 +201,101 @@
         hiddenInput.value = Array.from(otpInputs).map(i => i.value).join('');
       });
 
+      // Handle backspace
       input.addEventListener('keydown', (e) => {
         if(e.key === 'Backspace' && !e.target.value && index > 0){
           otpInputs[index-1].focus();
         }
       });
+
+      // Paste handling
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const pastedData = e.clipboardData.getData('text').trim();
+        if(/^\d{4}$/.test(pastedData)) {
+          pastedData.split('').forEach((char, idx) => {
+            if(otpInputs[idx]) {
+              otpInputs[idx].value = char;
+            }
+          });
+          otpInputs[3].focus();
+          hiddenInput.value = pastedData;
+        }
+      });
     });
 
-    // Countdown timer
-    let countdown = 20;
+    // ============================================
+    // COUNTDOWN TIMER WITH RESEND BUTTON CONTROL
+    // ============================================
+    let countdown = 30; // ✅ 5 minutes = 300 seconds
     const countdownElement = document.getElementById('countdown');
+    const resendBtn = document.getElementById('resendBtn');
+    
+    // ✅ Initially disable resend button
+    resendBtn.classList.add('disabled');
+    
     const timer = setInterval(() => {
       countdown--;
-      if(countdown >= 0){
+      
+      if(countdown > 0) {
+        // Update display
         const minutes = Math.floor(countdown / 60);
         const seconds = countdown % 60;
         countdownElement.textContent = `${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+        
+        // ✅ Keep button disabled
+        resendBtn.classList.add('disabled');
+        countdownElement.classList.add('active');
+        countdownElement.classList.remove('expired');
       } else {
+        // Timer expired
         clearInterval(timer);
         countdownElement.textContent = '00:00';
+        countdownElement.classList.remove('active');
+        countdownElement.classList.add('expired');
+        
+        // ✅ Enable resend button
+        resendBtn.classList.remove('disabled');
       }
     }, 1000);
-  </script>
-   <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const toasts = document.querySelectorAll('.custom-toast');
-    toasts.forEach(toast => {
-      setTimeout(() => {
-        toast.remove();
-      }, 4000); // 3s visible + 1s buffer
+
+    // ============================================
+    // PREVENT RESEND CLICK BEFORE TIMER EXPIRES
+    // ============================================
+    resendBtn.addEventListener('click', (e) => {
+      if(resendBtn.classList.contains('disabled')) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Show alert (optional)
+        const remaining = Math.ceil(countdown);
+        const mins = Math.floor(remaining / 60);
+        const secs = remaining % 60;
+        alert(`⏱️ Please wait ${mins}:${secs.toString().padStart(2,'0')} before resending OTP`);
+        
+        return false;
+      }
     });
-  });
-</script>
+
+    // ============================================
+    // AUTO-REMOVE TOAST NOTIFICATIONS
+    // ============================================
+    document.addEventListener('DOMContentLoaded', function () {
+      const toasts = document.querySelectorAll('.custom-toast');
+      toasts.forEach(toast => {
+        setTimeout(() => {
+          toast.remove();
+        }, 4000);
+      });
+    });
+
+    // ============================================
+    // AUTO-FOCUS FIRST INPUT
+    // ============================================
+    window.addEventListener('load', () => {
+      otpInputs[0].focus();
+    });
+  </script>
 
 </body>
 </html>

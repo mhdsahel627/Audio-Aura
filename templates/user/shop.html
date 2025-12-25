@@ -631,20 +631,46 @@
     color: #333;
   }
 
-  .add-to-cart {
+/* ✅ Your Existing Add to Cart Button - Keep as is */
+.add-to-cart {
     background: #000;
     color: #fff;
-    padding: 10px 0;
+    padding: 10px 0;  /* Same padding as your original */
     border: none;
     border-radius: 8px;
-    font-size: 15px;
+    font-size: 15px;  /* Same font size as your original */
     font-weight: 600;
     cursor: pointer;
     width: 100%;
     text-align: center;
-  }
+    transition: all 0.3s ease;  /* Added smooth transition */
+}
 
-  .add-to-cart:hover { background: #222; }
+.add-to-cart:hover { 
+    background: #222; 
+}
+
+/* ✅ NEW: Restocking Button - SAME SIZE as Add to Cart */
+.btn-restocking {
+background: #000000;
+    color: #ffffff;
+    /* border: 1px dashed #ccc; */
+    padding: 9px 0;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: not-allowed;
+    width: 100%;
+    text-align: center;
+    text-transform: uppercase;
+    opacity: 0.8;
+    box-sizing: border-box;
+}
+
+.btn-restocking:hover {
+    background: #000000;  /* No hover effect for disabled button */
+    transform: none;
+}
 
   /* ✅ Mobile Responsive */
   @media (max-width: 768px) {
@@ -719,108 +745,6 @@
     padding: 0px 1px;
     display: inline-block;
 }
-</style>
-
-
-<section class="shop-card-section">
-  
-  {% for product in products %}
-  <div class="shop-card" data-product-id="{{ product.id }}">
-    <!-- Left: clickable image -->
-    <a class="shop-card-left link-img" href="{% url 'product_detail' product.id %}" aria-label="{{ product.name }}">
-      {% if product.extra_off > 0 %}
-        <div class="extra-discount-badge">
-          <span class="percent-icon">%</span>
-          EXTRA ₹{{ product.extra_off }} OFF
-        </div>
-      {% endif %}
-
-      <img src="{% if product.images.first %}{{ product.images.first.image_url }}{% else %}{% static 'images/logo.png' %}{% endif %}" alt="{{ product.name }}">
-      {% if product.offer %}
-      <div class="shop-label">{{ product.offer }}</div>
-      {% endif %}
-    </a>
-
-    <!-- Right -->
-    <div class="shop-card-right">
-      <div class="rating">⭐ Be first to review</div>
-
-      <!-- Clickable title -->
-      <h3 class="title">
-        <a class="link-title" href="{% url 'product_detail' product.id %}">{{ product.name }}</a>
-      </h3>
-
-      <!-- Non-clickable price area -->
-      <div class="price-box" aria-label="Price">
-          <span class="sale-price">₹{{ product.final_price|floatformat:0 }}</span>
-          <span class="old-price">₹{{ product.base_price }}</span>
-          {% if product.discount_percent > 0 %}
-            <span class="offer">{{ product.discount_percent }}% off</span>
-          {% endif %}
-        
-      </div>
-
-
-      <hr>
-
-      <div class="features">
-        <span>TWS for 2x Sound</span>
-        <span>Signature Sound</span>
-      </div>
-
-      <!-- Add to Cart -->
-    <form class="add-to-cart-form" method="post" action="{% url 'cart_add' %}" data-name="{{ product.name }}">
-      {% csrf_token %}
-      <input type="hidden" name="product_id" value="{{ product.id }}">
-      <input type="hidden" name="quantity" value="1">
-      <button type="submit" class="add-to-cart">Add To Cart</button>
-    </form>
-
-    </div>
-  </div>
-  {% empty %}
-  <div class="noitem">
-    <h3 style="color: white;">NO Products Available</h3>
-    <img src="https://res.cloudinary.com/dxndvadjt/image/upload/v1765254540/sorry-item-not-found-illustration-svg-download-png-2809510_jmkssa.webp" alt="">
-    
-    
-  </div>
-  
-  {% endfor %}
-</section>
-
-
-{% if products.paginator.num_pages > 1 %}
-<div class="customers-table-footer">
-    <span style="color: #000;">Showing {{ products.start_index }}-{{ products.end_index }} of {{ products.paginator.count }}</span>
-    <div class="cust-pagination">
-        {% if products.has_previous %}
-            <a href="?page={{ products.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><button>&lt;</button></a>
-        {% else %}
-            <button disabled>&lt;</button>
-        {% endif %}
-
-
-        {% for num in products.paginator.page_range %}
-            {% if products.number == num %}
-                <button class="active">{{ num }}</button>
-            {% else %}
-                <a href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><button>{{ num }}</button></a>
-            {% endif %}
-        {% endfor %}
-
-
-        {% if products.has_next %}
-            <a href="?page={{ products.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><button>&gt;</button></a>
-        {% else %}
-            <button disabled>&gt;</button>
-        {% endif %}
-    </div>
-</div>
-{% endif %}
-
-
-<style>
   body {
   
  
@@ -1860,6 +1784,114 @@
 }
 
 </style>
+
+
+<section class="shop-card-section">
+  
+  {% for product in products %}
+  <div class="shop-card" data-product-id="{{ product.id }}">
+    <!-- Left: clickable image -->
+    <a class="shop-card-left link-img" href="{% url 'product_detail' product.id %}" aria-label="{{ product.name }}">
+      {% if product.extra_off > 0 %}
+        <div class="extra-discount-badge">
+          <span class="percent-icon">%</span>
+          EXTRA ₹{{ product.extra_off }} OFF
+        </div>
+      {% endif %}
+
+      <img src="{% if product.images.first %}{{ product.images.first.image_url }}{% else %}{% static 'images/logo.png' %}{% endif %}" alt="{{ product.name }}">
+      {% if product.offer %}
+      <div class="shop-label">{{ product.offer }}</div>
+      {% endif %}
+    </a>
+
+    <!-- Right -->
+    <!-- Right -->
+<div class="shop-card-right">
+  <div class="rating">⭐ Be first to review</div>
+
+  <!-- Clickable title -->
+  <h3 class="title">
+    <a class="link-title" href="{% url 'product_detail' product.id %}">{{ product.name }}</a>
+  </h3>
+
+  <!-- Non-clickable price area -->
+  <div class="price-box" aria-label="Price">
+    <span class="sale-price">₹{{ product.final_price|floatformat:0 }}</span>
+    <span class="old-price">₹{{ product.base_price }}</span>
+    {% if product.discount_percent > 0 %}
+      <span class="offer">{{ product.discount_percent }}% off</span>
+    {% endif %}
+  </div>
+
+  <hr>
+
+  <div class="features">
+    <span>TWS for 2x Sound</span>
+    <span>Signature Sound</span>
+  </div>
+
+  <!-- ✅ CONDITIONAL ADD TO CART / RESTOCKING BUTTON -->
+  {% if product.in_stock %}
+    <!-- In Stock - Show Add to Cart Form -->
+    <form class="add-to-cart-form" method="post" action="{% url 'cart_add' %}" data-name="{{ product.name }}">
+      {% csrf_token %}
+      <input type="hidden" name="product_id" value="{{ product.id }}">
+      <input type="hidden" name="quantity" value="1">
+      <button type="submit" class="add-to-cart">Add To Cart</button>
+    </form>
+  {% else %}
+    <!-- Out of Stock - Show Restocking Button -->
+    <button class="btn-restocking" disabled title="Product is currently out of stock">
+      🚫 Restocking Soon
+    </button>
+  {% endif %}
+
+</div>
+
+  </div>
+  {% empty %}
+  <div class="noitem">
+    <h3 style="color: white;">NO Products Available</h3>
+    <img src="https://res.cloudinary.com/dxndvadjt/image/upload/v1765254540/sorry-item-not-found-illustration-svg-download-png-2809510_jmkssa.webp" alt="">
+    
+    
+  </div>
+  
+  {% endfor %}
+</section>
+
+
+{% if products.paginator.num_pages > 1 %}
+<div class="customers-table-footer">
+    <span style="color: #000;">Showing {{ products.start_index }}-{{ products.end_index }} of {{ products.paginator.count }}</span>
+    <div class="cust-pagination">
+        {% if products.has_previous %}
+            <a href="?page={{ products.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><button>&lt;</button></a>
+        {% else %}
+            <button disabled>&lt;</button>
+        {% endif %}
+
+
+        {% for num in products.paginator.page_range %}
+            {% if products.number == num %}
+                <button class="active">{{ num }}</button>
+            {% else %}
+                <a href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><button>{{ num }}</button></a>
+            {% endif %}
+        {% endfor %}
+
+
+        {% if products.has_next %}
+            <a href="?page={{ products.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"><button>&gt;</button></a>
+        {% else %}
+            <button disabled>&gt;</button>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+
 
 
 

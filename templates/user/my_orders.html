@@ -333,26 +333,36 @@
                   </div>
                 </div>
 
-                <div class="oc-actions">
-                  <div class="status">Status : <b class="{{ it.status_class }}">{{ it.status }}</b></div>
-                  <div>
-                    {% if od.can_retry %}
-                      <a class="pill retry" href="{% url 'retry_payment' od.pk %}">
-                        🔄 Retry Payment
-                      </a>
-                      <div class="failed-notice">
-                        ⚠️ Payment failed. Click retry to complete order.
-                      </div>
-                    {% elif od.is_failed %}
-                      <div class="failed-notice expired">
-                        🕒 Order expired. Please place a new order.
-                      </div>
-                    {% else %}
-                      <a class="pill" href="{% url 'order_item_detail' od.order_id it.id %}">View Details</a>
-                      <a class="pill" href="{% url 'user_download_invoice' od.order_id %}">Invoice</a>
-                    {% endif %}
-                  </div>
+              <div class="oc-actions">
+                <div class="status">Status : <b class="{{ it.status_class }}">{{ it.status }}</b></div>
+                <div>
+                  {% if od.can_retry %}
+                    <a class="pill retry" href="{% url 'retry_payment' od.pk %}">
+                      🔄 Retry Payment
+                    </a>
+                    <div class="failed-notice">
+                      ⚠️ Payment failed. Click retry to complete order.
+                    </div>
+                  {% elif od.is_failed %}
+                    <div class="failed-notice expired">
+                      🕒 Order expired. Please place a new order.
+                    </div>
+                  {% else %}
+                    <a class="pill" href="{% url 'order_item_detail' od.order_id it.id %}">View Details</a>
+                    
+                    <!-- ✅ Full Order Invoice -->
+<a class="pill" href="{% url 'user_download_invoice' od.order_id %}">
+  📄 Full Invoice
+</a>
+                    
+                    <!-- ✅ Individual Item Invoice -->
+<a class="pill" href="{% url 'user_download_item_invoice' od.order_id it.id %}">
+  📋 Item Invoice
+</a>
+                  {% endif %}
                 </div>
+              </div>
+
               </article>
             {% endfor %}
           </section>

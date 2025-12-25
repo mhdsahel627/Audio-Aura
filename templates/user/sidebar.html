@@ -67,6 +67,8 @@
       <span class="arrow">→</span>
     </a>
 
+    <!-- Password Change - Only for email users -->
+    {% if user.has_usable_password %}
     <a class="mi {% if active_tab == 'password' %}is-active{% endif %}" href="{% url 'password_change' %}">
       <span class="ic">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-lock-fill" viewBox="0 0 16 16">
@@ -76,6 +78,8 @@
       <span>Change password</span>
       <span class="arrow">→</span>
     </a>
+    {% endif %}
+
 
     <a class="mi {% if active_tab == 'refer' %}is-active{% endif %}" href="{% url 'refer_code' %}">
       <span class="ic">

@@ -1,5 +1,5 @@
 # home/views.py
-from django.shortcuts import render,redirect
+from django.shortcuts import render, redirect
 from django.views.decorators.cache import never_cache
 from category.models import Category
 from products.models import Product  
@@ -8,10 +8,11 @@ from django.urls import reverse
 from decimal import Decimal
 from django.utils import timezone
 from banner.models import Banner
-from banner.models import DealOfMonth, DealImage,FeaturedProduct
+from banner.models import DealOfMonth, DealImage, FeaturedProduct
 
 
 """ .......................................................Home Page..................................... """
+
 
 @never_cache
 def HomePage(request):
@@ -42,8 +43,11 @@ def HomePage(request):
     else:
         order_by = '-id'
 
-    # Fetch only listed products
-    latest_products = Product.objects.filter(is_listed=True).order_by(order_by)[:8]
+    # ✅ FIXED: Only fetch products from active categories
+    latest_products = Product.objects.filter(
+        is_listed=True,
+        category__is_active=True  # ✅ NEW: Only active categories
+    ).select_related('category').order_by(order_by)[:8]
 
     # Enrich with price and offers info
     for p in latest_products:
@@ -66,9 +70,12 @@ def HomePage(request):
         'categories': categories,
         'latest_products': latest_products,
     })
+
+
 """ .......................................................Filter New Arrivals..................................... """
 
-@never_cache  # Prevent caching to ensure latest products are always shown
+
+@never_cache
 def filter_new_arrivals(request):
     """
     AJAX endpoint to filter and display latest/new arrival products.
@@ -76,6 +83,7 @@ def filter_new_arrivals(request):
     Behavior:
     - Accepts an optional 'category' GET parameter to filter products by category name.
     - Fetches only products that are listed (is_listed=True).
+    - Only shows products from active categories (is_active=True).
     - Determines a valid ordering field ('-created_at' preferred, fallback '-id').
     - Selects the latest 12 products after ordering.
     - Generates HTML for each product card, including image, discount info, rating, offer, and variants.
@@ -91,12 +99,25 @@ def filter_new_arrivals(request):
     # Get category filter from GET request, remove leading/trailing spaces
     category_name = request.GET.get('category', '').strip()
 
-    # Base queryset: only products that are listed
-    qs = Product.objects.filter(is_listed=True)
+    # ✅ FIXED: Base queryset with active category check
+    qs = Product.objects.filter(
+        is_listed=True,
+        category__is_active=True  # ✅ NEW: Only active categories
+    ).select_related('category')
 
-    # Filter by category name if provided
-    if category_name:
-        qs = qs.filter(category__name__iexact=category_name)
+    # ✅ FIXED: Filter by category name if provided (with active check)
+    if category_name and category_name.lower() != 'new launch':  # ✅ Exclude "New Launch"
+        # Check if category exists AND is active
+        try:
+            category = Category.objects.get(name__iexact=category_name, is_active=True)
+            qs = qs.filter(category=category)
+        except Category.DoesNotExist:
+            # Category doesn't exist or is inactive - return empty
+            return JsonResponse({
+                'success': True,
+                'html': '<p class="text-white">This category is currently unavailable.</p>',
+                'count': 0
+            })
 
     # Determine order field: prefer '-created_at', fallback to '-id'
     order_field = '-created_at'
@@ -185,10 +206,6 @@ def filter_new_arrivals(request):
 
 def not_found(request):
     return render(request, 'user/404.html')
-  
-  
-
-
 
 
 def get_final_discounted_price(product):
@@ -223,6 +240,7 @@ def get_final_discounted_price(product):
 
     return max(int(round(float(final_price))), 0)
 
+
 def get_discount_percentage(product):
     mrp = product.base_price
     sale = get_final_discounted_price(product)
@@ -231,6 +249,7 @@ def get_discount_percentage(product):
         return max(percent, 0)
     except ZeroDivisionError:
         return 0
+
 
 def get_extra_offer_amount(product):
     today = timezone.now().date()
@@ -248,5 +267,3 @@ def get_extra_offer_amount(product):
         after_offer = regular_discount
     extra_amount = int(round(float(regular_discount - after_offer)))
     return extra_amount if extra_amount > 0 else 0
-
-
