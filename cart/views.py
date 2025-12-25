@@ -303,7 +303,7 @@ def buy_now_update_qty(request):
 
 
 def _buy_now_summary(request):
-    """Calculate buy-now summary with pricing"""
+    """Calculate buy-now summary with pricing and safe image handling"""
     line = request.session.get(BUY_NOW_SESSION_KEY)
     if not line:
         return {}
@@ -312,7 +312,7 @@ def _buy_now_summary(request):
     vid = line.get('variant_id')
     qty = int(line.get('qty') or 1)
 
-    # Load product/variant with images
+    # Load product with images
     p = Product.objects.filter(id=pid, is_listed=True).prefetch_related(
         Prefetch(
             'images',
@@ -324,8 +324,8 @@ def _buy_now_summary(request):
     if not p:
         return {}
 
+    # Load variant with images
     v = None
-    variant_image_url = None
     if vid:
         v = ProductVariant.objects.filter(id=vid, product_id=pid).prefetch_related(
             Prefetch(
@@ -334,23 +334,51 @@ def _buy_now_summary(request):
                 to_attr="first_image"
             )
         ).first()
-        if v and getattr(v, 'first_image', None):
-            vf = v.first_image[0] if v.first_image else None
-            if vf and getattr(vf, "image", None):
-                variant_image_url = vf.image.url
 
-    # Pricing
-    unit_sell = (
-        p.get_final_price() if hasattr(p, "get_final_price") and callable(p.get_final_price)
-        else p.discount_price or p.base_price
-    )
+    # ✅ FIXED: Safe image URL handling
+    image_url = None
+    
+    # Try variant image first
+    if v and hasattr(v, 'first_image') and v.first_image:
+        vimg = v.first_image[0]
+        # Use image_url property if available
+        if hasattr(vimg, 'image_url'):
+            image_url = vimg.image_url
+        # Fallback: check if image field has file
+        elif hasattr(vimg, 'image') and vimg.image and vimg.image.name:
+            try:
+                image_url = vimg.image.url
+            except ValueError:
+                pass  # File doesn't exist
+    
+    # Fallback to product image
+    if not image_url and hasattr(p, 'prefetched_images') and p.prefetched_images:
+        pimg = p.prefetched_images[0]
+        # Use image_url property if available
+        if hasattr(pimg, 'image_url'):
+            image_url = pimg.image_url
+        # Fallback: check if image field has file
+        elif hasattr(pimg, 'image') and pimg.image and pimg.image.name:
+            try:
+                image_url = pimg.image.url
+            except ValueError:
+                pass  # File doesn't exist
+    
+    # Final fallback to placeholder
+    if not image_url:
+        image_url = '/static/images/placeholder.jpg'
+
+    # ✅ Pricing with get_final_price() - includes offers
+    unit_sell = p.get_final_price() if hasattr(p, 'get_final_price') else (p.discount_price or p.base_price)
     unit_mrp = p.base_price
 
     line_sell = int(unit_sell * qty)
     line_mrp = int(unit_mrp * qty)
-    discount_percent = round(100 * (unit_mrp - unit_sell) / unit_mrp, 0) if unit_mrp else 0
-    image_url = variant_image_url or (p.prefetched_images[0].image.url if getattr(p, 'prefetched_images', None) and p.prefetched_images else None)
+    
+    # ✅ Use model's get_discount_percent() method for consistency
+    discount_percent = p.get_discount_percent() if hasattr(p, 'get_discount_percent') else 0
 
+    # Coupon discount
     coupon_discount = Decimal(str(request.session.get('applied_coupon_discount', '0')))
     total_payable = int(max(line_sell - coupon_discount, 0))
     discount = int(max(line_mrp - line_sell, 0))
@@ -361,6 +389,7 @@ def _buy_now_summary(request):
             'id': p.id,
             'name': p.name,
             'variant_id': vid,
+            'variant_color': v.color if v else None,  # ✅ Added variant color
             'qty': qty,
             'unit_sell': int(unit_sell),
             'unit_mrp': int(unit_mrp),
@@ -368,6 +397,7 @@ def _buy_now_summary(request):
             'line_mrp': line_mrp,
             'discount_percent': int(discount_percent),
             'image': image_url,
+            'offer': p.offer if hasattr(p, 'offer') else None,  # ✅ Added offer label
         }],
         'subtotal_sell': line_sell,
         'subtotal_mrp': line_mrp,
